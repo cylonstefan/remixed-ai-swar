@@ -160,7 +160,7 @@ const columnNames = columns.map((c: any) => c.name);
 
 const clusterColumns = db.prepare("PRAGMA table_info(clusters)").all();
 const clusterColumnNames = clusterColumns.map((c: any) => c.name);
-['cpuUsage', 'ramUsage', 'latency', 'protocol'].forEach(col => {
+['cpuUsage', 'ramUsage', 'latency', 'protocol', 'lastActive'].forEach(col => {
   if (!clusterColumnNames.includes(col)) {
     const type = (col === 'cpuUsage' || col === 'ramUsage' || col === 'latency') ? 'REAL' : 'TEXT';
     db.exec(`ALTER TABLE clusters ADD COLUMN ${col} ${type}`);
@@ -573,6 +573,95 @@ async function startServer() {
       .run(new Date().toISOString(), id);
     res.json({ success: true });
   });
+
+  app.post("/api/clusters/:id/simulate_idle", (req, res) => {
+    const { id } = req.params;
+    // Set lastActive to 11 minutes (660,000 ms) in the past, to trigger instant Sleep Mode shut down
+    const pastTime = new Date(Date.now() - 11 * 60 * 1000).toISOString();
+    db.prepare("UPDATE clusters SET lastActive = ? WHERE id = ?").run(pastTime, id);
+    res.json({ success: true, lastActive: pastTime });
+  });
+
+  app.post("/api/clusters/:id/wake", (req, res) => {
+    const { id } = req.params;
+    const now = new Date().toISOString();
+    db.prepare("UPDATE clusters SET status = 'online', lastSeen = ?, lastActive = ? WHERE id = ?")
+      .run(now, now, id);
+    res.json({ success: true });
+  });
+
+  // Background interval to monitor Tryb Uśpienia (Sleep Mode) every 10 seconds.
+  // It automatically powers down worker compute nodes that have been inactive for >= 10 minutes.
+  // Inactivity is measured by checking how long elapsed since lastActive.
+  setInterval(() => {
+    try {
+      // 1. Get current sleep mode setting
+      const opt = db.prepare("SELECT value FROM settings WHERE key = 'cluster_sleep_mode'").get() as { value: string } | undefined;
+      const sleepModeEnabled = opt?.value === 'true';
+
+      const now = new Date();
+      const nodes = db.prepare("SELECT * FROM clusters").all() as any[];
+
+      for (const node of nodes) {
+        if (node.status === 'online') {
+          // Fallback if lastActive is not populated yet
+          const lastActiveStr = node.lastActive || node.lastSeen || now.toISOString();
+          const lastActiveTime = new Date(lastActiveStr);
+
+          // Find if there are any active teams assigned to this node
+          const teamCheck = db.prepare("SELECT COUNT(*) as count FROM teams WHERE clusterNodeId = ?").get() as { count: number };
+          const hasRunningTeam = teamCheck && teamCheck.count > 0;
+
+          let targetCpu = Math.floor(Math.random() * 8) + 2; // Idle background
+          let targetRam = Math.floor(Math.random() * 10) + 12; // Idle background
+
+          if (hasRunningTeam) {
+            // Under load due to assigned active workload!
+            targetCpu = Math.floor(Math.random() * 35) + 35; // 35% - 70%
+            targetRam = Math.floor(Math.random() * 20) + 40; // 40% - 60%
+            // Mark active because of real running work
+            db.prepare("UPDATE clusters SET lastActive = ? WHERE id = ?")
+              .run(now.toISOString(), node.id);
+          }
+
+          // Update real-time metric fluctuations so indicators fluctuate beautifully on screen
+          const newCpu = Math.max(0, Math.min(100, targetCpu));
+          const newRam = Math.max(0, Math.min(100, targetRam));
+          const newLatency = Math.floor(Math.random() * 15) + 3;
+
+          db.prepare("UPDATE clusters SET cpuUsage = ?, ramUsage = ?, latency = ? WHERE id = ?")
+            .run(newCpu, newRam, newLatency, node.id);
+
+          // If Sleep Mode is active, check if worker nodes have been inactive
+          if (sleepModeEnabled && node.type === 'worker') {
+            const elapsedMs = now.getTime() - lastActiveTime.getTime();
+            const elapsedMinutes = elapsedMs / 1000 / 60;
+
+            if (elapsedMinutes >= 10) {
+              // Trigger Sleep Mode Shutdown
+              db.prepare("UPDATE clusters SET status = 'offline', lastSeen = ?, cpuUsage = 0, ramUsage = 0 WHERE id = ?")
+                .run(now.toISOString(), node.id);
+
+              // Add entry to Audit Logs
+              const logId = Math.random().toString(36).substring(2, 11);
+              db.prepare("INSERT INTO logs (id, agentId, agentName, action, details, timestamp) VALUES (?, ?, ?, ?, ?, ?)")
+                .run(
+                  logId,
+                  "SYSTEM",
+                  "Orkiestrator Centralny",
+                  "CLUSTER_SLEEP_MODE",
+                  `Węzeł obliczeniowy [${node.name}] (${node.ip}) został automatycznie uśpiony z powodu braku aktywności przez ponad 10 minut.`,
+                  now.toISOString()
+                );
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Error in Sleep Mode background manager: ", e);
+    }
+  }, 10000); // 10 seconds ticker keeps the simulator extremely accurate and fast to interact with
+
 
   // Training API
   app.get("/api/training", (req, res) => {

@@ -206,6 +206,12 @@ export const api = {
   async shutdownClusterNode(id: string): Promise<void> {
     await fetch(`/api/clusters/${id}/shutdown`, { method: "POST" });
   },
+  async simulateIdle(id: string): Promise<void> {
+    await fetch(`/api/clusters/${id}/simulate_idle`, { method: "POST" });
+  },
+  async wakeClusterNode(id: string): Promise<void> {
+    await fetch(`/api/clusters/${id}/wake`, { method: "POST" });
+  },
 
   // Training
   async getTrainingSessions(): Promise<TrainingSession[]> {

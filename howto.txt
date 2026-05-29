@@ -1,45 +1,223 @@
-# AI Studio v2.5 - Instrukcja Obsługi (How-To)
+# ==============================================================================
+#                  AI SWARM OS v3.0 - CENTRALNY PROTOKÓŁ OPERACYJNY
+# ==============================================================================
+# Autoryzowany podręcznik użytkownika i opis możliwości operacyjnych platformy.
+# Zarządza Dowódca Centralny: CYLON | Status sieci: AKTYWNY
+# ==============================================================================
 
-## 1. Wprowadzenie
-AI Studio to zaawansowana platforma do orkiestracji agentów AI, która pozwala na tworzenie wyspecjalizowanych zespołów zdolnych do generowania plików, weryfikacji informacji w internecie oraz współpracy w różnych trybach.
+## SPIS TREŚCI
+1. Wizja i Istota Systemu AI Swarm OS
+2. Podział Funkcjonalny i Opis Modułów (Zasoby & Capabilities)
+   2.1. Rój AI (Swarm Core)
+   2.2. Zasoby i Infrastruktura (Compute & Networking)
+   2.3. Kreatywne Super-AI (Video & Game Engines)
+   2.4. System, Monitoring & Zabezpieczenia
+3. Instrukcja Krok po Kroku (Wdrożenie Pierwszego Roju)
+4. Zaawansowane Przepływy Pracy (Scenariusze i Case Studies)
+5. Protokół MCP (Model Context Protocol) i Integracje Systemowe
+6. Inteligentny Tryb Uśpienia (Compute Sleep Mode) i Ochrona Zasobów
+7. Generowanie Plików i Wsparcie Multimedialne
+8. FAQ - Najczęściej Zadawane Pytania i Rozwiązywanie Problemów
 
-## 2. Zarządzanie Agentami
-- Przejdź do zakładki **Agenci**.
-- Kliknij **Nowy Agent**, aby dodać pracownika do swojej kadry.
-- Skonfiguruj jego rolę, prompt systemowy oraz model (np. `gemini-3.1-pro-preview` dla zadań wymagających wysokiej logiki).
-- W sekcji zaawansowanej możesz zdefiniować umiejętności, wiedzę i uprawnienia (np. dostęp do sieci).
+--
 
-## 3. Składanie Zespołów (Auto-Team)
-- Przejdź do zakładki **Zespoły**.
-- Możesz ręcznie złożyć zespół lub użyć funkcji **Auto-Team**.
-- **Auto-Team**: Wpisz zadanie (np. "Potrzebuję analizy rynku kryptowalut i raportu w PDF"), a system automatycznie dobierze najlepszych agentów z Twojego rejestru.
-- Wybierz **Tryb Dyskusji**:
-  - *Luźna*: Swobodna atmosfera.
-  - *Ostra*: Agenci będą się krytykować i wytykać błędy (świetne do eliminacji halucynacji).
-  - *Office*: Zoptymalizowany pod generowanie dokumentów.
+## 1. WIZJA I ISTOTA SYSTEMU AI SWARM OS
 
-## 4. Generowanie Plików
-Agenci mają dostęp do narzędzi generowania plików. Możesz ich poprosić o:
-- **DOCX**: "Wygeneruj raport w formacie Word".
-- **XLSX**: "Stwórz tabelę z danymi w Excelu".
-- **PDF**: "Zapisz to podsumowanie jako PDF".
-- **TXT/Kod**: "Napisz skrypt w Pythonie i zapisz jako .py".
-- **Obrazy**: "Stwórz prosty wykres/obraz z tekstem".
+AI Swarm OS to wieloagentowy ekosystem nowej generacji, zbudowany z myślą o autonomicznej i półautonomicznej pracy klastrów AI. System odchodzi od idei pojedynczych zaimprowizowanych asystentów czatowych na rzecz wyspecjalizowanych, kooperujących ze sobą zespołów (Swarm), realizujących wspólnie złożone cele programistyczne, analityczne, bezpiecznikowe oraz multimedialne.
 
-## 5. Funkcje Głosowe i Tłumaczenia
-- **Mikrofon**: Kliknij ikonę mikrofonu w czacie, aby dyktować wiadomości.
-- **Głośnik**: Kliknij ikonę głośnika przy wiadomości agenta, aby ją odsłuchać.
-- **Wybór Głosu**: W górnej części czatu możesz wybrać jeden z 5 dostępnych głosów (Kore, Puck, Charon itp.).
-- **Tłumaczenie**: Ikona globu pozwala natychmiast przetłumaczyć odpowiedź na język polski.
+Nadrzędną rolę orkiestratora i interfejsu nadrzędnego pełni jednostka centralna CYLON. Swarm OS integruje bezpośrednią analizę kodu, zoptymalizowaną komunikację wieloagentową, fizyczny dostęp do systemu operacyjnego (via MCP), generatory mediów oraz rozproszony monitoring wydajności klastrów energetycznych.
 
-## 6. Weryfikacja i Anty-Halucynacje
-- Agenci mają wbudowaną instrukcję monitorowania siebie nawzajem.
-- Jeśli agent zauważy błąd u kolegi, ma obowiązek go skorygować.
-- Agenci korzystają z **Google Search** w czasie rzeczywistym, aby sprawdzać fakty.
+--
 
-## 7. Tablica Zadań
-- Definiuj zadania w zakładce **Zadania**.
-- Agenci mają wgląd w tablicę i mogą odnosić się do statusów zadań w dyskusji.
+## 2. PODZIAŁ FUNKCJONALNY I OPIS MODUŁÓW
+
+Aplikacja jest modularną fabryką produkcyjną podzieloną na cztery główne sektory operacyjne widoczne w panelu bocznym nawigacji.
+
+### 2.1. RÓJ AI (SWARM CORE)
+To neuronowe serce systemu, odpowiedzialne za konfigurację, relacje i koordynację intelektualną agentów.
+
+*   **Zarządzanie Rojami (Tasks):** 
+    Centrum zarządzania zadaniami operacyjnymi. Pozwala definiować cele, śledzić stopień realizacji (Kanban / Listy) oraz wiązać konkretne zadania ze strumieniami dyskusji zespołów. Agenci automatycznie odczytują Twoją tablicę zadań, dopasowując swoje zachowanie do aktualnych priorytetów.
+    
+*   **Sztab Operacyjny (Agents):** 
+    Kompleksowy menedżer kadrowy. Zamiast standardowych agentów, tworzysz tutaj wysoce wyspecjalizowane profile psychofizyczne.
+    *   *System Prompt:* Definiuje tożsamość, systemy wartości i ścisłe ograniczenia logiczne jednostki.
+    *   *Model Selection:* Wybór odpowiedniego silnika LLM (np. ultra-logiczny Gemini 1.5 Pro do programowania i audytów, lub szybszy Gemini 1.5 Flash do dynamicznych translacji).
+    *   *Katalog Umiejętności i Szablony:* Szybkie presety (KODER-PRO, RED-TEAM, CREATIVE) pozwalające jednym kliknięciem nadać agentom specjalistyczne zestawy dyrektyw systemowych.
+
+*   **Zespoły Swarm (Teams):**
+    Umożliwia budowanie eskadry złożonej z kilku agentów przypisanych do wspólnej misji (Goal).
+    *   *Auto-Team Generator:* Algorytm analizuje treść wpisanego przez Ciebie zadania i automatycznie wybiera (bądź tworzy) optymalną konfigurację kadrową z bazy personelu.
+    *   *Atmosfera Dyskusji:*
+        *   `Luźna` (Casual) – swobodna wymiana myśli, burza mózgów.
+        *   `Ostra` (Strict/Critical) – agenci bezlitośnie weryfikują swoje odpowiedzi, wytykając sobie błędy i całkowicie eliminując halucynacje.
+        *   `Office` – sformalizowana struktura skupiona na precyzyjnym wypluwaniu dokumentacji (PDF, XLSX, DOCX).
+    *   *Auto-Play:* Autonomiczna pętla wieloagentowa. Agenci dyskutują i używają narzędzi aż do samodzielnego ogłoszenia konsensusu lub rozwiązania problemu, bez konieczności ingerencji użytkownika.
+
+*   **Core Blueprints (Architect):**
+    Zaawansowany wizualizator struktur. Renderuje dynamiczny graf relacji i powiązań sieciowych wewnątrz Twojego zespołu. Pokazuje, jak przepływa informacja, który agent jest głównym kanałem komunikacji (Hub) oraz pozwala ręcznie rysować schematy blokowe nowej architektury oprogramowania.
+
+*   **Baza Wiedzy (Knowledge Base):**
+    Magazyn danych. Służy do indeksowania plików (CSV, TXT, PDF, JSON), dokumentacji biznesowych i technicznych. Dane te są zapisywane w systemowej bazie SQLite i automatycznie injectowane do kontekstu agentów, kiedy zadanie tego wymaga.
 
 ---
-*AI Studio - Twoja inteligentna fabryka wyników.*
+
+### 2.2. ZASOBY I INFRASTRUKTURA (COMPUTE & NETWORKING)
+Sekcja dedykowana sprzętowi i fizycznemu środowisku uruchomieniowemu klastrów AI.
+
+*   **Sieć Hyper-Compute (Clusters):**
+    Konsola monitorowania fizycznych (lub symulowanych) maszyn obliczeniowych: menedżerów (Managers) i węzłów roboczych (Workers).
+    *   *Telemetry:* Wykresy i wskaźniki obciążenia procesorów (CPU), utylizacji pamięci (RAM), opóźnień sieciowych (Latency) oraz używanego protokołu (REST/gRPC).
+    *   *Zarządzanie Zasilaniem:* Możliwość natychmiastowego restartu (Reboot) oraz wyłączenia (Shutdown) poszczególnych maszyn w locie.
+    *   *Inteligentny Tryb Uśpienia (Sleep Mode):* (Opisany szczegółowo w rozdziale 6) Chroni przed audytami energetycznymi, automatycznie wyłączając nieaktywne węzły robocze.
+
+*   **Poligon Algorytmiczny (Training):**
+    Platforma do nadzoru nad douczaniem modelów (Fine-tuning).
+    *   Umożliwia konfigurowanie sesji treningowych na podstawie transkrypcji przeprowadzonych dyskusji.
+    *   Wizualizuje krzywe błędu (Loss Rate) oraz metryki dokładności (Accuracy) w czasie rzeczywistym.
+    *   Udostępnia konfiguratory hiperparametrów (Learning Rate, Batch Size, Epochs).
+
+*   **Hosting i Chmura (Hosting):**
+    Zarządzanie mikrousługami, deployment serwerowy, przypisywanie stref DNS dla wyeksportowanych aplikacji. Wyposażona w system dynamicznych proxy sieciowych, ułatwiający agentom bezpieczne pobieranie zawartości publicznych adresów URL w celu analizy rynku.
+
+*   **Protokół MCP (Model Context Protocol):**
+    Most integracyjny z systemem operacyjnym. Zezwala agentom na wychodzenie poza standardową izolację i wykonywanie fizycznych działań na platformie hosta:
+    *   Odpytywanie systemów plików, tworzenie/zarządzanie directory mounts.
+    *   Pełna integracja z terminalem bash/powershell i wykonywanie komend.
+    *   Komunikacja z lokalnymi silnikami SQLite w celu rejestracji zapytań.
+
+---
+
+### 2.3. KREATYWNE SUPER-AI (CREATIVE UTILITIES)
+Wykorzystanie modeli generatywnych do produkcji assetów oraz interaktywnych środowisk.
+
+*   **Synthesis Studio (Video Studio):**
+    Kombinat multimedialny wykorzystujący wiodące modele generacji audio/wideo.
+    *   *Generacja Wideo (Veo AI):* Tworzenie sekwencji filmowych z opisów tekstowych.
+    *   *Tekst na Głos (TTS):* Wysokiej jakości synteza lektorska z wyborem wyjątkowych głosów (Kore, Puck, Charon itp.).
+    *   *Muzyka z AI (Lyria):* Automatyczne komponowanie nastrojowej ścieżki dźwiękowej.
+
+*   **Silnik Gier 3D (Game Engine):**
+    Wersja beta interaktywnego projektanta gier.
+    *   *LEGO-Physics:* Pozwala wejść do trybu rozpoznawania konstrukcji z klocków LEGO zrobionych kamerą i przekonwertowania ich na pętle fizyki gry w czasie rzeczywistym.
+    *   *Canvas Simulator:* Testowanie prostych gier zręcznościowych wygenerowanych przez agentów programistycznych.
+
+---
+
+### 2.4. SYSTEM, MONITORING & ZABEZPIECZENIA
+Zarządzanie uprawnieniami, stabilnością i audytem platformy.
+
+*   **Monitor Wydajności (Performance Dashboard):**
+    Globalne wykresy i statystyki użytkowania aplikacji. Pokazuje wolumen wysłanych wiadomości, podział pracy na poszczególne jednostki asystujące oraz liczniki wygenerowanych tokenów (Token Cost Tracker).
+    
+*   **Węzeł Zabezpieczeń (Security Node):**
+    *   *Blokada Interfejsu:* Zezwala na zabezpieczenie całej instancji AI Swarm OS za pomocą numerycznego kodu PIN lub hasła administratora.
+    *   *Audyt Logów:* Wszystkie kluczowe zdarzenia systemowe (np. decyzja o uśpieniu węzła roboczego z oszczędności energii, wykonanie krytycznych zmian w bazach) są logowane do trwałego rejestru audytowego z podpisem sprawcy (SYSTEM/Agent).
+
+--
+
+## 3. INSTRUKCJA KROK PO KROKU - OD ZERA DO PIERWSZEGO ROJU
+
+Poniżej znajduje się oficjalna proceduralna droga wdrożenia pierwszego w pełni autonomicznego zespołu zbieżna z operacyjnym standardem ISO:
+
+### KROK 1: MOBILIZACJA KADRY (SZTAB OPERACYJNY)
+1.  Przejdź do zakładki **Sztab Operacyjny** (Agents).
+2.  Kliknij przycisk **Dodaj Agenta**.
+3.  Zdefiniuj dwóch uzupełniających się pracowników:
+    *   *Agent A (Kodyfikator):* Nazwij go `Koder-X`. Przypisz mu system prompt: *"Jesteś wybitnym programistą TS. Pisz optymalny, wydajny i modułowy kod. Zawsze dodawaj asercje typów. Przedstawiaj tylko gotowe bloki."* Wybierz model `Gemini 1.5 Pro`.
+    *   *Agent B (Audytor):* Nazwij go `Cień`. Przypisz mu prompt: *"Jesteś bezwzględnym audytorem kodu, ekspertem bezpiecznikowej metodologii OWASP Top 10. Twoim zadaniem jest znalezienie każdego błędu, wycieku danych lub słabości w propozycjach kodu Kodera-X."*
+4.  Zapisz profile agentów.
+
+### KROK 2: ELEKCJA ZESPOŁU (TEAMS)
+1.  Przejdź do panelu **Zespoły Swarm** (Teams).
+2.  Wybierz opcję **Stwórz Nowy Zespół**.
+3.  Ustaw parametry:
+    *   *Nazwa zespołu:* `Gwardia Kodu Alpha`.
+    *   *Cel główny:* `Napisanie bezpiecznego modułu uwierzytelniania JWT z odpornością na brute-force`.
+    *   *Atmosfera:* `Ostra` (spowoduje to, że Cień i Koder-X wejdą w bardzo produktywną fazę dyskusji, eliminując błędy).
+4.  Z listy personelu po prawej stronie przeciągnij / dodaj agentów `Koder-X` oraz `Cień`.
+5.  Zatwierdź utworzenie zespołu.
+
+### KROK 3: TRANSMISJA I AUTONOMICZNA SESJA (DISCUSSION)
+1.  Kliknij przycisk **Otwórz Pokój Dyskusyjny** przy zespole `Gwardia Kodu Alpha`.
+2.  Wpisz dyrektywę początkową w oknie czatu: *"Przejdźcie przez procedurę napisania bezpiecznej funkcji implementacji JWT w Node.js. @Koder-X napisz szkielet, a @Cień przeprowadź audyt linii po linii."*
+3.  Możesz przesłać plik pomocniczy (np. strukturę baz danych w pliku `.json`) or podać link do dokumentacji zewnętrznej.
+4.  Włącz przełącznik **Auto-Play** (Autonomiczna dyskusja).
+5.  Obserwuj, jak agenci rozmawiają między sobą, wymieniając uwagi, poprawiając fragmenty kodu i wspólnie dążąc do wypracowania bezpiecznego, bezbłędnego rozwiązania.
+
+--
+
+## 4. ZAAWANSOWANE PRZEPŁYWY PRACY (SCENARIUSZE)
+
+Dzięki wbudowanemu w sekcji **Protokół Operacyjny** silnikowi pobierania scenariuszy, użytkownik ma natychmiastowy dostęp do gotowych template'ów orkiestracyjnych.
+
+*   **Scenariusz A: Cyber Security Auditing v4.2**
+    1.  Wywołanie agentów: `SecMaster-AI` (audytor podatności) oraz `TuxMaster` (specjalista systemów Linux).
+    2.  Przebieg: `TuxMaster` pobiera status portów sieciowych i logi uwierzytelniania SSH za pomocą wtyczki MCP, po czym `SecMaster-AI` analizuje je w poszukiwaniu prób ataków bruteforce i generuje skrypt modyfikujący iptables.
+*   **Scenariusz B: Market Forecast & CAPEX Planner**
+    1.  Wywołanie agentów: `Analityk Danych` oraz `Doradca Finansowy`.
+    2.  Przebieg: Pobranie baz transakcyjnych SQLite, wyliczenie kroczącej prognozy płynności finansowej oraz automatyczne podjęcie decyzji o usunięciu nieużywanych maszyn (uśpieniu zasobów compute) w celu optymalizacji i uniknięcia niepotrzebnych kosztów chmurowych.
+
+--
+
+## 5. PROTOKÓŁ MCP (MODEL CONTEXT PROTOCOL)
+
+Protokół MCP stanowi kluczowy element transformacji agenta AI z biernego doradcy w aktywnego wykonawcę zadań na systemie hosta.
+
+### ZASADA DZIAŁANIA MCP W AI SWARM OS:
+Gdy agent potrzebuje wejść w interakcję ze środowiskiem (np. przeczytać konfigurację bazy), nie prosi użytkownika o skopiowanie tekstu. Zamiast tego generuje ustrukturyzowane zapytanie do serwera MCP (MCP Server Session). 
+
+### JAK UŻYWAĆ INTEGRACJI SYSTEMOWYCH:
+1.  **Zatwierdzanie Uprawnień (File Workspace Mounts):** W module **Protokół MCP** możesz zdefiniować, które foldery na Twoim rzeczywistym dysku mogą być montowane i udostępniane agentom.
+2.  **Lokalny Terminal i SQLite:** Poproś agenta: *"Przeszukaj bazę danych sqlite `agents.db`, sprawdź ostatnie aktywne logi auditowe i pokaż 5 ostatnich anomalii."* Agent wykona fizyczne zapytanie SQL bezpośrednio do silnika bazy.
+
+--
+
+## 6. INTELIGENTNY TRYB UŚPIENIA (COMPUTE SLEEP MODE)
+
+W czasach rosnących kosztów energii i restrykcyjnych audytów chmurowych, AI Swarm OS został wyposażony w moduł **Trybu Uśpienia Węzłów Obliczeniowych** (Compute Sleep Mode).
+
+### POLITYKA ENERGETYCZNA ROJU (10 MINUT BEZAKTYWNOŚCI):
+*   **Mechanizm Monitorujący:** Co 10 sekund tło centralnego orkiestratora bada aktywność wszystkich węzłów (Worker Compute Nodes) w zakładce **Sieć Hyper-Compute**.
+*   **Kryterium Aktywności:** Węzeł jest uznawany za aktywny, gdy ma przypisane i aktualnie przetwarzane zadania ról/zespołów. Wtedy jego metryka `lastActive` jest stale odnawiana do czasu rzeczywistego.
+*   **Przejście w Tryb Uśpienia (Sleep State):** Jeżeli od czasu ostatniej wykrytej aktywności węzła roboczego (Worker) upłynie **10 minut** (600 sekund), centralny orkiestrator automatycznie wysyła sygnał wyłączenia.
+    *   Węzeł zmienia status na `offline` (Tryb Uśpienia Aktywny).
+    *   Pobór mocy, CPU oraz RAM na tym węźle zostają programowo zredukowane do 0%.
+    *   Do **Audit Logs** (Rejestr Zabezpieczeń) zostaje dodany wpis informujący o pomyślnym uśpieniu węzła ze względów ekonomiczno-ekologicznych.
+*   **Ręczna Symulacja Bezczynności (Testing):** Aby nie czekać pełnych 10 minut podczas testowania, przy każdym węźle roboczym znajduje się przycisk **"Symuluj bezczynność"**. Powoduje on natychmiastowe przestawienie parametru `lastActive` o 11 minut wstecz, co wyzwala natychmiastowe automatyczne uśpienie węzła przez procesor tła.
+*   **Procedura Wybudzania (Wake):** Kliknięcie przycisku **"Wybudź Węzeł"** natychmiast przywraca maszynę do statusu `online`, odnawia wskaźniki telemetryczne i włącza ją do puli dostępnych zasobów obliczeniowych.
+
+--
+
+## 7. GENEROWANIE PLIKÓW I MULTIMEDIA
+
+Agenci posiadają unikalne zdolności kompilacji wyników pracy do konkretnych struktur binarnych.
+
+### JAK WYMUSIĆ GENEROWANIE RAPORTÓW:
+Używaj bezpośrednich dyrektyw formatujących:
+1.  **Dla formatu PDF:** `"...wygeneruj podsumowanie audytu i sformatuj je jako oficjalny plik PDF. Użyj tabel i list wypunktowanych."`
+2.  **Dla arkusza XLSX:** `"...stwórz zestawienie kosztów naszych klastrów i zapisz je w formacie Excel (xlsx). Pierwszy wiersz powinien być nagłówkiem."`
+3.  **Dla dokumentu Word (DOCX):** `"...napisz pełne case study i zapisz jako docx. Zadbaj o elegancki podział na rozdziały."`
+
+### WYNIKI I POBIERANIE:
+Wygnerowane przez agentów raporty i pliki lądują natychmiast w ich oknie dyskusyjnym jako klikalne linki do pobrania, a także na globalnej liście artefaktów w zakładce **Baza Wiedzy**.
+
+--
+
+## 8. FAQ - ROZWIĄZYWANIE PROBLEMÓW
+
+**Q: Dlaczego agenci nie chcą ze sobą dyskutować w trybie Auto-Play?**
+A: Upewnij się, że w zespole znajduje się przynajmniej dwóch agentów z poprawnie wypełnionymi system promptami oraz przypisanym celem (Goal). Bez sformułowanego celu agenci nie wiedzą, do jakiego konsensusu dążą.
+
+**Q: Jak drastycznie zmniejszyć halucynacje w trudnych procesach programistycznych?**
+A: Załóż zespół z nadrzędną atmosferą `Ostra`. Przypisz do zespołu agenta z szablonu `RED-TEAM` (Audytor Bezpieczeństwa / Krytyk). Jego instrukcja systemowa zmusi go do podważania każdej linijki kodu napisanej przez głównego programistę, co wymusza wielokrotną auto-korektę.
+
+**Q: Co oznacza migający żółty status przy węźle sieci typu Manager?**
+A: Status busy (żółty) oznacza, że węzeł nadrzędny obecnie przetwarza rozległe polecenia orkiestracyjne, zarządza połączeniami MCP lub kompiluje bazy danych SQLite. Poczekaj kilka sekund, aż powróci do zielonego statusu `online`.
+
+**Q: Czy mogę przesłać własny plik do analizy?**
+A: Tak. Użyj strefy wrzucania plików (Drag & Drop) bezpośrednio w pokoju dyskusyjnym aktywnego zespołu. Plik zostanie odczytany przez agentów za pomocą zaimplementowanych wtyczek odczytu i zarchiwizowany w Bazie Wiedzy.
+
+# ==============================================================================
+#            KONIEC PROTOKOŁU OPERACYJNEGO • AI SWARM OS SECURITY CHECK PASSED
+# ==============================================================================

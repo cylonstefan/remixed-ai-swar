@@ -3893,14 +3893,70 @@ const Clusters = React.memo(() => {
   const [newNode, setNewNode] = useState<Partial<ClusterNode>>({
     name: '', ip: '', dns: '', type: 'worker'
   });
+  const [sleepMode, setSleepMode] = useState(false);
+  const [currentTime, setCurrentTime] = useState(Date.now());
 
   useEffect(() => {
     loadClusters();
+
+    // Load static settings
+    const initSettings = async () => {
+      try {
+        const settings = await api.getSettings();
+        setSleepMode(settings.cluster_sleep_mode === 'true');
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    initSettings();
+
+    // Fast polling nodes data to capture metrics fluctuations every 4s
+    const nodeInterval = setInterval(() => {
+      loadClusters();
+    }, 4000);
+
+    // Dynamic timer update every 1s for accurate interactive on-screen counts
+    const tickInterval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+
+    return () => {
+      clearInterval(nodeInterval);
+      clearInterval(tickInterval);
+    };
   }, []);
 
   const loadClusters = async () => {
     const data = await api.getClusters();
     setNodes(data);
+  };
+
+  const handleToggleSleepMode = async () => {
+    const nextVal = !sleepMode;
+    try {
+      await api.updateSetting('cluster_sleep_mode', String(nextVal));
+      setSleepMode(nextVal);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleSimulateIdle = async (id: string) => {
+    try {
+      await api.simulateIdle(id);
+      loadClusters();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleWakeNode = async (id: string) => {
+    try {
+      await api.wakeClusterNode(id);
+      loadClusters();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleAddNode = async () => {
@@ -3912,7 +3968,12 @@ const Clusters = React.memo(() => {
       dns: newNode.dns,
       type: newNode.type as 'worker' | 'manager',
       status: 'online',
-      lastSeen: new Date().toISOString()
+      lastSeen: new Date().toISOString(),
+      lastActive: new Date().toISOString(),
+      cpuUsage: 2,
+      ramUsage: 12,
+      latency: 5,
+      protocol: 'REST'
     };
     await api.addClusterNode(node);
     setIsAdding(false);
@@ -3965,10 +4026,11 @@ const Clusters = React.memo(() => {
         type: s.type as any,
         status: 'online',
         lastSeen: new Date().toISOString(),
+        lastActive: new Date().toISOString(),
         protocol: s.protocol as any,
-        cpuUsage: Math.floor(Math.random() * 50) + 10,
-        ramUsage: Math.floor(Math.random() * 60) + 20,
-        latency: Math.floor(Math.random() * 20) + 5
+        cpuUsage: Math.floor(Math.random() * 5) + 3,
+        ramUsage: Math.floor(Math.random() * 10) + 12,
+        latency: Math.floor(Math.random() * 10) + 4
       });
     }
     loadClusters();
@@ -3976,6 +4038,65 @@ const Clusters = React.memo(() => {
 
   return (
     <div className="space-y-4 font-mono text-sm">
+      {/* Dynamic Sleek Sleep Mode Banner Control */}
+      <div className={cn(
+        "glass-panel border p-5 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-all duration-300 relative overflow-hidden",
+        sleepMode 
+          ? "border-emerald-500/30 bg-emerald-950/10 shadow-[0_0_20px_rgba(16,185,129,0.05)]" 
+          : "border-amber-500/20 bg-amber-950/5"
+      )}>
+        <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent" />
+        
+        <div className="flex gap-3.5 items-start">
+          <div className={cn(
+            "p-3 rounded-xl border shrink-0 transition-transform duration-500",
+            sleepMode 
+              ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40 rotate-[360deg]" 
+              : "bg-amber-500/10 text-amber-500 border-amber-500/20"
+          )}>
+            <Lucide.Moon size={22} className={cn(sleepMode && "animate-pulse")} />
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="font-display text-xs uppercase font-black tracking-widest text-white">SYSTEM TRYBU UŚPIENIA WĘZŁÓW</span>
+              <span className={cn(
+                "text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider border",
+                sleepMode 
+                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 shadow-[0_0_8px_rgba(16,185,129,0.3)] animate-pulse" 
+                  : "bg-neutral-900 text-slate-500 border-white/5"
+              )}>
+                {sleepMode ? "ON - AKTYWNY" : "OFF - STANDBY"}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 max-w-2xl leading-relaxed">
+              {sleepMode 
+                ? "Polityka uśpienia zasobów jest aktywna. Węzły robocze (Worker Compute Nodes) zostaną automatycznie uśpione po 10 minutach braku aktywności (braku przypisanych roidów/zespołów) w celu ucieczki przed audytem energii." 
+                : "Polityka uśpienia nieaktywna. Wszystkie węzły będą pracować stale w trybie High-Performance, bez względu na długość bezczynności i brak powiązanych zadań."}
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={handleToggleSleepMode}
+          className={cn(
+            "px-4 py-2 font-black uppercase tracking-wider text-xs rounded-xl active:scale-95 transition-all w-full md:w-auto border shadow-md flex items-center justify-center gap-2",
+            sleepMode 
+              ? "bg-emerald-500 hover:bg-emerald-400 border-emerald-600 text-black shadow-emerald-500/10 font-bold" 
+              : "bg-neutral-950 hover:bg-neutral-900 border-white/10 text-white"
+          )}
+        >
+          {sleepMode ? (
+            <>
+              <Lucide.Sun size={14} /> DEAKTYWUJ UŚPIENIE
+            </>
+          ) : (
+            <>
+              <Lucide.Moon size={14} /> AKTYWUJ TRYB UŚPIENIA
+            </>
+          )}
+        </button>
+      </div>
+
       <div className="flex justify-between items-center border-b border-acid-purple/30 pb-2">
         <h2 className="font-display text-lg uppercase neon-text-purple">Klastry i Węzły Lokalne</h2>
         <div className="flex gap-2">
@@ -4002,12 +4123,12 @@ const Clusters = React.memo(() => {
               <Cpu size={14} className="text-acid-green opacity-50" />
             </div>
             <div className="text-2xl font-display font-bold text-white tracking-tighter">
-              {(nodes.reduce((acc, n) => acc + (n.cpuUsage || 0), 0) / nodes.length).toFixed(1)}%
+              {(nodes.reduce((acc, n) => acc + (n.status === 'online' ? (n.cpuUsage || 0) : 0), 0) / Math.max(1, nodes.filter(n => n.status === 'online').length)).toFixed(1)}%
             </div>
             <div className="h-1 w-full bg-white/5 rounded-full mt-2 overflow-hidden">
               <div 
                 className="h-full bg-acid-green" 
-                style={{ width: `${(nodes.reduce((acc, n) => acc + (n.cpuUsage || 0), 0) / nodes.length)}%` }} 
+                style={{ width: `${(nodes.reduce((acc, n) => acc + (n.status === 'online' ? (n.cpuUsage || 0) : 0), 0) / Math.max(1, nodes.filter(n => n.status === 'online').length))}%` }} 
               />
             </div>
           </div>
@@ -4017,12 +4138,12 @@ const Clusters = React.memo(() => {
               <Activity size={14} className="text-acid-cyan opacity-50" />
             </div>
             <div className="text-2xl font-display font-bold text-white tracking-tighter">
-              {(nodes.reduce((acc, n) => acc + (n.ramUsage || 0), 0) / nodes.length).toFixed(1)}%
+              {(nodes.reduce((acc, n) => acc + (n.status === 'online' ? (n.ramUsage || 0) : 0), 0) / Math.max(1, nodes.filter(n => n.status === 'online').length)).toFixed(1)}%
             </div>
             <div className="h-1 w-full bg-white/5 rounded-full mt-2 overflow-hidden">
               <div 
                 className="h-full bg-acid-cyan" 
-                style={{ width: `${(nodes.reduce((acc, n) => acc + (n.ramUsage || 0), 0) / nodes.length)}%` }} 
+                style={{ width: `${(nodes.reduce((acc, n) => acc + (n.status === 'online' ? (n.ramUsage || 0) : 0), 0) / Math.max(1, nodes.filter(n => n.status === 'online').length))}%` }} 
               />
             </div>
           </div>
@@ -4032,10 +4153,10 @@ const Clusters = React.memo(() => {
               <Network size={14} className="text-acid-purple opacity-50" />
             </div>
             <div className="text-2xl font-display font-bold text-white tracking-tighter">
-              {(nodes.reduce((acc, n) => acc + (n.latency || 0), 0) / nodes.length).toFixed(1)}<span className="text-xs text-slate-500 ml-1">ms</span>
+              {(nodes.reduce((acc, n) => acc + (n.status === 'online' ? (n.latency || 0) : 0), 0) / Math.max(1, nodes.filter(n => n.status === 'online').length)).toFixed(1)}<span className="text-xs text-slate-500 ml-1">ms</span>
             </div>
             <div className="text-[9px] text-slate-600 mt-2 font-bold uppercase">
-              Wszystkie węzły odpowiadają
+              Węzły klastra: {nodes.filter(n => n.status === 'online').length} aktywnych, {nodes.filter(n => n.status === 'offline').length} uśpionych
             </div>
           </div>
         </div>
@@ -4111,95 +4232,211 @@ const Clusters = React.memo(() => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {nodes.map(node => (
-            <div key={node.id} className="glass-panel border border-acid-purple/30 p-4 rounded-xl relative group hover:border-acid-purple/60 transition-all">
-              <button 
-                onClick={() => handleDeleteNode(node.id)}
-                className="absolute top-2 right-2 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/20 p-1 rounded"
+          {nodes.map(node => {
+            const isOffline = node.status === 'offline';
+            const lastActiveStr = node.lastActive || node.lastSeen || new Date().toISOString();
+            const elapsedMs = currentTime - new Date(lastActiveStr).getTime();
+            const elapsedSecTotal = Math.max(0, Math.floor(elapsedMs / 1000));
+            const elapsedMin = Math.floor(elapsedSecTotal / 60);
+            const elapsedSec = elapsedSecTotal % 60;
+
+            const timeUntilSleepSeconds = Math.max(0, 600 - elapsedSecTotal);
+            const countdownMin = Math.floor(timeUntilSleepSeconds / 60);
+            const countdownSec = timeUntilSleepSeconds % 60;
+
+            return (
+              <div 
+                key={node.id} 
+                className={cn(
+                  "glass-panel border p-4 rounded-xl relative group transition-all duration-300",
+                  isOffline 
+                    ? "border-blue-900/30 bg-blue-950/5 opacity-70 hover:opacity-100 hover:border-blue-500/30" 
+                    : "border-acid-purple/30 hover:border-acid-purple/60 bg-black/40"
+                )}
               >
-                <Trash2 size={14} />
-              </button>
-              <div className="flex items-center gap-3 mb-3">
-                <div className={`p-2 rounded-lg ${node.type === 'manager' ? 'bg-acid-purple/20 text-acid-purple border border-acid-purple' : 'bg-gray-800 text-gray-400 border border-gray-700'}`}>
-                  {node.type === 'manager' ? <Cpu size={20} /> : <Server size={20} />}
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-200 neon-text-purple">{node.name}</h3>
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <span className={`w-2 h-2 rounded-full ${node.status === 'online' ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.8)]' : 'bg-red-500'}`} />
-                    {node.ip}
-                    {node.dns && <span className="text-gray-600">({node.dns})</span>}
+                <button 
+                  onClick={() => handleDeleteNode(node.id)}
+                  className="absolute top-2 right-2 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/20 p-1 rounded"
+                >
+                  <Trash2 size={14} />
+                </button>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={cn(
+                    "p-2 rounded-lg border",
+                    isOffline 
+                      ? "bg-blue-950/40 text-blue-400 border-blue-500/20" 
+                      : node.type === 'manager' 
+                        ? 'bg-acid-purple/20 text-acid-purple border border-acid-purple' 
+                        : 'bg-gray-800 text-gray-400 border border-gray-700'
+                  )}>
+                    {node.type === 'manager' ? (
+                      <Cpu size={20} className={cn(!isOffline && "animate-pulse")} />
+                    ) : (
+                      <Server size={20} />
+                    )}
                   </div>
-                </div>
-              </div>
-              
-              <div className="space-y-3 mt-2 border-t border-white/5 pt-3">
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[10px]">
-                    <span className="text-slate-500 uppercase font-bold">Obciążenie CPU</span>
-                    <span className={cn("font-mono", node.cpuUsage && node.cpuUsage > 80 ? 'text-red-400' : 'text-acid-green')}>{node.cpuUsage || 0}%</span>
-                  </div>
-                  <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${node.cpuUsage || 0}%` }}
-                      className={cn("h-full", node.cpuUsage && node.cpuUsage > 80 ? 'bg-red-500' : 'bg-acid-green')}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[10px]">
-                    <span className="text-slate-500 uppercase font-bold">Użycie RAM</span>
-                    <span className={cn("font-mono", node.ramUsage && node.ramUsage > 80 ? 'text-red-400' : 'text-acid-cyan')}>{node.ramUsage || 0}%</span>
-                  </div>
-                  <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${node.ramUsage || 0}%` }}
-                      className={cn("h-full", node.ramUsage && node.ramUsage > 80 ? 'bg-red-500' : 'bg-acid-cyan')}
-                    />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className={cn(
+                        "font-bold font-display", 
+                        isOffline ? "text-slate-500" : "text-gray-200 neon-text-purple"
+                      )}>
+                        {node.name}
+                      </h3>
+                      <span className={cn(
+                        "text-[8px] font-bold px-1.5 py-0.5 rounded uppercase border tracking-wider",
+                        node.type === 'manager' 
+                          ? "bg-acid-purple/10 text-acid-purple border-acid-purple/20" 
+                          : "bg-neutral-900 text-slate-400 border-white/5"
+                      )}>
+                        {node.type}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                      <span className={cn(
+                        "w-2 h-2 rounded-full",
+                        isOffline 
+                          ? "bg-blue-500 shadow-[0_0_8px_#3b82f6] animate-pulse" 
+                          : node.status === 'online' 
+                            ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.8)]' 
+                            : 'bg-yellow-500'
+                      )} />
+                      <span className="font-mono">{node.ip}</span>
+                      {node.dns && <span className="text-slate-600 font-mono">({node.dns})</span>}
+                    </div>
                   </div>
                 </div>
                 
-                <div className="flex justify-between items-center text-[10px]">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-1">
-                      <Activity size={10} className="text-slate-600" />
-                      <span className="text-slate-500 uppercase font-bold">Ping:</span>
-                      <span className="text-white font-mono">{node.latency || 0}ms</span>
+                {/* Center Content Section */}
+                {isOffline ? (
+                  <div className="py-2 px-3 bg-blue-950/20 border border-blue-900/20 rounded-lg space-y-1 mb-2 text-left">
+                    <p className="text-[10px] text-blue-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                      <Lucide.Moon size={11} className="animate-pulse" /> TRYB UŚPIENIA AKTYWNY [SLEEPING]
+                    </p>
+                    <p className="text-[10px] text-slate-400 leading-tight">
+                      Węzeł został pomyślnie wyłączony ze struktur klastra z powodu bezczynności. Pobór mocy zredukowany do minimum.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5 mt-2 border-t border-white/5 pt-3">
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[10px]">
+                        <span className="text-slate-500 uppercase font-bold">Obciążenie CPU</span>
+                        <span className={cn("font-mono font-bold", node.cpuUsage && node.cpuUsage > 80 ? 'text-red-400' : 'text-acid-green')}>{node.cpuUsage || 0}%</span>
+                      </div>
+                      <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${node.cpuUsage || 0}%` }}
+                          className={cn("h-full", node.cpuUsage && node.cpuUsage > 75 ? 'bg-red-500' : 'bg-acid-green')}
+                        />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <NetworkIcon size={10} className="text-slate-600" />
-                      <span className="text-slate-500 uppercase font-bold">Protokół:</span>
-                      <span className="text-acid-purple font-mono uppercase">{node.protocol || 'TCP'}</span>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[10px]">
+                        <span className="text-slate-500 uppercase font-bold">Użycie RAM</span>
+                        <span className={cn("font-mono font-bold", node.ramUsage && node.ramUsage > 80 ? 'text-red-400' : 'text-acid-cyan')}>{node.ramUsage || 0}%</span>
+                      </div>
+                      <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${node.ramUsage || 0}%` }}
+                          className={cn("h-full", node.ramUsage && node.ramUsage > 75 ? 'bg-red-500' : 'bg-acid-cyan')}
+                        />
+                      </div>
                     </div>
+                    
+                    <div className="flex flex-col gap-1 text-[10px] bg-black/20 p-2 rounded border border-white/5 font-mono text-slate-400">
+                      <div className="flex justify-between">
+                        <span>LATENCJA SYGNAŁU:</span>
+                        <span className="text-white font-bold">{node.latency || 0}ms</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>PROTOKÓŁ:</span>
+                        <span className="text-acid-purple font-bold uppercase">{node.protocol || 'TCP'}</span>
+                      </div>
+                      <div className="flex justify-between border-t border-white/5 mt-1 pt-1">
+                        <span>STATUS AKTYWNOŚCI:</span>
+                        {node.type === 'manager' ? (
+                          <span className="text-acid-purple font-bold">STAŁY MANAGER</span>
+                        ) : (
+                          <span className="text-slate-400">
+                            Bezczynny od: <span className="text-white font-bold">{elapsedMin}m {elapsedSec}s</span>
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Tryb Uśpienia Tickers */}
+                      {node.type === 'worker' && (
+                        <div className="flex justify-between items-center text-[10px] text-emerald-400 mt-1 border-t border-emerald-500/10 pt-1.5 font-bold uppercase">
+                          <span className="flex items-center gap-1">
+                            <Lucide.Clock size={11} className={cn(sleepMode && "animate-spin")} style={{ animationDuration: '6s' }} /> Autouśpienie:
+                          </span>
+                          <span>
+                            {sleepMode ? (
+                              elapsedSecTotal >= 600 ? (
+                                "Włączanie uśpienia..."
+                              ) : (
+                                `Za ${countdownMin}:${String(countdownSec).padStart(2, '0')}`
+                              )
+                            ) : (
+                              "Deaktywowany"
+                            )}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Footer Action Controls */}
+                <div className="mt-4 pt-3 border-t border-white/5 flex justify-between items-center">
+                  <div className="flex gap-2">
+                    {isOffline ? (
+                      <button 
+                        onClick={() => handleWakeNode(node.id)}
+                        className="px-2.5 py-1 text-[10px] bg-blue-900/20 hover:bg-blue-900/40 border border-blue-500/40 hover:border-blue-400 text-blue-400 transition-all font-black uppercase rounded flex items-center gap-1 active:scale-95 shadow-md"
+                        title="Wybudź i zsynchronizuj węzeł"
+                      >
+                        <Lucide.Sun size={11} /> Wybudź Węzeł
+                      </button>
+                    ) : (
+                      <>
+                        <button 
+                          onClick={() => handleRestartNode(node.id)}
+                          className="p-2 hover:bg-acid-purple/20 rounded-lg text-slate-400 hover:text-acid-purple transition-all border border-transparent hover:border-acid-purple/30 group/btn"
+                          title="Restartuj Węzeł"
+                        >
+                          <RotateCcw size={14} className="group-hover/btn:rotate-[-45deg] transition-transform" />
+                        </button>
+                        <button 
+                          onClick={() => handleShutdownNode(node.id)}
+                          className="p-2 hover:bg-red-500/20 rounded-lg text-slate-400 hover:text-red-500 transition-all border border-transparent hover:border-red-500/30"
+                          title="Wyłącz Węzeł"
+                        >
+                          <Power size={14} />
+                        </button>
+                        
+                        {/* Simulation trigger */}
+                        {node.type === 'worker' && (
+                          <button
+                            onClick={() => handleSimulateIdle(node.id)}
+                            className="px-2 py-1 text-[9px] bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-500 rounded transition-all font-bold uppercase active:scale-95"
+                            title="Symuluj ubieg pomyślnej bezczynności przez okres 11 minut"
+                          >
+                            Symuluj bezczynność
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  <div className="text-[9px] text-slate-500 uppercase font-bold">
+                    {new Date(node.lastSeen).toLocaleTimeString()} • {node.type}
                   </div>
                 </div>
               </div>
-
-              <div className="mt-4 pt-3 border-t border-white/5 flex justify-between items-center">
-                <div className="flex gap-2">
-                   <button 
-                    onClick={() => handleRestartNode(node.id)}
-                    className="p-2 hover:bg-acid-purple/20 rounded-lg text-slate-500 hover:text-acid-purple transition-all border border-transparent hover:border-acid-purple/30 group/btn"
-                    title="Restartuj Węzeł"
-                   >
-                     <RotateCcw size={14} className="group-hover/btn:rotate-[-45deg] transition-transform" />
-                   </button>
-                   <button 
-                    onClick={() => handleShutdownNode(node.id)}
-                    className="p-2 hover:bg-red-500/20 rounded-lg text-slate-500 hover:text-red-500 transition-all border border-transparent hover:border-red-500/30"
-                    title="Wyłącz Węzeł"
-                   >
-                     <Power size={14} />
-                   </button>
-                </div>
-                <div className="text-[9px] text-slate-600 uppercase font-bold">
-                  {new Date(node.lastSeen).toLocaleTimeString()} • {node.type}
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

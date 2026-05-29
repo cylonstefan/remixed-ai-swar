@@ -94,6 +94,7 @@ export interface ClusterNode {
   status: 'online' | 'offline' | 'busy';
   type: 'worker' | 'manager';
   lastSeen: string;
+  lastActive?: string;
   cpuUsage?: number;
   ramUsage?: number;
   latency?: number;

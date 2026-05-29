@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, Volume2, Music, Radio, Sliders, Disc, HelpCircle, X, Maximize2, Minimize2, Sparkles, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { cn } from '../lib/utils';
 
 // Interfaces for step sequencing
 interface StepSequence {
