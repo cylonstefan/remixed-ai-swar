@@ -1,0 +1,45 @@
+# AI Studio v2.5 - Instrukcja Obsługi (How-To)
+
+## 1. Wprowadzenie
+AI Studio to zaawansowana platforma do orkiestracji agentów AI, która pozwala na tworzenie wyspecjalizowanych zespołów zdolnych do generowania plików, weryfikacji informacji w internecie oraz współpracy w różnych trybach.
+
+## 2. Zarządzanie Agentami
+- Przejdź do zakładki **Agenci**.
+- Kliknij **Nowy Agent**, aby dodać pracownika do swojej kadry.
+- Skonfiguruj jego rolę, prompt systemowy oraz model (np. `gemini-3.1-pro-preview` dla zadań wymagających wysokiej logiki).
+- W sekcji zaawansowanej możesz zdefiniować umiejętności, wiedzę i uprawnienia (np. dostęp do sieci).
+
+## 3. Składanie Zespołów (Auto-Team)
+- Przejdź do zakładki **Zespoły**.
+- Możesz ręcznie złożyć zespół lub użyć funkcji **Auto-Team**.
+- **Auto-Team**: Wpisz zadanie (np. "Potrzebuję analizy rynku kryptowalut i raportu w PDF"), a system automatycznie dobierze najlepszych agentów z Twojego rejestru.
+- Wybierz **Tryb Dyskusji**:
+  - *Luźna*: Swobodna atmosfera.
+  - *Ostra*: Agenci będą się krytykować i wytykać błędy (świetne do eliminacji halucynacji).
+  - *Office*: Zoptymalizowany pod generowanie dokumentów.
+
+## 4. Generowanie Plików
+Agenci mają dostęp do narzędzi generowania plików. Możesz ich poprosić o:
+- **DOCX**: "Wygeneruj raport w formacie Word".
+- **XLSX**: "Stwórz tabelę z danymi w Excelu".
+- **PDF**: "Zapisz to podsumowanie jako PDF".
+- **TXT/Kod**: "Napisz skrypt w Pythonie i zapisz jako .py".
+- **Obrazy**: "Stwórz prosty wykres/obraz z tekstem".
+
+## 5. Funkcje Głosowe i Tłumaczenia
+- **Mikrofon**: Kliknij ikonę mikrofonu w czacie, aby dyktować wiadomości.
+- **Głośnik**: Kliknij ikonę głośnika przy wiadomości agenta, aby ją odsłuchać.
+- **Wybór Głosu**: W górnej części czatu możesz wybrać jeden z 5 dostępnych głosów (Kore, Puck, Charon itp.).
+- **Tłumaczenie**: Ikona globu pozwala natychmiast przetłumaczyć odpowiedź na język polski.
+
+## 6. Weryfikacja i Anty-Halucynacje
+- Agenci mają wbudowaną instrukcję monitorowania siebie nawzajem.
+- Jeśli agent zauważy błąd u kolegi, ma obowiązek go skorygować.
+- Agenci korzystają z **Google Search** w czasie rzeczywistym, aby sprawdzać fakty.
+
+## 7. Tablica Zadań
+- Definiuj zadania w zakładce **Zadania**.
+- Agenci mają wgląd w tablicę i mogą odnosić się do statusów zadań w dyskusji.
+
+---
+*AI Studio - Twoja inteligentna fabryka wyników.*

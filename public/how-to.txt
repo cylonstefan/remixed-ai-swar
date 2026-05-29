@@ -1,0 +1,43 @@
+# AI Swarm OS - Podręcznik Operacyjny (Wydanie Kompletne)
+# Wersja: 3.5.0 • Status: TAJNY/Zatwierdzony
+
+## 1. Architektura Systemu
+AI Swarm OS to zaawansowana platforma orkiestracji agentów autonomicznych, działająca w oparciu o architekturę rozproszoną (Multi-Agent System). System umożliwia tworzenie wyspecjalizowanych klastrów obliczeniowych, które współpracują przy rozwiązywaniu złożonych problemów inżynieryjnych, analitycznych i kreatywnych.
+
+## 2. Jednostki Agentalne (Jednostki Roju)
+Każdy agent jest unikalną instancją LLM, skonfigurowaną pod konkretną rolę.
+- **System Prompt**: To fundament inteligencji agenta. Powinien zawierać rolę, zestaw dopuszczalnych narzędzi oraz styl komunikacji.
+- **Model**: Domyślnie Gemini 1.5 Pro. Modele Flash są używane do zadań wymagających niskiego opóźnienia.
+- **Kategorie**: Agenci są grupowani w kategorie takie jak: Programowanie, Bezpieczeństwo, Automatyzacja, Multimedia.
+
+## 3. Zarządzanie Klasterami (Teams)
+Łączenie agentów w zespoły pozwala na synergię.
+- **Tryb Orkiestracji (Auto-Play)**: Uruchamia autonomiczną pętlę decyzyjną. Agenci sami decydują, kto wykonuje dany krok, a kto go weryfikuje.
+- **Supervisor Pattern**: Rekomendowane jest posiadanie jednego agenta o roli "Supervisor" lub "Nadzorca", który pełni rolę kontrolera jakości.
+
+## 4. MCP (Model Context Protocol) - Interakcja ze Światem
+MCP to kluczowa technologia pozwalająca agentom na interakcję z systemem operacyjnym użytkownika.
+- **Filesystem**: Pozwala na odczyt i zapis plików lokalnych.
+- **Terminal**: Umożliwia agentom budowanie i uruchamianie projektów (np. `npm install`, `python run.py`).
+- **Network**: Pozwala na wysyłanie zapytań HTTP i interakcję z zewnętrznymi API.
+- **Database**: Bezpośrednie zapytania SQL do baz danych (PostgreSQL, SQLite, Oracle).
+
+## 5. Case Studies i Zastosowania
+- **Refaktoryzacja Kodu**: Wyślij agenta Koder-X do analizy starego repozytorium. Supervisor sprawdzi zgodność z najnowszymi standardami bezpieczeństwa.
+- **Automatyzacja DevSecOps**: Zespół złożony z SysAdmina i Specjalisty Bezpieczeństwa może automatycznie wykrywać luki w obrazach Docker i je naprawiać.
+- **Multimedia i AI Video**: Użyj agenta "Reżyser" do planowania klatek, a "DJ Neuro" do generowania wideo na podstawie scenariusza.
+
+## 6. Bezpieczeństwo i Kontrola
+- **Weryfikacja Człowiek-w-Pętli (Human-in-the-Loop)**: Agenci wymagają potwierdzenia dla krytycznych operacji systemowych (np. usunięcie bazy, deployment na produkcję).
+- **Tryb Piaskownicy (Sandbox)**: Wszystkie operacje MCP są izolowane w bezpiecznym środowisku, chyba że użytkownik nada uprawnienia nadrzędne.
+
+## 7. FAQ - Najczęstsze Pytania
+- **P: Jak ograniczyć koszty tokenów?**
+  - O: Korzystaj z klastrów o mniejszej liczbie agentów lub wybieraj model Gemini 1.5 Flash dla prostych zadań.
+- **P: Czy moje dane są bezpieczne?**
+  - O: Tak, system nie przesyła danych lokalnych do chmury bez Twojej wyraźnej zgody (via MCP).
+- **P: Jak nauczyć agenta nowych umiejętności?**
+  - O: Zaktualizuj jego System Prompt, dodając opisy nowych narzędzi lub przykłady oczekiwanych rezultatów.
+
+---
+*Logowanie zakończone. System gotowy do operacji.*
