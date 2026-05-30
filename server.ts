@@ -10,8 +10,9 @@ import ExcelJS from "exceljs";
 import { jsPDF } from "jspdf";
 import { createCanvas } from "canvas";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const fileUrlPath = typeof import.meta !== "undefined" && import.meta.url ? fileURLToPath(import.meta.url) : "";
+const appFilename = typeof __filename !== "undefined" ? __filename : fileUrlPath;
+const appDirname = typeof __dirname !== "undefined" ? __dirname : (appFilename ? path.dirname(appFilename) : ".");
 
 const db = new Database("agents.db");
 
@@ -27,6 +28,7 @@ db.exec(`
     skills TEXT,
     knowledge TEXT,
     personality TEXT,
+    backstory TEXT,
     objectives TEXT,
     commands TEXT,
     permissions TEXT,
@@ -119,6 +121,17 @@ db.exec(`
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
+  CREATE TABLE IF NOT EXISTS agent_errors (
+    id TEXT PRIMARY KEY,
+    agentId TEXT NOT NULL,
+    agentName TEXT,
+    taskTitle TEXT,
+    errorType TEXT,
+    status TEXT DEFAULT 'FAILED_TO_EXECUTE',
+    errorMessage TEXT NOT NULL,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
   CREATE TABLE IF NOT EXISTS knowledge (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
@@ -146,12 +159,25 @@ db.exec(`
     config TEXT DEFAULT '{}',
     capabilities TEXT DEFAULT '[]'
   );
+
+  CREATE TABLE IF NOT EXISTS process_states (
+    entity_id TEXT PRIMARY KEY,
+    entity_type TEXT NOT NULL,
+    status TEXT NOT NULL,
+    last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+    pid INTEGER,
+    priority TEXT DEFAULT 'NORMAL',
+    cpu_limit INTEGER DEFAULT 100,
+    ram_limit INTEGER DEFAULT 4096,
+    launch_command TEXT NOT NULL,
+    uptime_seconds INTEGER DEFAULT 0
+  );
 `);
 
 // Migration: Add new columns if they don't exist
 const columns = db.prepare("PRAGMA table_info(agents)").all();
 const columnNames = columns.map((c: any) => c.name);
-['skills', 'knowledge', 'personality', 'objectives', 'commands', 'permissions', 'systemPermissions', 'filePermissions', 'integrations', 'executableCommands', 'category', 'usage', 'icon', 'voice', 'tasksCompleted', 'advancedTools', 'history'].forEach(col => {
+['skills', 'knowledge', 'personality', 'backstory', 'objectives', 'commands', 'permissions', 'systemPermissions', 'filePermissions', 'integrations', 'executableCommands', 'category', 'usage', 'icon', 'voice', 'tasksCompleted', 'advancedTools', 'history', 'flightMode', 'flightConfig'].forEach(col => {
   if (!columnNames.includes(col)) {
     const type = (col === 'usage' || col === 'tasksCompleted') ? 'INTEGER DEFAULT 0' : (col === 'advancedTools' ? 'INTEGER DEFAULT 0' : 'TEXT');
     db.exec(`ALTER TABLE agents ADD COLUMN ${col} ${type}`);
@@ -178,10 +204,16 @@ if (!teamColumnNames.includes('agentTasks')) {
 if (!teamColumnNames.includes('clusterNodeId')) {
   db.exec(`ALTER TABLE teams ADD COLUMN clusterNodeId TEXT`);
 }
+if (!teamColumnNames.includes('flightMode')) {
+  db.exec(`ALTER TABLE teams ADD COLUMN flightMode TEXT DEFAULT 'autopilot'`);
+}
+if (!teamColumnNames.includes('flightConfig')) {
+  db.exec(`ALTER TABLE teams ADD COLUMN flightConfig TEXT`);
+}
 
 const taskColumnsMeta = db.prepare("PRAGMA table_info(tasks)").all();
 const taskColumnNames = taskColumnsMeta.map((c: any) => c.name);
-['complexity', 'taskType'].forEach(col => {
+['complexity', 'taskType', 'dueDate'].forEach(col => {
   if (!taskColumnNames.includes(col)) {
     db.exec(`ALTER TABLE tasks ADD COLUMN ${col} TEXT`);
   }
@@ -292,7 +324,7 @@ db.exec(`
 `);
 
 // Multer setup
-const uploadDir = path.join(__dirname, "uploads");
+const uploadDir = path.join(appDirname, "uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
 }
@@ -334,19 +366,20 @@ async function startServer() {
   });
 
   app.post("/api/tasks", (req, res) => {
-    const { id, title, status, priority, complexity, taskType } = req.body;
-    db.prepare("INSERT INTO tasks (id, title, status, priority, complexity, taskType) VALUES (?, ?, ?, ?, ?, ?)")
-      .run(id, title, status, priority, complexity || null, taskType || null);
+    const { id, title, status, priority, complexity, taskType, dueDate } = req.body;
+    db.prepare("INSERT INTO tasks (id, title, status, priority, complexity, taskType, dueDate) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .run(id, title, status, priority, complexity || null, taskType || null, dueDate || null);
     res.json({ success: true });
   });
 
   app.patch("/api/tasks/:id", (req, res) => {
-    const { status, complexity, taskType } = req.body;
+    const { status, complexity, taskType, dueDate } = req.body;
     const updates = [];
     const params = [];
     if (status) { updates.push("status = ?"); params.push(status); }
     if (complexity) { updates.push("complexity = ?"); params.push(complexity); }
     if (taskType) { updates.push("taskType = ?"); params.push(taskType); }
+    if (dueDate !== undefined) { updates.push("dueDate = ?"); params.push(dueDate); }
     params.push(req.params.id);
     
     if (updates.length > 0) {
@@ -403,19 +436,19 @@ async function startServer() {
 
   app.post("/api/agents", (req, res) => {
     const { 
-      id, name, role, systemPrompt, model, color, skills, knowledge, personality, 
+      id, name, role, systemPrompt, model, color, skills, knowledge, personality, backstory,
       objectives, commands, permissions, systemPermissions, filePermissions, 
       integrations, executableCommands, category, icon, voice, history, advancedTools 
     } = req.body;
     
     db.prepare(`
       INSERT INTO agents (
-        id, name, role, systemPrompt, model, color, skills, knowledge, personality, 
+        id, name, role, systemPrompt, model, color, skills, knowledge, personality, backstory,
         objectives, commands, permissions, systemPermissions, filePermissions, 
         integrations, executableCommands, category, icon, voice, usage, tasksCompleted, history, advancedTools
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)
     `).run(
-      id, name, role, systemPrompt, model, color, skills, knowledge, personality, 
+      id, name, role, systemPrompt, model, color, skills, knowledge, personality, backstory,
       objectives, commands, permissions, systemPermissions, filePermissions, 
       integrations, executableCommands, category, icon, voice, 
       history ? JSON.stringify(history) : '[]',
@@ -461,10 +494,10 @@ async function startServer() {
   });
 
   app.post("/api/teams", (req, res) => {
-    const { id, name, description, mode, agentIds, agentTasks, memory } = req.body;
+    const { id, name, description, mode, agentIds, agentTasks, memory, flightMode, flightConfig } = req.body;
     const insertTeam = db.transaction(() => {
-      db.prepare("INSERT INTO teams (id, name, description, mode, agentTasks, memory) VALUES (?, ?, ?, ?, ?, ?)")
-        .run(id, name, description, mode || 'loose', agentTasks ? JSON.stringify(agentTasks) : null, memory || '');
+      db.prepare("INSERT INTO teams (id, name, description, mode, agentTasks, memory, flightMode, flightConfig) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+        .run(id, name, description, mode || 'loose', agentTasks ? JSON.stringify(agentTasks) : null, memory || '', flightMode || 'autopilot', flightConfig || null);
       const insertAgent = db.prepare("INSERT INTO team_agents (teamId, agentId) VALUES (?, ?)");
       for (const agentId of agentIds) {
         insertAgent.run(id, agentId);
@@ -472,6 +505,41 @@ async function startServer() {
     });
     insertTeam();
     res.json({ success: true });
+  });
+
+  app.patch("/api/teams/:id", (req, res) => {
+    const { name, description, mode, agentIds, agentTasks, memory, flightMode, flightConfig } = req.body;
+    const updateTeamParams = db.transaction(() => {
+      const updates: string[] = [];
+      const values: any[] = [];
+      
+      if (name !== undefined) { updates.push("name = ?"); values.push(name); }
+      if (description !== undefined) { updates.push("description = ?"); values.push(description); }
+      if (mode !== undefined) { updates.push("mode = ?"); values.push(mode); }
+      if (agentTasks !== undefined) { updates.push("agentTasks = ?"); values.push(JSON.stringify(agentTasks)); }
+      if (memory !== undefined) { updates.push("memory = ?"); values.push(memory); }
+      if (flightMode !== undefined) { updates.push("flightMode = ?"); values.push(flightMode); }
+      if (flightConfig !== undefined) { updates.push("flightConfig = ?"); values.push(flightConfig); }
+      
+      if (updates.length > 0) {
+        db.prepare(`UPDATE teams SET ${updates.join(', ')} WHERE id = ?`).run(...values, req.params.id);
+      }
+      
+      if (agentIds !== undefined) {
+        db.prepare("DELETE FROM team_agents WHERE teamId = ?").run(req.params.id);
+        const insertAgent = db.prepare("INSERT INTO team_agents (teamId, agentId) VALUES (?, ?)");
+        for (const agentId of agentIds) {
+          insertAgent.run(req.params.id, agentId);
+        }
+      }
+    });
+    
+    try {
+      updateTeamParams();
+      res.json({ success: true });
+    } catch(e: any) {
+      res.status(500).json({ error: e.message });
+    }
   });
 
   app.put("/api/teams/:id/memory", (req, res) => {
@@ -590,6 +658,246 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  // Windows-style Process Management API
+  app.get("/api/process_states", (req, res) => {
+    try {
+      // Fetch current entities
+      const agents = db.prepare("SELECT id, name, role, model FROM agents").all() as any[];
+      const teams = db.prepare("SELECT id, name, description, mode FROM teams").all() as any[];
+      const clusters = db.prepare("SELECT id, name, ip, dns, status, type FROM clusters").all() as any[];
+
+      const now = new Date().toISOString();
+
+      // Helper to ensure a row exists
+      const ensureState = (id: string, type: string, name: string, extra: string, defaultStatus = 'RUNNING') => {
+        let state = db.prepare("SELECT * FROM process_states WHERE entity_id = ?").get(id) as any;
+        if (!state) {
+          const pid = defaultStatus === 'RUNNING' ? Math.floor(Math.random() * 14000) + 1000 : null;
+          let cmd = "";
+          if (type === 'agent') {
+            cmd = `powershell.exe -Command "Start-Process node -ArgumentList 'run_agent.js --id=${id} --name=\\"${name.replace(/"/g, '\\"')}\\" --model=\\"${extra}\\" --port=3000' -NoNewWindow"`;
+          } else if (type === 'swarm') {
+            cmd = `cmd.exe /c "npm run swarm --team-id=${id} --mode=\\"${extra || 'loose'}\\" --orchestrator=gemini"`;
+          } else {
+            cmd = `powershell.exe -Command "Start-Process node -ArgumentList 'cluster_node.js --ip=${extra} --dns=\\"${name.replace(/"/g, '\\"')}.local\\"' -NoNewWindow"`;
+          }
+          db.prepare(`
+            INSERT INTO process_states (entity_id, entity_type, status, pid, priority, cpu_limit, ram_limit, launch_command, uptime_seconds, last_updated)
+            VALUES (?, ?, ?, ?, 'NORMAL', 100, 4096, ?, ?, ?)
+          `).run(id, type, defaultStatus, pid, cmd, defaultStatus === 'RUNNING' ? Math.floor(Math.random() * 200) + 20 : 0, now);
+          
+          state = db.prepare("SELECT * FROM process_states WHERE entity_id = ?").get(id);
+        } else if (state.status === 'RUNNING') {
+          // Increment uptime for running processes to make it dynamic on each poll
+          const timePassed = 4; // Simulated poll interval addition
+          db.prepare("UPDATE process_states SET uptime_seconds = uptime_seconds + ? WHERE entity_id = ?").run(timePassed, id);
+          state.uptime_seconds += timePassed;
+        }
+        return state;
+      };
+
+      const processes = [
+        ...agents.map(a => {
+          const state = ensureState(a.id, 'agent', a.name, a.model);
+          return { ...state, name: a.name, role: a.role, model: a.model, subType: 'agent' };
+        }),
+        ...teams.map(t => {
+          const state = ensureState(t.id, 'swarm', t.name, t.mode);
+          return { ...state, name: t.name, desc: t.description, mode: t.mode, subType: 'swarm' };
+        }),
+        ...clusters.map(c => {
+          const defaultStat = c.status === 'offline' ? 'STOPPED' : 'RUNNING';
+          const state = ensureState(c.id, 'node', c.name, c.ip, defaultStat);
+          return { ...state, name: c.name, ip: c.ip, type: c.type, clusterStatus: c.status, subType: 'node' };
+        })
+      ];
+
+      res.json(processes);
+    } catch (e: any) {
+      console.error("Error fetching process states:", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/process_states/:id/action", (req, res) => {
+    try {
+      const { id } = req.params;
+      const { action } = req.body; // 'start' | 'stop' | 'pause' | 'resume' | 'kill'
+      const now = new Date().toISOString();
+
+      const state = db.prepare("SELECT * FROM process_states WHERE entity_id = ?").get(id) as any;
+      if (!state) {
+        return res.status(404).json({ error: "Process state entry not found" });
+      }
+
+      let newStatus = state.status;
+      let newPid = state.pid;
+      let details = "";
+      let logAction = "";
+
+      if (action === 'start') {
+        newStatus = 'RUNNING';
+        newPid = Math.floor(Math.random() * 14000) + 1000;
+        details = `Uruchomienie procesu Windows Service dla ${state.entity_type} [ID: ${id}]. Utworzono PID: ${newPid}.`;
+        logAction = 'PROCESS_START';
+        db.prepare("UPDATE process_states SET status = ?, pid = ?, uptime_seconds = 0, last_updated = ? WHERE entity_id = ?")
+          .run(newStatus, newPid, now, id);
+      } else if (action === 'stop') {
+        newStatus = 'STOPPED';
+        newPid = null;
+        details = `Zatrzymanie kontrolowane procesu ${state.entity_type} [ID: ${id}] (poprzedni PID: ${state.pid}).`;
+        logAction = 'PROCESS_STOP';
+        db.prepare("UPDATE process_states SET status = ?, pid = ?, uptime_seconds = 0, last_updated = ? WHERE entity_id = ?")
+          .run(newStatus, newPid, now, id);
+        
+        // Synchronize cluster node database status if type is node
+        if (state.entity_type === 'node') {
+          db.prepare("UPDATE clusters SET status = 'offline' WHERE id = ?").run(id);
+        }
+      } else if (action === 'pause') {
+        newStatus = 'PAUSED';
+        details = `Wstrzymanie (Pauza) wykonania wątku dla ${state.entity_type} [ID: ${id}]. Stan zawieszony w pamięci RAM.`;
+        logAction = 'PROCESS_PAUSE';
+        db.prepare("UPDATE process_states SET status = ?, last_updated = ? WHERE entity_id = ?")
+          .run(newStatus, now, id);
+      } else if (action === 'resume') {
+        newStatus = 'RUNNING';
+        details = `Wznowienie wątku operacyjnego dla ${state.entity_type} [ID: ${id}]. Przywrócono priorytet wykonania.`;
+        logAction = 'PROCESS_RESUME';
+        db.prepare("UPDATE process_states SET status = ?, last_updated = ? WHERE entity_id = ?")
+          .run(newStatus, now, id);
+      } else if (action === 'kill') {
+        newStatus = 'KILLED';
+        newPid = null;
+        details = `[KILL -9] Wymuszone przerwanie (Zabicie) procesu ${state.entity_type} [ID: ${id}] oznaczającego awaryjne uwolnienie pamięci.`;
+        logAction = 'PROCESS_KILL';
+        db.prepare("UPDATE process_states SET status = ?, pid = ?, last_updated = ? WHERE entity_id = ?")
+          .run(newStatus, newPid, now, id);
+
+        if (state.entity_type === 'node') {
+          db.prepare("UPDATE clusters SET status = 'offline' WHERE id = ?").run(id);
+        }
+      }
+
+      // Add log to SQLite tables to instantly update system logs UI 
+      const logId = `log-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      db.prepare("INSERT INTO logs (id, agentId, agentName, action, details) VALUES (?, ?, ?, ?, ?)")
+        .run(logId, id, `PROCES_${id.substring(0,6).toUpperCase()}`, logAction, details);
+
+      res.json({ success: true, status: newStatus, pid: newPid });
+    } catch (e: any) {
+      console.error("Action error:", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.patch("/api/process_states/:id", (req, res) => {
+    try {
+      const { id } = req.params;
+      const { priority, cpu_limit, ram_limit, launch_command } = req.body;
+
+      const fields: string[] = [];
+      const values: any[] = [];
+
+      if (priority !== undefined) { fields.push("priority = ?"); values.push(priority); }
+      if (cpu_limit !== undefined) { fields.push("cpu_limit = ?"); values.push(Number(cpu_limit)); }
+      if (ram_limit !== undefined) { fields.push("ram_limit = ?"); values.push(Number(ram_limit)); }
+      if (launch_command !== undefined) { fields.push("launch_command = ?"); values.push(launch_command); }
+
+      if (fields.length > 0) {
+        values.push(id);
+        db.prepare(`UPDATE process_states SET ${fields.join(", ")}, last_updated = CURRENT_TIMESTAMP WHERE entity_id = ?`)
+          .run(...values);
+      }
+
+      res.json({ success: true });
+    } catch (e: any) {
+      console.error("Patch process state error:", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/process_states/:id/dump", (req, res) => {
+    try {
+      const { id } = req.params;
+      const state = db.prepare("SELECT * FROM process_states WHERE entity_id = ?").get(id) as any;
+      if (!state) {
+        return res.status(404).json({ error: "Process info not found" });
+      }
+
+      // Select name
+      let entityName = "Proces";
+      if (state.entity_type === 'agent') {
+        const ag = db.prepare("SELECT name FROM agents WHERE id = ?").get(id) as any;
+        if (ag) entityName = ag.name;
+      } else if (state.entity_type === 'swarm') {
+        const tm = db.prepare("SELECT name FROM teams WHERE id = ?").get(id) as any;
+        if (tm) entityName = tm.name;
+      } else {
+        const cl = db.prepare("SELECT name FROM clusters WHERE id = ?").get(id) as any;
+        if (cl) entityName = cl.name;
+      }
+
+      // Generate Windows Command/Powershell script file content
+      const batContent = `@echo off
+:: =====================================================================
+:: AI SWARM OS - BATCH DEPLOYMENT TOOL (WINDOWS COMPATIBLE RUNNER)
+:: Autoorchestrated execution script for service instances
+:: Generowano: ${new Date().toLocaleString()}
+:: =====================================================================
+title AI SWARM OS - SIMULATOR - ${entityName.toUpperCase()}
+color 0B
+
+echo [INFO] Inicjalizacja instancji: ${entityName} (${state.entity_type.toUpperCase()})
+echo [INFO] ID procesu w chmurze: ${id}
+echo [INFO] Konfiguracja: PRIORYTET=${state.priority} | LIMIT CPU=${state.cpu_limit}%% | LIMIT RAM=${state.ram_limit}MB
+echo [INFO] Status sesji: ${state.status}
+echo ---------------------------------------------------------------------
+echo Wykryty system startowy: Microsoft Windows CLI / PowerShell v5+
+echo Sprawdzanie srodowiska Node.js ...
+
+where node >nul 2>nul
+if %errorlevel% neq 0 (
+    echo [ERR] Brak wykrytego srodowiska Node.js w zmiennej PATH systemowej!
+    echo [ERR] Propozycje: Zainstaluj Node.js z https://nodejs.org/ i uruchom ponownie.
+    pause
+    exit /b 1
+)
+
+echo [OK] Znaleziono interpretator Node.js.
+echo [OK] Alokowanie zasobow wirtualnych: ${state.ram_limit}MB ...
+echo ---------------------------------------------------------------------
+echo URUCHAMIANIE KOMENDY STARTOWEJ:
+echo ${state.launch_command}
+echo ---------------------------------------------------------------------
+
+:: Simulation loop representation in real machine CLI
+${state.launch_command}
+
+if %errorlevel% neq 0 (
+    echo [ERR] Proces zakonczyl sie bledem o kodzie %errorlevel%
+) else (
+    echo [OK] Proces zakonczony pomyslnie.
+)
+pause
+`;
+
+      const filename = `run_${state.entity_type}_${entityName.toLowerCase().replace(/[^a-z0-9]/g, "_")}.bat`;
+      const filePath = path.join(uploadDir, filename);
+      fs.writeFileSync(filePath, batContent);
+
+      res.json({
+        success: true,
+        fileUrl: `/uploads/${filename}`,
+        fileName: filename,
+        cmd: state.launch_command
+      });
+    } catch (e: any) {
+      console.error("Dump error:", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // Background interval to monitor Tryb Uśpienia (Sleep Mode) every 10 seconds.
   // It automatically powers down worker compute nodes that have been inactive for >= 10 minutes.
   // Inactivity is measured by checking how long elapsed since lastActive.
@@ -687,6 +995,50 @@ async function startServer() {
     
     db.prepare(`UPDATE training_sessions SET ${updates.join(", ")} WHERE id = ?`).run(...params);
     res.json({ success: true });
+  });
+
+  // Agent Error Logs API (Auto-Adaptation Farm feedback loop)
+  app.get("/api/training/errors", (req, res) => {
+    try {
+      const errors = db.prepare("SELECT * FROM agent_errors ORDER BY createdAt DESC").all();
+      res.json(errors);
+    } catch (err) {
+      console.error("Error in GET /api/training/errors:", err);
+      res.status(500).json({ error: "Błąd bazy danych" });
+    }
+  });
+
+  app.get("/api/agents/:id/errors", (req, res) => {
+    try {
+      const errors = db.prepare("SELECT * FROM agent_errors WHERE agentId = ? ORDER BY createdAt DESC").all(req.params.id);
+      res.json(errors);
+    } catch (err) {
+      console.error("Error in GET /api/agents/:id/errors:", err);
+      res.status(500).json({ error: "Błąd bazy danych" });
+    }
+  });
+
+  app.post("/api/training/errors", express.json(), (req, res) => {
+    try {
+      const { id, agentId, agentName, taskTitle, errorType, errorMessage, status } = req.body;
+      db.prepare("INSERT INTO agent_errors (id, agentId, agentName, taskTitle, errorType, errorMessage, status) VALUES (?, ?, ?, ?, ?, ?, ?)")
+        .run(id, agentId, agentName, taskTitle, errorType, errorMessage, status || 'FAILED_TO_EXECUTE');
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Error in POST /api/training/errors:", err);
+      res.status(500).json({ error: "Błąd bazy danych" });
+    }
+  });
+
+  app.patch("/api/training/errors/:id", express.json(), (req, res) => {
+    try {
+      const { status } = req.body;
+      db.prepare("UPDATE agent_errors SET status = ? WHERE id = ?").run(status, req.params.id);
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Error in PATCH /api/training/errors/:id:", err);
+      res.status(500).json({ error: "Błąd bazy danych" });
+    }
   });
   
   // Knowledge Base API
@@ -1317,9 +1669,9 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static(path.join(__dirname, "dist")));
+    app.use(express.static(path.join(appDirname, "dist")));
     app.get("*", (req, res) => {
-      res.sendFile(path.join(__dirname, "dist", "index.html"));
+      res.sendFile(path.join(appDirname, "dist", "index.html"));
     });
   }
 

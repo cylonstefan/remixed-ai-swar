@@ -14,6 +14,7 @@ export interface Agent {
   skills?: string;
   knowledge?: string;
   personality?: string;
+  backstory?: string;
   objectives?: string;
   commands?: string;
   permissions?: string;
@@ -29,6 +30,8 @@ export interface Agent {
   tasksCompleted?: number;
   advancedTools?: boolean;
   history?: AgentHistoryEntry[];
+  flightMode?: 'autopilot' | 'manual' | 'vr';
+  flightConfig?: string;
 }
 
 export interface Team {
@@ -43,6 +46,8 @@ export interface Team {
   createdAt?: string;
   clusterNodeId?: string;
   advancedTools?: boolean;
+  flightMode?: 'autopilot' | 'manual' | 'vr';
+  flightConfig?: string;
 }
 
 export interface Message {
@@ -65,6 +70,8 @@ export interface Task {
   complexity?: 'low' | 'medium' | 'high';
   taskType?: string;
   createdAt?: string;
+  dueDate?: string;
+  assignedAgentId?: string;
 }
 
 export interface Log {
@@ -139,4 +146,15 @@ export interface KnowledgeEntry {
   tags?: string[];
   author?: string;
   createdAt: string;
+}
+
+export interface AgentErrorLog {
+  id: string;
+  agentId: string;
+  agentName: string;
+  taskTitle: string;
+  errorType: string;
+  status: 'FAILED_TO_EXECUTE' | 'TUNED' | 'ADAPTED';
+  errorMessage: string;
+  createdAt?: string;
 }

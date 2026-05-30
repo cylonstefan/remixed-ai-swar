@@ -101,6 +101,18 @@ body {
   @apply border-l-4;
 }
 
+.task-card-glow.status-todo {
+  @apply border-l-slate-500;
+}
+
+.task-card-glow.status-in-progress {
+  @apply border-l-acid-cyan;
+}
+
+.task-card-glow.status-done {
+  @apply border-l-acid-green;
+}
+
 .complexity-low { @apply border-l-acid-green; }
 .complexity-medium { @apply border-l-yellow-500; }
 .complexity-high { @apply border-l-red-500; }

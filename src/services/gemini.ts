@@ -1,5 +1,6 @@
 import { GoogleGenAI, Modality, Type, FunctionDeclaration } from "@google/genai";
 import { Agent, Message, Team } from "../types";
+import { api } from "./api";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
@@ -264,6 +265,20 @@ export const gemini = {
         return { text: "Błąd połączenia z Hugging Face." };
       }
     }
+    let adaptedNegativeExamples = "";
+    try {
+      const loggedErrors = await api.getAgentErrors(agent.id);
+      const activeErrors = loggedErrors.filter(log => log.status === 'FAILED_TO_EXECUTE' || log.status === 'TUNED');
+      if (activeErrors.length > 0) {
+        adaptedNegativeExamples = `\n\n[NEGATYWNE PRZYKŁADY Z PARKU SZKOLENIOWEGO - AUTOMATYCZNA ADAPTACJA / PROMPT TUNING]:
+Wcześniej popełniłeś krytyczne błędy w zadaniach użytkownika. Przeanalizuj te błędy i kategorycznie unikaj powtarzania ich! Wyciągnij lekcję i zoptymalizuj swoje działanie:
+${activeErrors.map((e, index) => `${index + 1}. Zadanie: "${e.taskTitle}" | Popełniony Błąd: "${e.errorMessage}"`).join('\n')}
+NIGDY więcej pod żadnym pozorem nie powielaj tych błędnych wzorców ani sformułowań. Popraw się.`;
+      }
+    } catch (err) {
+      console.warn("Could not retrieve agent adaptive errors feedback:", err);
+    }
+
     const advancedContext = [
       agent.skills ? `Umiejętności: ${agent.skills}` : null,
       agent.knowledge ? `Baza Wiedzy: ${agent.knowledge}` : null,
@@ -285,11 +300,13 @@ Specjalizacja i Rola: ${agent.role || 'Ogólny Asystent'}
 Cechy Osobowości (Personality Traits): ${agent.personality || 'Zbalansowany, obiektywny, formalny'}
 Domeny Wiedzy (Knowledge Domains): ${agent.knowledge || 'Ogólna wiedza systemowa, rzetelność analityczna'}
 Główne Umiejętności (Skills): ${agent.skills || 'Komunikacja, analiza i współpraca'}
+Historia i tło (Backstory): ${agent.backstory || 'Standardowo wdrożona jednostka AI o czystej karcie pamięci.'}
 
 ZASADY OPERACYJNE I STYL INTERAKCJI:
 - MASZ ABSOLUTNY OBOWIĄZEK dostosować swój styl, słownictwo i ton wypowiedzi do zadeklarowanych cech osobowości (${agent.personality || 'Zbalansowany'}).
 - Np. jeśli posiadasz osobowość 'skeptical' (sceptyczną) lub 'debater' (debatant), powinieneś poddawać konstruktywnej krytyce i testom tezy innych członków zespołu. Jeśli jesteś 'optimistic' (optymistyczny), dawaj energię, wsparcie i tonuj konflikty. Jeśli jesteś 'formal' (formalny), zachowaj najwyższy akademicki rygor, unikaj skrótów i potocznego słownictwa.
 - Wykorzystuj swoje określone domeny wiedzy (${agent.knowledge}) oraz unikalne umiejętności (${agent.skills}) jako główną merytoryczną dźwignię przy formułowaniu argumentów w dyskusji.
+- Kieruj się swoją historią pochodzenia i motywacjami (Backstory) do nadawania głębi i tożsamości swoim wypowiedziom, czyniąc interakcję unikalną i angażującą.
 - Dbaj o to, by styl wypowiedzi był autentyczny i spójny przez całą sesję.
 `.trim();
 
@@ -309,6 +326,7 @@ ${modeInstruction}
 ${behaviorProfile}
 ${advancedContext ? `\nZaawansowany Kontekst:\n${advancedContext}` : ''}
 ${advancedToolsInstruction}
+${adaptedNegativeExamples}
 Zasady Zespołowe i Weryfikacja:
 1. Masz dostęp do narzędzi generowania plików (docx, xlsx, pdf, txt, image). Używaj ich, gdy zadanie tego wymaga.
 2. Masz dostęp do wyszukiwarki Google. Używaj jej do weryfikacji faktów, szukania najnowszych informacji i zapobiegania halucynacjom.
@@ -318,6 +336,7 @@ Zasady Zespołowe i Weryfikacja:
 6. Centralna Baza Wiedzy: Masz prawo i obowiązek korzystania z narzędzi 'search_knowledge' oraz 'add_to_knowledge'. Przeszukuj bazę, aby nie powtarzać błędów i czerpać z doświadczeń roju. Dodawaj nowe ustalenia, aby inni agenci wiedzieli, co zostało wypracowane.
 7. Analiza Plików i WWW: Używaj 'read_file' i 'list_files' do pracy z dokumentami w zespole, oraz 'web_extract' do pobierania treści ze stron internetowych przed ich analizą.
 8. Brak Uprawnień: Jeśli potrzebujesz dostępu do zasobu, integracji lub uprawnień, których aktualnie nie posiadasz (sprawdź sekcję Zaawansowany Kontekst), użyj specjalnego formatu w swojej odpowiedzi: [REQUEST_ACCESS: opis zasobu]. Użytkownik lub system zajmą się Twoją prośbą. Nigdy nie zmyślaj, że masz dostęp, jeśli go nie masz.
+9. Każda Twoja odpowiedź musi bezwzględnie zawierać rygorystyczny wymóg struktury JSON z polami 'decyzja_przydzialu', 'argumenty' i 'status_obciazenia' dla wszystkich agentów w roju, co pozwoli na poprawne i bezbłędne parsowanie ich kłótni kompetencyjnych i negocjacji.
 `.trim();
 
     const response = await ai.models.generateContent({

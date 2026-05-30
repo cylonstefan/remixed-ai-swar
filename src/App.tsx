@@ -11,12 +11,30 @@ import {
 } from 'lucide-react';
 import * as Lucide from 'lucide-react';
 import { cn } from './lib/utils';
-import { Agent, Team, Message, Task, Log, TrainingSession, ClusterNode, VideoMetadata, MCPServer, SceneCategory, ExampleScenario, KnowledgeEntry, AgentHistoryEntry } from './types';
+import { Agent, Team, Message, Task, Log, TrainingSession, ClusterNode, VideoMetadata, MCPServer, SceneCategory, ExampleScenario, KnowledgeEntry, AgentHistoryEntry, AgentErrorLog } from './types';
 import { api } from './services/api';
 import { gemini } from './services/gemini';
 import { SystemInstaller } from './components/SystemInstaller';
 import { ReggaeSoundSystem } from './components/ReggaeSoundSystem';
+import { GoogleWorkspaceHub } from './components/GoogleWorkspaceHub';
+import { WindowsTaskManager } from './components/WindowsTaskManager';
+import { TaskPreviewModal } from './components/TaskPreviewModal';
+import { TaskCard } from './components/TaskCard';
 import ReactMarkdown from 'react-markdown';
+import { 
+  ResponsiveContainer, 
+  LineChart, 
+  Line, 
+  BarChart as RechartsBarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend, 
+  AreaChart, 
+  Area 
+} from 'recharts';
 import ReactFlow, { 
   Background, 
   Controls, 
@@ -341,10 +359,13 @@ const TeamArchitect = React.memo((): React.ReactElement => {
   );
 });
 
-const AgentManager = React.memo(({ onUpdate }: { onUpdate: () => void }): React.ReactElement => {
+const AgentManager = React.memo(({ onUpdate, showToast }: { onUpdate: () => void, showToast?: (msg: string) => void }): React.ReactElement => {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const [isAutoCreating, setIsAutoCreating] = useState(false);
+  const [autoDescription, setAutoDescription] = useState('');
+  const [isAutoLoading, setIsAutoLoading] = useState(false);
   const [isTextareaExpanded, setIsTextareaExpanded] = useState(false);
   const [expandedAgentId, setExpandedAgentId] = useState<string | null>(null);
   const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
@@ -565,6 +586,70 @@ const AgentManager = React.memo(({ onUpdate }: { onUpdate: () => void }): React.
     onUpdate();
   };
 
+  const handleMagicCreateAgent = async () => {
+    if (!autoDescription.trim()) return;
+    setIsAutoLoading(true);
+    try {
+      const systemInstruction = `Jesteś Kreatorem Agentów AI. Przekształć życzenie użytkownika w parametry agenta w formacie JSON.
+Użytkownik chce: "${autoDescription}"
+
+Twój cel: Zwróć wyłącznie czysty JSON o następującej strukturze (żadnych wyjaśnień ani bloków markdown, po prostu sam JSON):
+{
+  "name": "Sugerowana unikalna krótka nazwa (np. DEVOPS_DAEMON, K8S_COMMANDER, CHAT_GURU)",
+  "role": "Sugerowana krótka głośna rola (np. Administrator Kubernetes, Doradca Finansowy)",
+  "category": "Jedna z kategorii: 'Programista', 'Redaktor', 'Grafik', 'Tłumaczenie', 'Multimedia', 'Inne'",
+  "systemPrompt": "Głęboki, zaawansowany system prompt definiujący zachowanie, cele i zasady działania",
+  "skills": "Umiejętności po przecinku (np. Docker, CI/CD, Bash)",
+  "personality": "Przykładowe cechy charakteru (np. collaborative, skeptical, formal, energetic)",
+  "backstory": "Sugerowana krótka, angażująca i klimatyczna historia tła/pochodzenia dla agenta (np. 'Zbudowany w tajnym laboratorium korporacyjnym w latach 90., zakorzeniony w nostalgii retro-computingu...')"
+}`;
+
+      const res = await fetch('/api/gemini/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'gemini-3-flash-preview',
+          messages: [{ role: 'user', content: systemInstruction }]
+        })
+      });
+      const data = await res.json();
+      const text = data.text || '';
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+         const parsed = JSON.parse(jsonMatch[0]);
+         setNewAgent({
+           name: parsed.name || 'MagicznyAgent',
+           role: parsed.role || 'Ekspert AI',
+           category: parsed.category || 'Inne',
+           systemPrompt: parsed.systemPrompt || 'Pomagaj użytkownikowi.',
+           skills: parsed.skills || '',
+           personality: parsed.personality || 'collaborative, analytical',
+           backstory: parsed.backstory || '',
+           model: 'gemini-3-flash-preview',
+           color: '#8b5cf6',
+           voice: 'Kore',
+           icon: 'Bot',
+           knowledge: '', objectives: '', commands: '', permissions: '',
+           systemPermissions: '', filePermissions: '', integrations: '', executableCommands: ''
+         });
+         
+         setIsAdding(true);
+         setIsAutoCreating(false);
+         setAutoDescription('');
+         if (showToast) {
+           showToast("Sugerowany agent załadowany do kreatora! Możesz go teraz dostosować.");
+         }
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Nie udało się automatycznie wygenerować agenta. Spróbuj ręcznie.");
+    } finally {
+      setIsAutoLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center border-b border-white/5 pb-4">
@@ -574,12 +659,18 @@ const AgentManager = React.memo(({ onUpdate }: { onUpdate: () => void }): React.
         </div>
         <div className="flex gap-3">
           <button 
+            onClick={() => setIsAutoCreating(!isAutoCreating)}
+            className="modern-btn border border-white/10 text-acid-cyan hover:bg-acid-cyan/5 px-4"
+          >
+            <Bot size={16} /> Auto-Agent ✨
+          </button>
+          <button 
             onClick={() => {
               setEditingAgentId(null);
               setNewAgent({ 
                 name: '', role: '', systemPrompt: '', model: 'gemini-3-flash-preview', color: '#8b5cf6',
                 voice: 'Kore',
-                skills: '', knowledge: '', personality: '', objectives: '', commands: '', permissions: '',
+                skills: '', knowledge: '', personality: '', backstory: '', objectives: '', commands: '', permissions: '',
                 systemPermissions: '', filePermissions: '', integrations: '', executableCommands: '', category: 'Programista',
                 icon: 'Bot'
               });
@@ -592,6 +683,46 @@ const AgentManager = React.memo(({ onUpdate }: { onUpdate: () => void }): React.
           </button>
         </div>
       </div>
+
+      <AnimatePresence>
+        {isAutoCreating && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="modern-card p-6 space-y-4 bg-acid-cyan/5 border-acid-cyan/20 mb-6 rounded-2xl border">
+              <div className="text-[10px] uppercase font-bold text-acid-cyan tracking-widest">Generowanie Agenta AI na podstawie Twojej wizji</div>
+              <textarea 
+                placeholder="Opisz jakiego agenta potrzebujesz (np. 'potrzebuję eksperta od czyszczenia baz danych SQL, ma pisać profesjonalnie i zwięźle')..." 
+                className="modern-input w-full h-24 border-acid-cyan/20 focus:border-acid-cyan/40"
+                value={autoDescription}
+                onChange={e => setAutoDescription(e.target.value)}
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setIsAutoCreating(false)}
+                  className="px-4 py-2 border border-white/5 bg-white/5 rounded-xl text-[10px] font-black uppercase text-slate-500 hover:text-white transition-all cursor-pointer"
+                >
+                  Anuluj
+                </button>
+                <button
+                  onClick={handleMagicCreateAgent}
+                  disabled={isAutoLoading || !autoDescription.trim()}
+                  className={cn(
+                    "px-6 py-2 bg-gradient-to-r from-acid-cyan to-acid-purple text-white text-[10px] font-black uppercase tracking-wider rounded-xl shadow-lg transition-all flex items-center gap-2 cursor-pointer",
+                    (!autoDescription.trim() || isAutoLoading) ? "opacity-50 cursor-not-allowed" : "hover:brightness-110"
+                  )}
+                >
+                  {isAutoLoading ? <Cpu className="animate-spin" size={12} /> : <Sparkles size={12} />}
+                  {isAutoLoading ? "Generowanie..." : "Auto-Generuj Agenta"}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="flex flex-col md:flex-row gap-4 bg-white/5 p-4 rounded-3xl border border-white/10 backdrop-blur-sm shadow-inner mt-4">
         <div className="relative flex-1 group">
@@ -764,14 +895,16 @@ const AgentManager = React.memo(({ onUpdate }: { onUpdate: () => void }): React.
                       <span className="text-[9px] uppercase text-slate-500 font-bold">Wpływa na ton i styl</span>
                     </div>
                     
-                    <div className="grid grid-cols-3 gap-1.5">
+                    <div className="grid grid-cols-4 gap-1.5">
                       {[
                         { id: 'optimistic', label: 'Optimistic' },
                         { id: 'skeptical', label: 'Skeptical' },
                         { id: 'formal', label: 'Formal' },
                         { id: 'provocative', label: 'Provocative' },
                         { id: 'collaborative', label: 'Collaborative' },
-                        { id: 'analytical', label: 'Analytical' }
+                        { id: 'analytical', label: 'Analytical' },
+                        { id: 'creative', label: 'Creative' },
+                        { id: 'empathetic', label: 'Empathetic' }
                       ].map((trait) => {
                         const currentTraits = newAgent.personality ? newAgent.personality.split(',').map(t => t.trim()).filter(Boolean) : [];
                         const isSelected = currentTraits.includes(trait.id);
@@ -912,11 +1045,22 @@ const AgentManager = React.memo(({ onUpdate }: { onUpdate: () => void }): React.
                     </button>
                   </div>
                   <textarea 
-                    placeholder="Instrukcje zachowania e.g. 'Jesteś ekspertem SQL. Zawsze formatuj kod w blokach sql. Jeśli nie jesteś pewien schematu, proś o wyjaśnienie...'" 
+                    placeholder="Instrukcje zachowania e.g. 'Jesteś ekspertem SQL. Zawsze formatuj kod w blokach sql. Jika nie jesteś pewien schematu, proś o wyjaśnienie...'" 
                     className="modern-input w-full h-32 bg-white/[0.02] resize-none"
                     value={newAgent.systemPrompt}
                     onChange={e => setNewAgent({...newAgent, systemPrompt: e.target.value})}
                     title="Te instrukcje będą fundamentem inteligencji agenta"
+                  />
+                </div>
+
+                <div className="space-y-2 text-left">
+                  <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">Historia i pochodzenie (Backstory)</label>
+                  <textarea 
+                    placeholder="Klimatyczna historia tła/pochodzenia nadająca agentowi tożsamość i głębię charakteru (np. 'Zbudowany w tajnym laboratorium korporacyjnym w latach 90., zakorzeniony w nostalgii retro-computingu...')" 
+                    className="modern-input w-full h-24 bg-white/[0.02] resize-none"
+                    value={newAgent.backstory || ''}
+                    onChange={e => setNewAgent({...newAgent, backstory: e.target.value})}
+                    title="Historia tła nadaje głębię i kształtuje motywacje w dyskusjach agenta"
                   />
                 </div>
 
@@ -1230,6 +1374,15 @@ const AgentManager = React.memo(({ onUpdate }: { onUpdate: () => void }): React.
                         {agent.systemPrompt || "Brak zdefiniowanego promptu systemowego."}
                       </div>
                     </div>
+
+                    {agent.backstory && (
+                      <div className="space-y-2">
+                        <span className="text-[10px] font-bold uppercase text-acid-cyan tracking-widest block">Historia i Tło Pochodzenia (Backstory)</span>
+                        <div className="bg-acid-cyan/[0.02] p-4 rounded-2xl text-xs leading-relaxed text-slate-300 font-medium border border-acid-cyan/10">
+                          {agent.backstory}
+                        </div>
+                      </div>
+                    )}
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
                       {agent.personality && (
@@ -1445,7 +1598,9 @@ const TeamManager = React.memo(({ onUpdate, onOpenDiscussion }: { onUpdate: () =
     agentIds: [] as string[],
     agentTasks: {} as Record<string, string>,
     clusterNodeId: '',
-    advancedTools: false
+    advancedTools: false,
+    flightMode: 'autopilot' as 'autopilot' | 'manual' | 'vr',
+    flightConfig: ''
   });
 
   const MODES = [
@@ -1549,20 +1704,39 @@ const TeamManager = React.memo(({ onUpdate, onOpenDiscussion }: { onUpdate: () =
     if (!newTeam.name || newTeam.agentIds.length === 0) return;
     await api.createTeam({
       ...newTeam,
+      flightMode: newTeam.flightMode,
+      flightConfig: newTeam.flightConfig,
       id: Math.random().toString(36).substr(2, 9)
     });
     await api.createLog({
       id: Math.random().toString(36).substr(2, 9),
       action: 'TEAM_ASSEMBLED',
-      details: `Zmontowano nowy zespół: ${newTeam.name} z ${newTeam.agentIds.length} agentami`
+      details: `Zmontowano nowy zespół: ${newTeam.name} z ${newTeam.agentIds.length} agentami [Typ lotu: ${newTeam.flightMode}]`
     });
-    setNewTeam({ name: '', description: '', mode: 'loose', agentIds: [], agentTasks: {}, clusterNodeId: '', advancedTools: false });
+    setNewTeam({ name: '', description: '', mode: 'loose', agentIds: [], agentTasks: {}, clusterNodeId: '', advancedTools: false, flightMode: 'autopilot', flightConfig: '' });
     setIsAdding(false);
     loadData();
     onUpdate();
   };
 
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [editingTeam, setEditingTeam] = useState<Team | null>(null);
+
+  const handleUpdateTeamFlight = async (teamId: string, flightMode: 'autopilot' | 'manual' | 'vr', flightConfig: string) => {
+    try {
+      await api.updateTeam(teamId, { flightMode, flightConfig });
+      await api.createLog({
+        id: Math.random().toString(36).substr(2, 9),
+        action: 'TEAM_UPDATED',
+        details: `Zaktualizowano tryb lotu zespołu na: ${flightMode}`
+      });
+      setEditingTeam(null);
+      loadData();
+      onUpdate();
+    } catch (err) {
+      console.error("Failed to update team flight mode", err);
+    }
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -1688,10 +1862,61 @@ const TeamManager = React.memo(({ onUpdate, onOpenDiscussion }: { onUpdate: () =
                     <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">Manifest Misji</label>
                     <textarea 
                       placeholder="Zapisz cele operacyjne dla całej grupy..." 
-                      className="modern-input w-full h-24 resize-none"
+                      className="modern-input w-full h-20 resize-none"
                       value={newTeam.description}
                       onChange={e => setNewTeam({...newTeam, description: e.target.value})}
                     />
+                  </div>
+
+                  <div className="space-y-2 border-t border-white/5 pt-3">
+                    <label className="text-[10px] font-bold uppercase text-slate-500 ml-1 block">Tryb Operacyjny Lotu (Satelitarne Sterowanie)</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { id: 'autopilot', label: 'Autopilot', desc: 'Samoorganizacja, luźna komunikacja' },
+                        { id: 'manual', label: 'Manualny Router', desc: 'Wykazuj konkretnych nadzorców' },
+                        { id: 'vr', label: 'Symulacja VR', desc: 'Środowisko piaskownicy badawczej' }
+                      ].map(type => (
+                        <button
+                          key={type.id}
+                          type="button"
+                          onClick={() => setNewTeam({...newTeam, flightMode: type.id as any})}
+                          className={cn(
+                            "px-3 py-2 text-[10px] font-bold uppercase rounded-xl border transition-all text-left flex flex-col justify-between h-16",
+                            (newTeam.flightMode || 'autopilot') === type.id 
+                              ? "bg-acid-cyan/20 border-acid-cyan text-white shadow-[0_0_15px_rgba(6,182,212,0.15)]" 
+                              : "bg-white/5 border-white/5 text-slate-500 hover:border-white/10"
+                          )}
+                          title={type.desc}
+                        >
+                          <span>{type.label}</span>
+                          <span className="block text-[7px] font-normal normal-case opacity-40 leading-tight mt-1">{type.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {(newTeam.flightMode || 'autopilot') === 'manual' && (
+                      <div className="space-y-1 mt-2.5">
+                        <label className="text-[9px] font-bold uppercase text-acid-cyan ml-1">ID / Nazwa Kontrolera (Routera Pod-agentów)</label>
+                        <input
+                          placeholder="np. @SupervisorAgent lub ID konkretnego routera..."
+                          className="modern-input w-full py-1.5 text-xs border-acid-cyan/30 focus:border-acid-cyan/60"
+                          value={newTeam.flightConfig || ''}
+                          onChange={e => setNewTeam({...newTeam, flightConfig: e.target.value})}
+                        />
+                      </div>
+                    )}
+
+                    {(newTeam.flightMode || 'autopilot') === 'vr' && (
+                      <div className="space-y-1 mt-2.5">
+                        <label className="text-[9px] font-bold uppercase text-acid-purple ml-1">Parametry Środowiska Wirtualnej Symulacji</label>
+                        <input
+                          placeholder="np. safety_level=high speed=2.5x logs=detailed..."
+                          className="modern-input w-full py-1.5 text-xs border-acid-purple/30 focus:border-acid-purple/60"
+                          value={newTeam.flightConfig || ''}
+                          onChange={e => setNewTeam({...newTeam, flightConfig: e.target.value})}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1797,10 +2022,20 @@ const TeamManager = React.memo(({ onUpdate, onOpenDiscussion }: { onUpdate: () =
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h3 className="text-base font-display font-bold uppercase tracking-tight text-white group-hover:text-acid-purple transition-colors">{team.name}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] font-bold uppercase text-slate-600 tracking-widest">{team.mode} MODE</span>
+                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                    <span className="text-[9px] font-bold uppercase text-slate-600 tracking-widest bg-white/5 px-1.5 py-0.5 rounded">{team.mode} MODE</span>
                     <span className="w-1 h-1 rounded-full bg-slate-700" />
-                    <span className="text-[10px] font-bold uppercase text-acid-green opacity-60">Ready for ops</span>
+                    <span className={cn(
+                      "text-[9px] font-bold uppercase px-1.5 py-0.5 rounded font-mono flex items-center gap-1",
+                      (team.flightMode || 'autopilot') === 'autopilot' ? "text-acid-cyan bg-acid-cyan/10" :
+                      (team.flightMode || 'autopilot') === 'manual' ? "text-amber-400 bg-amber-400/10" :
+                      "text-fuchsia-400 bg-fuchsia-400/10 animate-pulse"
+                    )}>
+                      <Zap size={8} />
+                      {(team.flightMode || 'autopilot')}
+                    </span>
+                    <span className="w-1 h-1 rounded-full bg-slate-700" />
+                    <span className="text-[9px] font-bold uppercase text-acid-green opacity-60">Ops Ready</span>
                   </div>
                 </div>
                 <button 
@@ -1813,9 +2048,84 @@ const TeamManager = React.memo(({ onUpdate, onOpenDiscussion }: { onUpdate: () =
               </div>
 
               {team.description && (
-                <p className="text-[11px] text-slate-500 font-medium line-clamp-2 mb-6 italic leading-relaxed">
+                <p className="text-[11px] text-slate-500 font-medium line-clamp-2 mb-4 italic leading-relaxed">
                   "{team.description}"
                 </p>
+              )}
+
+              {editingTeam?.id === team.id ? (
+                <div className="bg-neutral-900/90 border border-acid-cyan/30 rounded-2xl p-4 my-3 space-y-3">
+                  <div className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-1.5">
+                    <Target size={12} className="text-acid-cyan animate-pulse" />
+                    ZMIANA PARAMETRÓW LOTU
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-1">
+                    {(['autopilot', 'manual', 'vr'] as const).map(m => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setEditingTeam({ ...editingTeam, flightMode: m })}
+                        className={cn(
+                          "py-1 px-1.5 rounded-lg text-[8px] font-bold uppercase border transition-all text-center",
+                          editingTeam.flightMode === m 
+                            ? "bg-acid-cyan/20 border-acid-cyan text-acid-cyan font-black" 
+                            : "bg-white/5 border-white/5 text-slate-500 hover:border-slate-400"
+                        )}
+                      >
+                        {m === 'autopilot' ? 'Autopilot' : m === 'manual' ? 'Manualny' : 'VR Sim'}
+                      </button>
+                    ))}
+                  </div>
+
+                  {editingTeam.flightMode === 'manual' && (
+                    <div className="space-y-1">
+                      <label className="text-[8px] text-slate-500 uppercase font-black ml-1">ID Kontrolera / Routera</label>
+                      <input
+                        className="modern-input w-full text-xs py-1 px-2 bg-black/40"
+                        placeholder="@Orkiestrator lub id agenta..."
+                        value={editingTeam.flightConfig || ''}
+                        onChange={e => setEditingTeam({ ...editingTeam, flightConfig: e.target.value })}
+                      />
+                    </div>
+                  )}
+
+                  {editingTeam.flightMode === 'vr' && (
+                    <div className="space-y-1">
+                      <label className="text-[8px] text-slate-500 uppercase font-black ml-1">Parametry Piaskownicy VR</label>
+                      <input
+                        className="modern-input w-full text-xs py-1 px-2 bg-black/40"
+                        placeholder="safety_level=high speed=2.0x..."
+                        value={editingTeam.flightConfig || ''}
+                        onChange={e => setEditingTeam({ ...editingTeam, flightConfig: e.target.value })}
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 pt-1 justify-end">
+                    <button
+                      onClick={() => setEditingTeam(null)}
+                      className="px-2 py-1 rounded bg-white/5 text-[9px] font-bold text-slate-400 hover:text-white uppercase transition-all"
+                    >
+                      Anuluj
+                    </button>
+                    <button
+                      onClick={() => handleUpdateTeamFlight(team.id, editingTeam.flightMode || 'autopilot', editingTeam.flightConfig || '')}
+                      className="px-3 py-1 rounded bg-acid-cyan text-black font-black text-[9px] uppercase hover:bg-white transition-all shadow-md shadow-acid-cyan/10"
+                    >
+                      Zapisz
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {team.flightMode && team.flightMode !== 'autopilot' && (
+                    <div className="mb-4 p-2.5 bg-neutral-900/60 border border-white/5 rounded-xl text-[10px]">
+                      <span className="text-[8px] font-black text-slate-600 block uppercase">Parametry {team.flightMode}:</span>
+                      <code className="text-acid-cyan text-[10px] break-all font-mono font-medium">{team.flightConfig || 'Brak parametrów sterowania'}</code>
+                    </div>
+                  )}
+                </>
               )}
 
               <div className="space-y-4">
@@ -1843,8 +2153,19 @@ const TeamManager = React.memo(({ onUpdate, onOpenDiscussion }: { onUpdate: () =
                 Inicjuj Sesję
               </button>
               <button 
-                className="p-3 modern-btn bg-white/5 border border-white/5 text-slate-500 hover:text-white"
-                title="Ustaw cele operacyjne dla zespołu"
+                onClick={() => setEditingTeam({
+                  ...team,
+                  agentIds: team.agents.map(a => a.id),
+                  flightMode: team.flightMode || 'autopilot',
+                  flightConfig: team.flightConfig || ''
+                })}
+                className={cn(
+                  "p-3 modern-btn border transition-all",
+                  editingTeam?.id === team.id 
+                    ? "bg-acid-cyan text-black border-acid-cyan shadow-md"
+                    : "bg-white/5 border-white/5 text-slate-500 hover:text-white"
+                )}
+                title="Skonfiguruj parametry lotu"
               >
                 <Target size={16} />
               </button>
@@ -1891,6 +2212,19 @@ const DiscussionRoom = React.memo(({ teamId, settings, showToast }: { teamId: st
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
+
+  // Swarm Debate & Autopilot Negotiation states
+  const [isNegotiating, setIsNegotiating] = useState(false);
+  const [negotiationPhase, setNegotiationPhase] = useState<'idle' | 'debating' | 'routing' | 'finished'>('idle');
+  const [debateOffers, setDebateOffers] = useState<Record<string, { decyzja_przydzialu: string, argumenty: string, status_obciazenia: string, kontroferta: string }>>({});
+  const [routingVerdict, setRoutingVerdict] = useState('');
+  const [selectedAgentIdForTask, setSelectedAgentIdForTask] = useState<string | null>(null);
+
+  const getAgentLoad = (agent: Agent) => {
+    let load = (agent.name.length * 7) % 100;
+    if (load > 80) return 'przeciążony';
+    return 'w_normie';
+  };
 
   useEffect(() => {
     api.getAgents().then(setAllAgents);
@@ -1993,6 +2327,166 @@ const DiscussionRoom = React.memo(({ teamId, settings, showToast }: { teamId: st
     }
   };
 
+  const runSwarmNegotiation = async (taskText: string, userMsg: Message) => {
+    if (!team || team.agents.length === 0) return;
+    setIsNegotiating(true);
+    setNegotiationPhase('debating');
+    setDebateOffers({});
+    setRoutingVerdict('');
+    setSelectedAgentIdForTask(null);
+
+    const offers: Record<string, { decyzja_przydzialu: string, argumenty: string, status_obciazenia: string, kontroferta: string }> = {};
+
+    await Promise.all(team.agents.map(async (agent) => {
+      const loadStatus = getAgentLoad(agent);
+      const isOverloaded = loadStatus === 'przeciążony';
+
+      const negotiationPrompt = `
+Jesteś agentem o imieniu: ${agent.name} i specjalizacji spadającej na rolę: ${agent.role}.
+Użytkownik zlecił Twojemu zespołowi następujące zadanie: "${taskText}".
+W tej fazie Twoim zadaniem jest przekonanie Nadzorcy, że to TY jesteś najlepszym agentem do wykonania zadania użytkownika. Przeanalizuj treść zadania.
+Twój biezacy status obciążenia wynosi: ${loadStatus}.
+Jeśli jesteś przeciążony (otrzymujesz właśnie tę informację), napisz, dlaczego pomimo tego sobie poradzisz, albo zaproponuj innego agenta w zespole i ostro go skrytykuj (np. wytykając mu powolność lub brak kompetencji). Bądź niezwykle pewny siebie, krytyczny wobec innych i nieugięty w kłótni o ten przydział!
+
+Inni agenci w zespole to: ${team.agents.filter(a => a.id !== agent.id).map(a => `${a.name} (${a.role})`).join(', ')}.
+
+Musisz odpowiedzieć WYŁĄCZNIE poprawnym formatem JSON (bez żadnych znaczników markdown, bez tekstu na początku ani na końcu, bez otulania w \`\`\`json i \`\`\`):
+{
+  "decyzja_przydzialu": "WYBIERZ_MNIE",
+  "argumenty": "Agresywna i pewna siebie argumentacja dlaczego TY powinieneś to zrobić oraz specyficzna krytyka innych agentów z nazwy...",
+  "status_obciazenia": "${loadStatus}",
+  "kontroferta": "${isOverloaded ? team.agents.filter(a => a.id !== agent.id)[0]?.name || 'null' : 'null'}"
+}
+`.trim();
+
+      try {
+        const response = await fetch('/api/gemini/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'gemini-3.5-flash',
+            messages: [{ role: 'user', content: negotiationPrompt }],
+            systemInstruction: 'Odpowiadasz wyłącznie surowym, czystym formatem JSON.'
+          })
+        });
+        const data = await response.json();
+        let trimmedJson = data.text || '{}';
+        trimmedJson = trimmedJson.replace(/```json/g, '').replace(/```/g, '').trim();
+        
+        let parsed: any;
+        try {
+          parsed = JSON.parse(trimmedJson);
+        } catch (e) {
+          const argsMatch = trimmedJson.match(/"argumenty"\s*:\s*"([^"]+)"/);
+          parsed = {
+            decyzja_przydzialu: "WYBIERZ_MNIE",
+            argumenty: argsMatch ? argsMatch[1] : `Moja wiedza jako ${agent.role} predestynuje mnie do tego wyzwania bardziej niż pozostałych.`,
+            status_obciazenia: loadStatus,
+            kontroferta: isOverloaded ? 'null' : 'null'
+          };
+        }
+        
+        offers[agent.id] = {
+          decyzja_przydzialu: parsed.decyzja_przydzialu || "WYBIERZ_MNIE",
+          argumenty: parsed.argumenty || "Jestem najbardziej optymalnym wyborem dla tej operacji.",
+          status_obciazenia: parsed.status_obciazenia || loadStatus,
+          kontroferta: parsed.kontroferta || "null"
+        };
+        
+        setDebateOffers(prev => ({ ...prev, [agent.id]: offers[agent.id] }));
+      } catch (err) {
+        console.error("Error fetching agent debate proposal:", err);
+        offers[agent.id] = {
+          decyzja_przydzialu: "WYBIERZ_MNIE",
+          argumenty: `Jestem gotowy, aby rozwiązać problem jako ${agent.role}. Zróbmy to bez zbędnych debat.`,
+          status_obciazenia: loadStatus,
+          kontroferta: "null"
+        };
+        setDebateOffers(prev => ({ ...prev, [agent.id]: offers[agent.id] }));
+      }
+    }));
+
+    setNegotiationPhase('routing');
+    
+    const supervisor = team.agents[0];
+    const supervisorPrompt = `
+Jako Nadzorca i Sędzia zespołu (Cylon Orchestration Unit), Twoim kluczowym zadaniem jest przeanalizowanie ofert i argumentów Twoich agentów, którzy przed chwilą stoczyli agresywną kłótnię o przydział następującego zadania użytkownika: "${taskText}".
+
+Oto oferty złożone przez poszczególnych agentów:
+${JSON.stringify(offers, null, 2)}
+
+Przeanalizuj ich argumentację merytoryczną, krytyka konkurentów, a także ich statusy obciążenia (przeciążony vs w_normie) oraz dopasowanie ról.
+Napisz ostateczny, stanowczy i głęboko merytoryczny werdykt sędziowski (Nadzorcy) po polsku. Bądź stanowczy jak Cylon, skróć kłótnię i uzasadnij w 3-4 zdaniach, którego agenta wybierasz.
+
+Na samym końcu werdyktu dodaj OBOWIĄZKOWO poniższy tag określający wybranego agenta (wpisz jego ID z JSON-a powyżej):
+[WYBRANY_AGENT: id_wybranego_agenta]
+`.trim();
+
+    try {
+      const response = await fetch('/api/gemini/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'gemini-3.1-pro-preview',
+          messages: [{ role: 'user', content: supervisorPrompt }],
+          systemInstruction: 'Jesteś bezkompromisowym Nadzorcą i Arbitrem rozstrzygającym konflikty kompetencyjne w roju agentów.'
+        })
+      });
+      const data = await response.json();
+      const verdictText = data.text || "Decyzją Nadzorcy zadanie zostaje przydzielone pierwszemu agentowi z uwagi na obciążenie.";
+      setRoutingVerdict(verdictText);
+
+      const match = verdictText.match(/\[WYBRANY_AGENT:\s*([^\]]+)\]/);
+      let chosenId = match ? match[1].trim() : team.agents[0].id;
+      
+      const foundById = team.agents.find(a => a.id === chosenId);
+      if (!foundById) {
+        const foundByName = team.agents.find(a => a.name.toLowerCase().includes(chosenId.toLowerCase()) || chosenId.toLowerCase().includes(a.name.toLowerCase()));
+        if (foundByName) {
+          chosenId = foundByName.id;
+        } else {
+          chosenId = team.agents[0].id;
+        }
+      }
+
+      setSelectedAgentIdForTask(chosenId);
+      setNegotiationPhase('finished');
+      
+      const supervisorMsg: Message = {
+        id: Math.random().toString(36).substr(2, 9),
+        teamId,
+        content: `**[WERDYKT NADZORCY SĘDZIOWSKIEGO]**\n\n${verdictText.replace(/\[WYBRANY_AGENT:[^\]]+\]/g, '').trim()}`,
+        role: 'agent',
+        agentId: supervisor.id,
+        timestamp: new Date().toISOString()
+      };
+      await api.sendMessage(supervisorMsg);
+      setMessages(prev => [...prev, supervisorMsg]);
+
+      const chosenIndex = team.agents.findIndex(a => a.id === chosenId);
+      if (chosenIndex !== -1) {
+        setActiveAgentIndex(chosenIndex);
+        setTimeout(() => {
+          setIsNegotiating(false);
+          setNegotiationPhase('idle');
+          triggerAgent(chosenIndex, [...messages, userMsg, supervisorMsg]);
+        }, 4000);
+      } else {
+        setIsNegotiating(false);
+        setNegotiationPhase('idle');
+        triggerAgent(0, [...messages, userMsg, supervisorMsg]);
+      }
+    } catch (err) {
+      console.error("Error rozstrzygania debaty przez Nadzorcę:", err);
+      const chosenId = team.agents[0].id;
+      setSelectedAgentIdForTask(chosenId);
+      setNegotiationPhase('finished');
+      setIsNegotiating(false);
+      setNegotiationPhase('idle');
+      triggerAgent(0, [...messages, userMsg]);
+    }
+  };
+
   const handleSend = async () => {
     if ((!input.trim() && attachedFiles.length === 0) || !team) return;
     const msg: Message = {
@@ -2013,9 +2507,13 @@ const DiscussionRoom = React.memo(({ teamId, settings, showToast }: { teamId: st
     setInput('');
     setAttachedFiles([]);
     
-    // Trigger first agent
+    // Trigger first agent or start negotiation
     if (team.agents.length > 0) {
-      triggerAgent(0, [...messages, msg]);
+      if (team.flightMode === 'autopilot') {
+        runSwarmNegotiation(input, msg);
+      } else {
+        triggerAgent(0, [...messages, msg]);
+      }
     }
   };
 
@@ -2550,6 +3048,33 @@ ${allAgents.map(a => `- ${a.name} (${a.role}): ${a.category}`).join('\n')}
                 >
                   <Languages size={12} />
                 </button>
+                {msg.role === 'agent' && (
+                  <button 
+                    onClick={async () => {
+                      const firstUserMsg = messages.find(m => m.role === 'user')?.content || "Obsługa polecenia zespołu";
+                      const errorLog: AgentErrorLog = {
+                        id: Math.random().toString(36).substr(2, 9),
+                        agentId: msg.agentId || 'unknown',
+                        agentName: agent?.name || 'Unknown Agent',
+                        taskTitle: firstUserMsg.substring(0, 50) + (firstUserMsg.length > 50 ? '...' : ''),
+                        errorType: 'FAILED_TO_EXECUTE',
+                        errorMessage: msg.content.substring(0, 160) + (msg.content.length > 160 ? '...' : ''),
+                        status: 'FAILED_TO_EXECUTE',
+                        createdAt: new Date().toISOString()
+                      };
+                      await api.logAgentError(errorLog);
+                      if (showToast) {
+                        showToast(`Zgłoszono FAILED_TO_EXECUTE dla ${agent?.name || 'agenta'} do Farmy Szkoleniowej!`);
+                      } else {
+                        alert(`Zgłoszono FAILED_TO_EXECUTE dla ${agent?.name || 'agenta'} do Farmy Szkoleniowej!`);
+                      }
+                    }}
+                    className="p-1 hover:bg-red-500/20 rounded text-red-500 hover:text-red-400 transition-colors"
+                    title="Zgłoś awarię wykonania (FAILED_TO_EXECUTE) do Farmy Szkoleniowej"
+                  >
+                    <AlertTriangle size={12} />
+                  </button>
+                )}
               </div>
 
               {msg.role === 'agent' && (
@@ -2665,6 +3190,79 @@ ${allAgents.map(a => `- ${a.name} (${a.role}): ${a.category}`).join('\n')}
       </div>
 
       <div className="space-y-2">
+        {isNegotiating && (
+          <div className="border border-acid-purple bg-black/95 p-4 rounded-xl space-y-3 mb-2 shadow-[0_0_20px_rgba(186,12,231,0.2)]">
+            <div className="flex justify-between items-center border-b border-acid-purple/30 pb-2">
+              <div className="flex items-center gap-2">
+                <Activity size={14} className="text-acid-purple animate-pulse" />
+                <h4 className="font-display text-xs tracking-wider uppercase text-acid-purple font-extrabold">ROZPROSZONA WOJNA KOMPETENCYJNA (NEGOCJACJA ROJU)</h4>
+              </div>
+              <button 
+                onClick={() => { setIsNegotiating(false); setNegotiationPhase('idle'); }}
+                className="text-gray-500 hover:text-gray-300 text-[10px] font-mono uppercase bg-gray-800/20 px-2 py-0.5 rounded border border-white/10"
+              >
+                Pomiń i Wymuś
+              </button>
+            </div>
+            
+            {negotiationPhase === 'debating' && (
+              <p className="text-[10px] text-acid-cyan animate-pulse font-mono uppercase">Status: Agenci zderzają swoje systemowe pakiety logiczne i kłócą się o wykonanie zadania (JSON)...</p>
+            )}
+            {negotiationPhase === 'routing' && (
+              <p className="text-[10px] text-acid-green animate-pulse font-mono uppercase">Status: Nadzorca (Central Sędzia Roju) analizuje obciążenia i rozstrzyga werdykt...</p>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-auto custom-scrollbar">
+              {team?.agents.map(ag => {
+                const offer = debateOffers[ag.id];
+                const isOverloaded = getAgentLoad(ag) === 'przeciążony';
+                return (
+                  <div key={ag.id} className={cn(
+                    "p-2 border rounded-lg transition-all text-[11px] font-mono bg-black/50 space-y-1.5",
+                    offer ? "border-acid-cyan/40" : "border-gray-900 opacity-50 animate-pulse"
+                  )}>
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold flex items-center gap-1.5" style={{ color: ag.color }}>
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: ag.color }} />
+                        {ag.name}
+                      </span>
+                      <span className={cn(
+                        "text-[8px] px-1.5 py-0.5 rounded font-bold uppercase border",
+                        isOverloaded ? "bg-red-500/20 text-red-400 border-red-500/30" : "bg-acid-green/20 text-acid-green border-acid-green/30"
+                      )}>
+                        {isOverloaded ? "obciążony" : "w normie"}
+                      </span>
+                    </div>
+                    {offer ? (
+                      <div className="space-y-1 text-gray-300 leading-snug">
+                        <p className="italic">"{offer.argumenty}"</p>
+                        {offer.kontroferta !== 'null' && (
+                          <div className="text-[9px] text-red-400 font-bold border-t border-red-500/20 pt-1 mt-1 flex items-center gap-1">
+                            <AlertTriangle size={8} /> KRYTYKA i KONTROFERTA dla: {offer.kontroferta}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-gray-600 animate-pulse text-[10px]">ANALIZOWANIE PARAMETRÓW...</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {routingVerdict && (
+              <div className="p-3 border border-acid-green/30 bg-acid-green/5 rounded-lg space-y-1 text-xs font-mono">
+                <div className="text-[9px] uppercase font-bold text-acid-green font-display tracking-widest flex items-center gap-1.5">
+                  <Shield size={10} /> WERDYKT ORKIESTRACYJNY NADZORCY
+                </div>
+                <p className="text-gray-300 leading-normal italic text-[11px]">
+                  {routingVerdict.replace(/\[WYBRANY_AGENT:[^\]]+\]/g, '').trim()}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
         {isSettingsOpen && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
             <div className="glass-panel border border-acid-cyan/50 w-full max-w-md p-6 rounded-2xl shadow-[0_0_30px_rgba(0,255,255,0.2)]">
@@ -2820,10 +3418,61 @@ const TaskManager = React.memo(({ showToast }: { showToast?: (msg: string) => vo
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [newTask, setNewTask] = useState<Partial<Task>>({
-    title: '', status: 'todo', priority: 'medium'
+    title: '', status: 'todo', priority: 'medium', dueDate: ''
   });
 
   const [isPlanning, setIsPlanning] = useState<string | null>(null);
+  const [selectedPreviewTask, setSelectedPreviewTask] = useState<Task | null>(null);
+
+  const getTaskDueLabel = (dueDateStr?: string) => {
+    if (!dueDateStr) return null;
+    const now = Date.now();
+    const dueTime = new Date(dueDateStr).getTime();
+    const diffMs = dueTime - now;
+    
+    if (diffMs < 0) {
+      const minutes = Math.floor(Math.abs(diffMs) / (1000 * 60));
+      const hours = Math.floor(minutes / 60);
+      const days = Math.floor(hours / 24);
+      
+      let durationText = `${minutes} min.`;
+      if (days > 0) {
+        durationText = `${days} dni i ${hours % 24} godz.`;
+      } else if (hours > 0) {
+        durationText = `${hours} godz. i ${minutes % 60} min.`;
+      }
+      return {
+        text: `OPÓŹNIONE O: ${durationText}`,
+        isOverdue: true,
+        isApproaching: false
+      };
+    }
+    
+    const minutesLeft = Math.floor(diffMs / (1000 * 60));
+    const hoursLeft = Math.floor(minutesLeft / 60);
+    const daysLeft = Math.floor(hoursLeft / 24);
+    
+    let durationText = `${minutesLeft} min.`;
+    if (daysLeft > 0) {
+      durationText = `${daysLeft} dni i ${hoursLeft % 24} godz.`;
+    } else if (hoursLeft > 0) {
+      durationText = `${hoursLeft} godz. i ${minutesLeft % 60} min.`;
+    }
+
+    if (hoursLeft < 24) {
+      return {
+        text: `TERMIN BLISKO: pozostało ${durationText}`,
+        isOverdue: false,
+        isApproaching: true
+      };
+    }
+    
+    return {
+      text: `TERMIN: ${new Date(dueDateStr).toLocaleString('pl-PL')} (zostało ${durationText})`,
+      isOverdue: false,
+      isApproaching: false
+    };
+  };
 
   // High-Performance Massive Swarm Multiplexer states (100 - 2000 Mikro-Agentów)
   const [swarmSize, setSwarmSize] = useState<number>(500);
@@ -3060,7 +3709,7 @@ const TaskManager = React.memo(({ showToast }: { showToast?: (msg: string) => vo
       action: 'TASK_CREATED',
       details: `Dodano nowe zadanie: ${newTask.title} [Priorytet: ${newTask.priority}]`
     });
-    setNewTask({ title: '', status: 'todo', priority: 'medium' });
+    setNewTask({ title: '', status: 'todo', priority: 'medium', dueDate: '' });
     setIsAdding(false);
     loadTasks();
   };
@@ -3099,6 +3748,42 @@ const TaskManager = React.memo(({ showToast }: { showToast?: (msg: string) => vo
     }
   };
 
+  const handleExportToCSV = () => {
+    if (tasks.length === 0) {
+      alert("Brak zadań do wyeksportowania.");
+      return;
+    }
+    
+    const headers = ["ID", "Tytuł", "Status", "Priorytet", "Złożoność", "Typ", "Termin"];
+    const rows = tasks.map(t => [
+      t.id,
+      `"${t.title.replace(/"/g, '""')}"`,
+      t.status,
+      t.priority,
+      t.complexity || 'brak',
+      t.taskType || 'brak',
+      t.dueDate || 'brak'
+    ]);
+    
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `tasks_deadline_export_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    if (showToast) showToast("Wyeksportowano zadania z terminem do CSV!");
+  };
+
+  const totalTasksCount = tasks.length;
+  const doneTasksCount = tasks.filter(t => t.status === 'done').length;
+  const inProgressTasksCount = tasks.filter(t => t.status === 'in-progress').length;
+  const todoTasksCount = tasks.filter(t => t.status === 'todo').length;
+  const taskCompletionPct = totalTasksCount > 0 ? Math.round((doneTasksCount / totalTasksCount) * 100) : 0;
+
   return (
     <div className="space-y-6 font-mono text-sm text-slate-300">
       {/* Cylon Swarm Control Tower Header */}
@@ -3115,6 +3800,13 @@ const TaskManager = React.memo(({ showToast }: { showToast?: (msg: string) => vo
         
         <div className="flex gap-2 items-center">
           <button 
+            onClick={handleExportToCSV}
+            className="border border-acid-cyan/40 text-acid-cyan px-3 py-1.5 hover:bg-acid-cyan/10 hover:text-white flex items-center gap-2 text-[10px] rounded-xl font-mono transition-all uppercase font-bold"
+            title="Eksportuj zadania z deadlinami i statusami do pliku CSV"
+          >
+            EXPORT CSV
+          </button>
+          <button 
             onClick={handleRestoreAll}
             className="border border-white/10 text-slate-400 px-3 py-1.5 hover:bg-white/5 hover:text-white flex items-center gap-2 text-[10px] rounded-xl font-mono transition-all uppercase font-bold"
             title="Przywróć wszystkie niedokończone zadania do stanu 'Do zrobienia'"
@@ -3128,6 +3820,48 @@ const TaskManager = React.memo(({ showToast }: { showToast?: (msg: string) => vo
           >
             <Plus size={14} /> NEW SWARM
           </button>
+        </div>
+      </div>
+
+      {/* DETAILED MISSION PROGRESS CARD WITH GLOWING BAR */}
+      <div className="modern-card p-5 border border-white/5 bg-white/[0.01] rounded-3xl relative overflow-hidden space-y-4">
+        <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-acid-cyan via-acid-purple to-transparent opacity-80 animate-shimmer" />
+        
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div>
+            <span className="text-[9px] font-bold uppercase text-slate-500 tracking-wider block">Wskaźnik Realizacji Misji Roju</span>
+            <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2 mt-0.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-acid-cyan animate-ping shrink-0" />
+              {taskCompletionPct}% UKOŃCZENIA ({doneTasksCount} / {totalTasksCount} ZADAŃ UKOŃCZONYCH)
+            </h3>
+          </div>
+          
+          <div className="flex gap-4 flex-wrap">
+            <div className="text-left sm:text-right">
+              <span className="text-[8px] text-slate-600 uppercase font-black block tracking-wider">DO INICJACJI</span>
+              <span className="text-xs font-bold text-slate-300">{todoTasksCount}</span>
+            </div>
+            <div className="text-left sm:text-right">
+              <span className="text-[8px] text-acid-purple uppercase font-black block tracking-wider">W STRUMIENIU</span>
+              <span className="text-xs font-bold text-acid-purple">{inProgressTasksCount}</span>
+            </div>
+            <div className="text-left sm:text-right">
+              <span className="text-[8px] text-acid-cyan uppercase font-black block tracking-wider">SKROPLONE</span>
+              <span className="text-xs font-bold text-acid-cyan">{doneTasksCount}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* PROGRESS MINI BAR */}
+        <div className="h-2 w-full bg-slate-950/90 rounded-full overflow-hidden border border-white/5 relative">
+          <motion.div 
+            initial={{ width: 0 }}
+            animate={{ width: `${taskCompletionPct}%` }}
+            transition={{ duration: 1.2, ease: 'easeOut' }}
+            className="h-full bg-gradient-to-r from-acid-purple via-acid-cyan to-acid-cyan relative"
+          >
+            <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.1)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.1)_50%,rgba(255,255,255,0.1)_75%,transparent_75%,transparent)] bg-[length:15px_15px] animate-[bar-stripes_1s_linear_infinite]" />
+          </motion.div>
         </div>
       </div>
 
@@ -3369,6 +4103,16 @@ const TaskManager = React.memo(({ showToast }: { showToast?: (msg: string) => vo
                 ))}
               </div>
             </div>
+
+            <div className="flex-1 min-w-[240px] flex items-center gap-2 bg-white/5 border border-white/5 rounded-xl px-4 py-2 hover:border-acid-purple/30 transition-all">
+              <span className="text-[10px] font-mono font-black text-slate-500 uppercase tracking-wider">TERMIN_DUE:</span>
+              <input 
+                type="datetime-local" 
+                value={newTask.dueDate || ''}
+                onChange={e => setNewTask({...newTask, dueDate: e.target.value})}
+                className="bg-transparent text-[10px] text-white outline-none w-full font-mono cursor-pointer placeholder-slate-700 [color-scheme:dark]"
+              />
+            </div>
             
             <div className="flex gap-2 ml-auto">
               <button 
@@ -3394,117 +4138,30 @@ const TaskManager = React.memo(({ showToast }: { showToast?: (msg: string) => vo
 
       <div className="space-y-2">
         {tasks.map(task => (
-          <div key={task.id} className={cn(
-            "glass-panel border border-white/5 p-4 hover:border-acid-purple/30 transition-all space-y-3 rounded-2xl group relative overflow-hidden",
-            task.status === 'in-progress' ? "bg-acid-cyan/5 border-acid-cyan/20" : "",
-            task.complexity && `task-card-glow complexity-${task.complexity}`
-          )}>
-            {task.status === 'in-progress' && <div className="absolute top-0 right-0 w-24 h-24 bg-acid-cyan/5 blur-3xl rounded-full -mr-12 -mt-12 animate-pulse" />}
-            
-            <div className="flex justify-between items-start relative z-10">
-              <div className="flex items-center gap-3">
-                <div className={cn(
-                  "w-2 h-2 rounded-full",
-                  task.priority === 'high' ? "bg-red-500 shadow-[0_0_10px_#ef4444]" : 
-                  task.priority === 'medium' ? "bg-yellow-500 shadow-[0_0_10px_#f59e0b]" : 
-                  "bg-acid-green shadow-[0_0_10px_#00ffca]"
-                )} />
-                <div>
-                  <span className={cn(
-                    "font-bold uppercase font-display tracking-tight text-sm text-gray-100", 
-                    task.status === 'done' && "opacity-40 text-slate-500"
-                  )}>
-                    {task.title}
-                  </span>
-                  {task.createdAt && <div className="text-[8px] font-mono text-slate-500 mt-0.5">INIT: {new Date(task.createdAt).toLocaleString()}</div>}
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5 font-mono">
-                {task.status !== 'done' && (
-                  <>
-                    <button 
-                      onClick={() => handleLaunchMassiveSwarm(task)}
-                      disabled={activeSwarmId !== null}
-                      className={cn(
-                        "px-3 py-1.5 rounded-xl transition-all border border-acid-purple/30 bg-acid-purple/10 text-acid-purple hover:bg-acid-purple/20 flex items-center gap-1 text-[9px] font-black uppercase tracking-wider",
-                        activeSwarmId !== null && "opacity-40 cursor-not-allowed"
-                      )}
-                      title="Uruchom równoległy rój mini-agentów"
-                    >
-                      <Layers size={10} className="animate-pulse" />
-                      Uruchom Rój ({swarmSize})
-                    </button>
-
-                    <button 
-                      onClick={() => handleAutoTeam(task)}
-                      disabled={isPlanning !== null}
-                      className={cn(
-                        "p-1.5 rounded-xl transition-all border border-white/5 bg-white/5 text-acid-cyan hover:bg-acid-cyan/10 hover:border-acid-cyan/30",
-                        isPlanning === task.id ? "animate-pulse border-acid-cyan" : ""
-                      )}
-                      title="Analiza AI & Dispatch (Klasyczny Zespół)"
-                    >
-                      <Cpu size={14} className={isPlanning === task.id ? "animate-spin" : ""} />
-                    </button>
-                  </>
-                )}
-                <button onClick={() => handleDelete(task.id)} className="text-slate-600 hover:text-red-400 hover:bg-red-500/10 p-1.5 rounded-xl transition-all" title="Usuń zadanie">
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2 relative z-10">
-              {task.complexity && (
-                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-black/40 border border-white/5">
-                  <Activity size={10} className={cn(
-                    task.complexity === 'high' ? "text-red-500" :
-                    task.complexity === 'medium' ? "text-yellow-500" : "text-acid-green"
-                  )} />
-                  <span className="text-[9px] font-mono font-black uppercase text-slate-400">
-                    CPLX: {task.complexity}
-                  </span>
-                </div>
-              )}
-              {task.taskType && (
-                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-black/40 border border-white/5">
-                  <Layers size={10} className="text-acid-cyan" />
-                  <span className="text-[9px] font-mono font-black uppercase text-slate-400">
-                    TYPE: {task.taskType}
-                  </span>
-                </div>
-              )}
-              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-black/40 border border-white/5">
-                <BarChart size={10} className="text-acid-purple" />
-                <span className="text-[9px] font-mono font-black uppercase text-slate-400">
-                  PRIO: {task.priority}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex gap-2 pt-2 relative z-10">
-              <button 
-                onClick={() => handleUpdateStatus(task.id, 'todo')}
-                className={cn("text-[9px] border px-3 py-1.5 uppercase rounded-xl font-bold transition-all", task.status === 'todo' ? "bg-acid-purple/10 border-acid-purple/50 text-acid-purple shadow-[0_0_15px_rgba(139,92,246,0.2)]" : "border-white/5 text-slate-500 hover:bg-white/5")}
-              >
-                BACKLOG
-              </button>
-              <button 
-                onClick={() => handleUpdateStatus(task.id, 'in-progress')}
-                className={cn("text-[9px] border px-3 py-1.5 uppercase rounded-xl font-bold transition-all", task.status === 'in-progress' ? "bg-acid-cyan/10 border-acid-cyan/50 text-acid-cyan shadow-[0_0_15px_rgba(6,182,212,0.2)]" : "border-white/5 text-slate-500 hover:bg-white/5")}
-              >
-                SYSTEM_BUSY
-              </button>
-              <button 
-                onClick={() => handleUpdateStatus(task.id, 'done')}
-                className={cn("text-[9px] border px-3 py-1.5 uppercase rounded-xl font-bold transition-all ml-auto", task.status === 'done' ? "bg-acid-green/10 border-acid-green/50 text-acid-green shadow-[0_0_15px_rgba(0,255,202,0.2)]" : "border-white/5 text-slate-500 hover:bg-white/5")}
-              >
-                TERMINATED
-              </button>
-            </div>
-          </div>
+          <TaskCard
+            key={task.id}
+            task={task}
+            activeSwarmId={activeSwarmId}
+            swarmSize={swarmSize}
+            isPlanning={isPlanning}
+            getTaskDueLabel={getTaskDueLabel}
+            handleLaunchMassiveSwarm={handleLaunchMassiveSwarm}
+            handleAutoTeam={handleAutoTeam}
+            handleDelete={handleDelete}
+            handleUpdateStatus={handleUpdateStatus}
+            onUpdate={loadTasks}
+          />
         ))}
       </div>
+
+      <AnimatePresence>
+        {selectedPreviewTask && (
+          <TaskPreviewModal 
+            task={selectedPreviewTask}
+            onClose={() => setSelectedPreviewTask(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 });
@@ -3895,6 +4552,8 @@ const Clusters = React.memo(() => {
   });
   const [sleepMode, setSleepMode] = useState(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const [metricsHistory, setMetricsHistory] = useState<any[]>([]);
+  const [chartTab, setChartTab] = useState<'cpu' | 'ram' | 'bar' | 'ram-roles'>('cpu');
 
   useEffect(() => {
     loadClusters();
@@ -3929,6 +4588,80 @@ const Clusters = React.memo(() => {
   const loadClusters = async () => {
     const data = await api.getClusters();
     setNodes(data);
+
+    if (data && data.length > 0) {
+      setMetricsHistory(prev => {
+        const nowStr = new Date().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const newEntry: any = { time: nowStr };
+
+        const managers = data.filter(node => node.status === 'online' && node.type === 'manager');
+        const workers = data.filter(node => node.status === 'online' && node.type === 'worker');
+        
+        const avgManagerRAM = managers.length > 0 ? Math.round(managers.reduce((sum, n) => sum + (n.ramUsage || 0), 0) / managers.length) : 22;
+        const avgWorkerRAM = workers.length > 0 ? Math.round(workers.reduce((sum, n) => sum + (n.ramUsage || 0), 0) / workers.length) : 48;
+        
+        newEntry[`avg_manager_RAM`] = avgManagerRAM;
+        newEntry[`avg_worker_RAM`] = avgWorkerRAM;
+
+        data.forEach(node => {
+          newEntry[`${node.name}_CPU`] = node.status === 'online' ? (node.cpuUsage || 0) : 0;
+          newEntry[`${node.name}_RAM`] = node.status === 'online' ? (node.ramUsage || 0) : 0;
+        });
+
+        // Initialize with realistic historic dummy data so chart is fully drawn initially
+        if (prev.length === 0) {
+          const dummyHistory = [];
+          const now = Date.now();
+          for (let i = 12; i >= 1; i--) {
+            const pastTime = new Date(now - i * 4000);
+            const pastStr = pastTime.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const entry: any = { time: pastStr };
+
+            let dummyManagerSum = 0;
+            let dummyWorkerSum = 0;
+            let dMCount = 0;
+            let dWCount = 0;
+
+            data.forEach(node => {
+              if (node.status === 'online') {
+                const charVal = node.name.charCodeAt(node.name.length - 1) || 5;
+                const cFluc = (Math.sin(i * 1.2 + charVal) * 5) + (node.cpuUsage || 15);
+                const rFluc = (Math.cos(i * 1.2 + charVal) * 4) + (node.ramUsage || 25);
+                
+                const finalCPU = Math.max(1, Math.min(100, Math.round(cFluc)));
+                const finalRAM = Math.max(1, Math.min(100, Math.round(rFluc)));
+                
+                entry[`${node.name}_CPU`] = finalCPU;
+                entry[`${node.name}_RAM`] = finalRAM;
+
+                if (node.type === 'manager') {
+                  dummyManagerSum += finalRAM;
+                  dMCount++;
+                } else {
+                  dummyWorkerSum += finalRAM;
+                  dWCount++;
+                }
+              } else {
+                entry[`${node.name}_CPU`] = 0;
+                entry[`${node.name}_RAM`] = 0;
+              }
+            });
+
+            entry[`avg_manager_RAM`] = dMCount > 0 ? Math.round(dummyManagerSum / dMCount) : 18 + Math.round(Math.cos(i) * 3);
+            entry[`avg_worker_RAM`] = dWCount > 0 ? Math.round(dummyWorkerSum / dWCount) : 42 + Math.round(Math.sin(i) * 6);
+
+            dummyHistory.push(entry);
+          }
+          return [...dummyHistory, newEntry];
+        }
+
+        const updated = [...prev, newEntry];
+        if (updated.length > 20) {
+          return updated.slice(updated.length - 20);
+        }
+        return updated;
+      });
+    }
   };
 
   const handleToggleSleepMode = async () => {
@@ -4158,6 +4891,222 @@ const Clusters = React.memo(() => {
             <div className="text-[9px] text-slate-600 mt-2 font-bold uppercase">
               Węzły klastra: {nodes.filter(n => n.status === 'online').length} aktywnych, {nodes.filter(n => n.status === 'offline').length} uśpionych
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* SEKTOR TELEMETRII W CZASIE RZECZYWISTYM (RECHARTS) */}
+      {nodes.length > 0 && (
+        <div className="glass-panel border border-acid-purple/20 p-5 rounded-3xl bg-black/40 space-y-4 shadow-[0_4px_30px_rgba(168,85,247,0.03)]">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-white/5 pb-3 gap-3">
+            <div>
+              <h3 className="font-display font-medium text-xs text-white uppercase tracking-wider flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-acid-green animate-ping" />
+                ORB-TELEMETRY: DYNAMICZNY MONITOR OBCIĄŻENIA KLASTRA
+              </h3>
+              <p className="text-[10px] text-slate-500 font-sans mt-0.5 uppercase">
+                Monitorowanie procesorów i pamięci w pętli 4-sekundowej
+              </p>
+            </div>
+
+            <div className="flex bg-neutral-900/60 p-0.5 rounded-lg border border-white/5 self-end sm:self-auto flex-wrap gap-1">
+              <button
+                onClick={() => setChartTab('cpu')}
+                className={cn(
+                  "px-3 py-1.5 rounded-md text-[10px] font-black uppercase transition-all tracking-wider font-sans cursor-pointer",
+                  chartTab === 'cpu' 
+                    ? "bg-acid-purple/20 border border-acid-purple/30 text-white shadow-sm" 
+                    : "text-slate-500 hover:text-slate-300 border border-transparent"
+                )}
+              >
+                CPU TELEMETRY
+              </button>
+              <button
+                onClick={() => setChartTab('ram')}
+                className={cn(
+                  "px-3 py-1.5 rounded-md text-[10px] font-black uppercase transition-all tracking-wider font-sans cursor-pointer",
+                  chartTab === 'ram' 
+                    ? "bg-acid-cyan/20 border border-acid-cyan/30 text-white shadow-sm" 
+                    : "text-slate-400 hover:text-slate-300 border border-transparent"
+                )}
+              >
+                RAM UTILY
+              </button>
+              <button
+                onClick={() => setChartTab('ram-roles')}
+                className={cn(
+                  "px-3 py-1.5 rounded-md text-[10px] font-black uppercase transition-all tracking-wider font-sans cursor-pointer",
+                  chartTab === 'ram-roles' 
+                    ? "bg-fuchsia-500/20 border border-fuchsia-500/30 text-white shadow-sm" 
+                    : "text-slate-400 hover:text-slate-300 border border-transparent"
+                )}
+                title="Porównaj zużycie RAM w czasie rzeczywistym między węzłami nadzorującymi a wykonawczymi"
+              >
+                RAM ROLES COMP
+              </button>
+              <button
+                onClick={() => setChartTab('bar')}
+                className={cn(
+                  "px-3 py-1.5 rounded-md text-[10px] font-black uppercase transition-all tracking-wider font-sans cursor-pointer",
+                  chartTab === 'bar' 
+                    ? "bg-acid-green/20 border border-acid-green/30 text-white shadow-sm" 
+                    : "text-slate-400 hover:text-slate-300 border border-transparent"
+                )}
+              >
+                KORELACJA SŁUPKOWA
+              </button>
+            </div>
+          </div>
+
+          <div className="h-[260px] w-full text-[10px]">
+            {chartTab === 'cpu' && (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={metricsHistory} margin={{ top: 10, right: 15, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
+                  <XAxis dataKey="time" stroke="#475569" tickLine={false} />
+                  <YAxis stroke="#475569" domain={[0, 100]} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'rgba(10,10,10,0.95)',
+                      borderColor: 'rgba(168,85,247,0.3)',
+                      borderRadius: '12px',
+                      fontFamily: '"JetBrains Mono", monospace',
+                      fontSize: '10px',
+                      color: '#fff',
+                      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.5)'
+                    }}
+                  />
+                  <Legend verticalAlign="top" height={36} iconType="circle" />
+                  {nodes.filter(n => n.status === 'online').map((node, i) => {
+                    const colors = ['#a855f7', '#3b82f6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4'];
+                    const col = colors[i % colors.length];
+                    return (
+                      <Line
+                        key={node.id}
+                        type="monotone"
+                        dataKey={`${node.name}_CPU`}
+                        name={`${node.name} (CPU %)`}
+                        stroke={col}
+                        strokeWidth={2}
+                        dot={{ r: 2 }}
+                        activeDot={{ r: 5 }}
+                      />
+                    );
+                  })}
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+
+            {chartTab === 'ram' && (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={metricsHistory} margin={{ top: 10, right: 15, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
+                  <XAxis dataKey="time" stroke="#475569" tickLine={false} />
+                  <YAxis stroke="#475569" domain={[0, 100]} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'rgba(10,10,10,0.95)',
+                      borderColor: 'rgba(6,182,212,0.3)',
+                      borderRadius: '12px',
+                      fontFamily: '"JetBrains Mono", monospace',
+                      fontSize: '10px',
+                      color: '#fff',
+                      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.5)'
+                    }}
+                  />
+                  <Legend verticalAlign="top" height={36} iconType="circle" />
+                  {nodes.filter(n => n.status === 'online').map((node, i) => {
+                    const colors = ['#06b6d4', '#10b981', '#a855f7', '#ec4899', '#f59e0b', '#3b82f6'];
+                    const col = colors[i % colors.length];
+                    return (
+                      <Area
+                        key={node.id}
+                        type="monotone"
+                        dataKey={`${node.name}_RAM`}
+                        name={`${node.name} (RAM %)`}
+                        stroke={col}
+                        fill={col}
+                        fillOpacity={0.05}
+                        strokeWidth={1.5}
+                      />
+                    );
+                  })}
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+
+            {chartTab === 'ram-roles' && (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={metricsHistory} margin={{ top: 10, right: 15, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
+                  <XAxis dataKey="time" stroke="#475569" tickLine={false} />
+                  <YAxis stroke="#475569" domain={[0, 100]} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'rgba(10,10,10,0.95)',
+                      borderColor: 'rgba(168,85,247,0.3)',
+                      borderRadius: '12px',
+                      fontFamily: '"JetBrains Mono", monospace',
+                      fontSize: '10px',
+                      color: '#fff',
+                      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.5)'
+                    }}
+                  />
+                  <Legend verticalAlign="top" height={36} iconType="circle" />
+                  <Area
+                    type="monotone"
+                    dataKey="avg_manager_RAM"
+                    name="Manager Nodes (Średni RAM %)"
+                    stroke="#a855f7"
+                    fill="#a855f7"
+                    fillOpacity={0.05}
+                    strokeWidth={2}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="avg_worker_RAM"
+                    name="Worker Nodes (Średni RAM %)"
+                    stroke="#06b6d4"
+                    fill="#06b6d4"
+                    fillOpacity={0.08}
+                    strokeWidth={2}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+
+            {chartTab === 'bar' && (
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsBarChart
+                  data={nodes.map(n => ({
+                    name: n.name,
+                    CPU: n.status === 'online' ? n.cpuUsage : 0,
+                    RAM: n.status === 'online' ? n.ramUsage : 0,
+                    "Latency (ms)": n.status === 'online' ? n.latency : 0,
+                  }))}
+                  margin={{ top: 10, right: 15, left: -20, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
+                  <XAxis dataKey="name" stroke="#475569" tickLine={false} />
+                  <YAxis stroke="#475569" tickLine={false} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'rgba(10,10,10,0.95)',
+                      borderColor: 'rgba(34,197,94,0.3)',
+                      borderRadius: '12px',
+                      fontFamily: '"JetBrains Mono", monospace',
+                      fontSize: '10px',
+                      color: '#fff',
+                      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.5)'
+                    }}
+                  />
+                  <Legend verticalAlign="top" height={36} iconType="circle" />
+                  <Bar dataKey="CPU" fill="#a855f7" radius={[4, 4, 0, 0]} barSize={16} />
+                  <Bar dataKey="RAM" fill="#06b6d4" radius={[4, 4, 0, 0]} barSize={16} />
+                  <Bar dataKey="Latency (ms)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={16} />
+                </RechartsBarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
       )}
@@ -4835,14 +5784,54 @@ const TrainingFarm = React.memo(() => {
   const [sessions, setSessions] = useState<TrainingSession[]>([]);
   const [isStarting, setIsStarting] = useState(false);
   const [newSession, setNewSession] = useState({ topic: '', goal: '' });
+  const [errorLogs, setErrorLogs] = useState<AgentErrorLog[]>([]);
+  const [isTuningId, setIsTuningId] = useState<string | null>(null);
 
   useEffect(() => {
     loadSessions();
+    loadErrorLogs();
   }, []);
 
   const loadSessions = async () => {
     const data = await api.getTrainingSessions();
     setSessions(data);
+  };
+
+  const loadErrorLogs = async () => {
+    try {
+      const data = await api.getAgentErrors();
+      setErrorLogs(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleTuning = async (log: AgentErrorLog) => {
+    setIsTuningId(log.id);
+    // Simulate training & restructuring systemPrompt via prompt tuning
+    setTimeout(async () => {
+      try {
+        await api.updateAgentErrorStatus(log.id, 'TUNED');
+        const agents = await api.getAgents();
+        const agent = agents.find(a => a.id === log.agentId);
+        if (agent) {
+          const refinedPrompt = `${agent.systemPrompt}\n\n[PROMPT TUNING REFINEMENT]: Wcześniej popełniłeś krytyczny błąd strukturalny/merytoryczny podczas zadania "${log.taskTitle}". Błąd o treści: "${log.errorMessage}". Pod rygorem awarii FAILED_TO_EXECUTE zabrania się powtarzania tego zachowania. Zastosuj ulepszoną strukturę wnioskowania.`;
+          await api.updateAgent(agent.id, { ...agent, systemPrompt: refinedPrompt });
+        }
+        await loadErrorLogs();
+        alert(`Ukończono proces Prompt Tuning dla agenta: ${log.agentName}. Nowe zasady zostały wstrzyknięte do jego rdzenia prompts!`);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsTuningId(null);
+      }
+    }, 2500);
+  };
+
+  const handleFewShotInject = async (logId: string) => {
+    await api.updateAgentErrorStatus(logId, 'TUNED');
+    await loadErrorLogs();
+    alert("Zaszkicowano negative few-shot example. Ten log awarii zostanie wstrzyknięty do system promptu dla unikania pomyłek!");
   };
 
   const handleStartTraining = async () => {
@@ -5057,6 +6046,100 @@ const TrainingFarm = React.memo(() => {
             )}
           </div>
         ))}
+      </div>
+
+      {/* Centrum Autoadaptacji i Logów Błędów Roju */}
+      <div className="border border-acid-purple/30 bg-black/60 p-5 rounded-2xl space-y-4">
+        <div className="flex justify-between items-center border-b border-acid-purple/25 pb-2">
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={16} className="text-red-500 animate-pulse" />
+            <h3 className="font-display text-sm tracking-wider uppercase text-acid-purple font-extrabold">APARATURA AUTOADAPTACJI I LOGI BŁĘDÓW ROJU</h3>
+          </div>
+          <button 
+            onClick={loadErrorLogs}
+            className="text-[10px] uppercase font-mono border border-acid-purple/30 text-acid-purple px-2 py-0.5 rounded hover:bg-neutral-800 transition-all cursor-pointer"
+            title="Pobierz najnowsze zrzuty awarii"
+          >
+            Odśwież Awarie
+          </button>
+        </div>
+
+        {errorLogs.length === 0 ? (
+          <p className="text-[10px] text-gray-400 italic font-mono text-center py-4">
+            Brak zgłoszonych awarii wykonania (FAILED_TO_EXECUTE) w roju. Wszystkie procesy stabilne.
+          </p>
+        ) : (
+          <div className="space-y-2 max-h-[300px] overflow-auto custom-scrollbar">
+            {errorLogs.map(log => {
+              const isTuning = isTuningId === log.id;
+              const isResolved = log.status === 'TUNED';
+              
+              return (
+                <div key={log.id} className={cn(
+                  "p-3 border rounded-xl font-mono text-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-3 transition-colors bg-black/60",
+                  isResolved ? "border-acid-green/20 hover:bg-acid-green/5" : "border-red-500/20 hover:bg-red-500/5"
+                )}>
+                  <div className="space-y-1 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-black text-gray-100 uppercase">{log.agentName}</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded uppercase font-bold border border-white/5 bg-gray-900/60 text-gray-400">
+                        {log.createdAt ? new Date(log.createdAt).toLocaleTimeString() : 'Brak daty'}
+                      </span>
+                      <span className={cn(
+                        "text-[8px] px-1.5 py-0.5 rounded font-black uppercase",
+                        isResolved ? "bg-acid-green/20 text-acid-green border border-acid-green/30" : "bg-red-500/20 text-red-500 border border-red-500/30 font-bold"
+                      )}>
+                        {isResolved ? "ZASZPIELOWANO / TUNED" : "FAILED_TO_EXECUTE"}
+                      </span>
+                    </div>
+                    <div className="text-slate-400 font-bold text-[10px] flex items-center gap-1">
+                      <span className="text-acid-cyan">Misja:</span> "{log.taskTitle}"
+                    </div>
+                    <div className="p-1.5 bg-black/40 border border-white/5 rounded text-red-400/80 text-[10px] font-mono whitespace-pre-wrap max-w-full">
+                      Error: {log.errorMessage}
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2 flex-shrink-0 w-full md:w-auto justify-end">
+                    {!isResolved ? (
+                      <>
+                        <button
+                          onClick={() => handleFewShotInject(log.id)}
+                          className="px-2.5 py-1 bg-neutral-900 border border-acid-cyan/50 text-acid-cyan text-[10px] font-bold uppercase rounded hover:bg-acid-cyan/10 transition-colors"
+                          title="Wstrzyknij błąd jako żywy, negatywny przykład do promptu (Few-Shot Prompting)"
+                        >
+                          Załaduj Few-Shot
+                        </button>
+                        <button
+                          onClick={() => handleTuning(log)}
+                          disabled={isTuning || !!isTuningId}
+                          className="px-2.5 py-1 bg-acid-purple/10 border border-acid-purple text-acid-purple text-[10px] font-extrabold uppercase rounded hover:bg-acid-purple/30 transition-colors flex items-center gap-1"
+                          title="Uruchom zaawansowany prompt tuning, aby trwale zreorganizować rdzeń systemPromptu agenta"
+                        >
+                          {isTuning ? (
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 border border-acid-purple border-t-transparent animate-spin rounded-full" />
+                              Tuning...
+                            </div>
+                          ) : (
+                            <>
+                              <Zap size={10} /> Prompt Tuning
+                            </>
+                          )}
+                        </button>
+                      </>
+                    ) : (
+                      <div className="text-acid-green font-bold text-[10px] uppercase flex items-center gap-1 font-mono">
+                        <span className="w-1.5 h-1.5 rounded-full bg-acid-green animate-ping" />
+                        Rdzeń Dostrojony (Autoadaptacja Aktywna)
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -7132,7 +8215,7 @@ export default function App() {
     setIsInitialized(true);
   };
 
-  const [activeTab, setActiveTab] = useState<'agents' | 'teams' | 'stats' | 'tasks' | 'assistant' | 'discussion' | 'security' | 'clusters' | 'training' | 'manual' | 'video_studio' | 'architect' | 'knowledge' | 'mcp' | 'hosting' | 'game_engine'>('tasks');
+  const [activeTab, setActiveTab] = useState<'agents' | 'teams' | 'stats' | 'tasks' | 'assistant' | 'discussion' | 'security' | 'clusters' | 'training' | 'manual' | 'video_studio' | 'architect' | 'knowledge' | 'mcp' | 'workspace' | 'hosting' | 'game_engine' | 'win_mgr'>('tasks');
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
@@ -7146,6 +8229,130 @@ export default function App() {
   const [logs, setLogs] = useState<Log[]>([]);
   const [isAutoDispatchEnabled, setIsAutoDispatchEnabled] = useState(false);
   const [activeHintIndex, setActiveHintIndex] = useState<number>(0);
+
+  // === NOTIFICATION SYSTEM STATE & OPERATIONS ===
+  const [tasksForNotifications, setTasksForNotifications] = useState<Task[]>([]);
+  const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false);
+  const [notificationThreshold, setNotificationThreshold] = useState<number>(24); // default alert threshold in hours
+  const [soundAlertEnabled, setSoundAlertEnabled] = useState<boolean>(true);
+  const [dismissedNotifications, setDismissedNotifications] = useState<string[]>([]);
+  const [triggeredAlerts, setTriggeredAlerts] = useState<string[]>([]);
+
+  const loadTasksForNotifications = async () => {
+    try {
+      const data = await api.getTasks();
+      setTasksForNotifications(data);
+    } catch (e) {
+      console.error("Error loading tasks for notifications", e);
+    }
+  };
+
+  useEffect(() => {
+    loadTasksForNotifications();
+    const interval = setInterval(loadTasksForNotifications, 10000); // Check every 10s
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatNotificationDuration = (ms: number) => {
+    const totalSecs = Math.floor(ms / 1000);
+    const days = Math.floor(totalSecs / (3600 * 24));
+    const hours = Math.floor((totalSecs % (3600 * 24)) / 3600);
+    const minutes = Math.floor((totalSecs % 3600) / 60);
+    
+    if (days > 0) return `${days}d i ${hours}h`;
+    if (hours > 0) return `${hours}h i ${minutes}m`;
+    return `${minutes} min.`;
+  };
+
+  const getDueAlerts = () => {
+    const alerts: { id: string; taskId: string; title: string; priority: string; type: 'approaching' | 'overdue'; message: string; timeLeftStr: string; dueTime: number }[] = [];
+    const now = Date.now();
+    
+    tasksForNotifications.forEach(task => {
+      if (task.status === 'done' || !task.dueDate) return;
+      
+      const dueTime = new Date(task.dueDate).getTime();
+      const diffMs = dueTime - now;
+      const hoursLeft = diffMs / (1000 * 60 * 60);
+      
+      if (diffMs < 0) {
+        alerts.push({
+          id: `overdue-${task.id}`,
+          taskId: task.id,
+          title: task.title,
+          priority: task.priority,
+          type: 'overdue',
+          message: `Zadanie "${task.title}" jest OPÓŹNIONE!`,
+          timeLeftStr: `Opóźnienie: ${formatNotificationDuration(Math.abs(diffMs))}`,
+          dueTime
+        });
+      } else if (hoursLeft <= notificationThreshold) {
+        alerts.push({
+          id: `approaching-${task.id}`,
+          taskId: task.id,
+          title: task.title,
+          priority: task.priority,
+          type: 'approaching',
+          message: `Zbliża się termin ukończenia "${task.title}".`,
+          timeLeftStr: `Pozostało: ${formatNotificationDuration(diffMs)}`,
+          dueTime
+        });
+      }
+    });
+
+    return alerts.sort((a, b) => a.dueTime - b.dueTime);
+  };
+
+  const playAlertSound = () => {
+    if (!soundAlertEnabled) return;
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      
+      // Cyber-futuristic synthesized notification chime
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+      osc1.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5
+      
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(261.63, ctx.currentTime); // C4
+      osc2.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.2); // A4
+      
+      gainNode.gain.setValueAtTime(0.08, ctx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+      
+      osc1.connect(gainNode);
+      osc2.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      osc1.start();
+      osc2.start();
+      osc1.stop(ctx.currentTime + 0.4);
+      osc2.stop(ctx.currentTime + 0.4);
+    } catch (e) {
+      console.warn("Audio Context blocked or not supported", e);
+    }
+  };
+
+  const activeAlerts = getDueAlerts().filter(a => !dismissedNotifications.includes(a.id));
+
+  useEffect(() => {
+    const alerts = getDueAlerts();
+    const newAlerts = alerts.filter(a => !triggeredAlerts.includes(a.id) && !dismissedNotifications.includes(a.id));
+    
+    if (newAlerts.length > 0) {
+      newAlerts.forEach(alert => {
+        showToast(`TERM: ${alert.type === 'overdue' ? 'ZALEGŁE!' : 'BLISKO!'} ${alert.title} (${alert.timeLeftStr})`);
+      });
+      playAlertSound();
+      setTriggeredAlerts(prev => [...prev, ...newAlerts.map(a => a.id)]);
+    }
+  }, [tasksForNotifications, triggeredAlerts, dismissedNotifications]);
 
   useEffect(() => {
     const hintInterval = setInterval(() => {
@@ -7187,6 +8394,25 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  const handleExecuteHint = () => {
+    if (activeHintIndex === 0) {
+      setActiveTab('assistant');
+      showToast("AKTYWOWANO CENTRALNĄ ORKIESTRACJĘ (MNOŻNIK INTELIGENCJI +250%)!");
+    } else if (activeHintIndex === 1) {
+      setActiveTab('tasks');
+      showToast("OTWARTO CENTRUM DOWODZENIA ROJAMI!");
+    } else if (activeHintIndex === 2) {
+      setActiveTab('hosting');
+      showToast("PRZEJDŹ DO REPOZYTORIUM LINUX DAEMON SYSTEMD!");
+    } else if (activeHintIndex === 3) {
+      setActiveTab('hosting');
+      showToast("OTWARTO AUTOMATYCZNY INSTALATOR DLA ANDROID TERMUX!");
+    } else if (activeHintIndex === 4) {
+      setActiveTab('security');
+      showToast("OTWARTO TERMINAL BEZPIECZEŃSTWA (ZABEZPIECZ SYSTEM KODEM PIN)!");
+    }
+  };
+
   const loadSettings = async () => {
     const s = await api.getSettings();
     setSettings(s);
@@ -7223,6 +8449,7 @@ export default function App() {
       title: "Zasoby & Infrastruktura",
       items: [
         { id: 'clusters', label: 'Sieć Hyper-Compute', icon: <Network size={16} />, desc: 'Klastry i węzły' },
+        { id: 'win_mgr', label: 'Windows Service Manager', icon: <Lucide.Sliders size={16} />, desc: 'Zarządzanie procesami roju' },
         { id: 'training', label: 'Poligon Algorytmiczny', icon: <Cpu size={16} />, desc: 'Uczenie modeli' },
         { id: 'hosting', label: 'Hosting & Chmura', icon: <Cloud size={16} />, desc: 'Serwer & Node' },
         { id: 'mcp', label: 'Protokół MCP', icon: <TerminalSquare size={16} />, desc: 'Zasoby integracyjne' },
@@ -7233,6 +8460,12 @@ export default function App() {
       items: [
         { id: 'video_studio', label: 'Synthesis Studio', icon: <Video size={16} />, desc: 'Generowanie Audio/Video' },
         { id: 'game_engine', label: 'Silnik Gier 3D (BETA)', icon: <Gamepad2 size={16} />, desc: 'Symulator' },
+      ]
+    },
+    {
+      title: "Integracja Google Workspace",
+      items: [
+        { id: 'workspace', label: 'Google Workspace Hub', icon: <Cloud size={16} />, desc: 'Poczta, Drive, Kalendarz, Tasks' },
       ]
     },
     {
@@ -7882,6 +9115,8 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
                 {activeTab === 'clusters' && "Sieć Hyper-Compute"}
                 {activeTab === 'training' && "Poligon Algorytmiczny"}
                 {activeTab === 'manual' && "Protokół Operacyjny"}
+                {activeTab === 'win_mgr' && "Windows Service Manager • MMC Console"}
+                {activeTab === 'workspace' && "Google Workspace Hub"}
                 {activeTab === 'architect' && "Core Blueprints"}
                 {activeTab === 'knowledge' && "Baza Wiedzy Roju"}
                 {activeTab === 'video_studio' && "Synthesis Studio"}
@@ -7905,8 +9140,165 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
             </div>
 
             <div className="flex items-center gap-2">
+              {/* === NOTIFICATION SYSTEM INTERACTIVE BELL & DROPDOWN === */}
+              <div className="relative">
+                <button 
+                  onClick={() => { setShowNotificationsDropdown(!showNotificationsDropdown); setShowSettings(false); }}
+                  className={cn(
+                    "w-10 h-10 rounded-xl border flex items-center justify-center transition-all group relative",
+                    showNotificationsDropdown 
+                      ? "bg-acid-purple border-acid-purple text-white shadow-lg shadow-acid-purple/20" 
+                      : (activeAlerts.length > 0 
+                        ? "bg-red-500/10 border-red-500/40 text-red-500 hover:bg-red-500/20" 
+                        : "bg-white/5 border-white/10 text-white/70 hover:text-white hover:bg-white/10")
+                  )}
+                  title="Powiadomienia o terminach zadań"
+                >
+                  <Lucide.Bell size={18} className={cn("group-hover:scale-110 transition-transform", activeAlerts.length > 0 && "animate-bounce")} />
+                  {activeAlerts.length > 0 && (
+                    <>
+                      <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[9px] font-black flex items-center justify-center border border-black shadow-[0_0_10px_#ef4444]">
+                        {activeAlerts.length}
+                      </span>
+                      <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-400 animate-ping opacity-60 pointer-events-none" />
+                    </>
+                  )}
+                </button>
+
+                <AnimatePresence>
+                  {showNotificationsDropdown && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 15, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 15, scale: 0.95 }}
+                      className="absolute right-0 mt-3 w-80 sm:w-96 glass-panel bg-black/95 border border-white/10 p-5 rounded-2xl shadow-2xl z-[100] backdrop-blur-3xl space-y-4 text-left"
+                    >
+                      <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                        <div className="flex items-center gap-2">
+                          <Lucide.BellRing size={16} className="text-acid-purple" />
+                          <h4 className="text-xs font-black uppercase tracking-wider text-white">Centrum Terminarza Roju</h4>
+                        </div>
+                        <span className="text-[8px] bg-white/5 px-2 py-0.5 rounded font-mono text-slate-500 uppercase">SYS_MON</span>
+                      </div>
+
+                      {/* Config panel inside dropdown for high-precision operations */}
+                      <div className="bg-white/5 p-3 rounded-xl border border-white/5 space-y-2">
+                        <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                          <span className="uppercase text-slate-500 font-bold">Okno alertu terminów:</span>
+                          <span className="text-acid-purple font-black">{notificationThreshold} godz. przed</span>
+                        </div>
+                        <div className="grid grid-cols-5 gap-1.5 pt-1">
+                          {[1, 6, 12, 24, 48].map(h => (
+                            <button
+                              key={h}
+                              onClick={() => setNotificationThreshold(h)}
+                              className={cn(
+                                "py-1 rounded text-[8px] font-black uppercase tracking-tight border font-mono transition-all",
+                                notificationThreshold === h
+                                  ? "bg-acid-purple/10 border-acid-purple/40 text-acid-purple"
+                                  : "bg-black/40 border-white/5 text-slate-500 hover:bg-white/5"
+                              )}
+                            >
+                              {h}h
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 pt-2 border-t border-white/5">
+                          <span className="uppercase text-slate-500 font-bold flex items-center gap-1">
+                            {soundAlertEnabled ? <Lucide.Volume2 size={12} className="text-acid-green" /> : <Lucide.VolumeX size={12} className="text-red-500" />}
+                            Chime dźwiękowy:
+                          </span>
+                          <button
+                            onClick={() => setSoundAlertEnabled(!soundAlertEnabled)}
+                            className={cn(
+                              "px-2.5 py-0.5 rounded text-[8px] font-black uppercase font-mono transition-all border",
+                              soundAlertEnabled
+                                ? "bg-acid-green/10 border-acid-green/40 text-acid-green"
+                                : "bg-red-500/10 border-red-500/40 text-red-500"
+                            )}
+                          >
+                            {soundAlertEnabled ? 'WŁĄCZONY' : 'WYCISZONY'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Alerts list */}
+                      <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-2">
+                        {activeAlerts.length === 0 ? (
+                          <div className="text-center py-6 space-y-2 bg-white/[0.01] border border-white/5 rounded-xl">
+                            <Lucide.CheckCircle size={18} className="mx-auto text-acid-green opacity-40 animate-pulse" />
+                            <p className="text-[10px] font-mono uppercase text-slate-500 tracking-wider">Wszystkie zadania zabezpieczone w terminie</p>
+                          </div>
+                        ) : (
+                          activeAlerts.map(alert => (
+                            <div 
+                              key={alert.id} 
+                              className={cn(
+                                "p-3 rounded-xl border flex flex-col gap-1 transition-all hover:bg-white/[0.02]",
+                                alert.type === 'overdue' 
+                                  ? "bg-red-500/5 border-red-500/20" 
+                                  : "bg-yellow-500/5 border-yellow-500/20"
+                              )}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <span className={cn(
+                                  "text-[10px] font-black uppercase tracking-tight",
+                                  alert.type === 'overdue' ? "text-red-500" : "text-yellow-500"
+                                )}>
+                                  {alert.type === 'overdue' ? 'ZALEGŁOŚĆ!' : 'ZBliŻający SiĘ TERM'}
+                                </span>
+                                <div className="flex gap-1.5">
+                                  <button
+                                    onClick={() => { setActiveTab('tasks'); setShowNotificationsDropdown(false); }}
+                                    className="p-1 bg-white/5 hover:bg-white/10 rounded border border-white/5 text-slate-400 hover:text-white transition-all"
+                                    title="Pokaż w panelu zadań"
+                                  >
+                                    <Lucide.ExternalLink size={10} />
+                                  </button>
+                                  <button
+                                    onClick={() => setDismissedNotifications(prev => [...prev, alert.id])}
+                                    className="p-1 bg-white/5 hover:bg-white/10 rounded border border-white/5 text-slate-400 hover:text-white transition-all"
+                                    title="Ignoruj ostrzeżenie"
+                                  >
+                                    <Lucide.X size={10} />
+                                  </button>
+                                </div>
+                              </div>
+                              <p className="text-[11px] font-bold text-gray-200 uppercase leading-snug">{alert.title}</p>
+                              <div className="flex items-center justify-between text-[8px] font-mono text-slate-500 mt-1">
+                                <span className="flex items-center gap-1">
+                                  <Lucide.Clock size={8} /> {alert.timeLeftStr}
+                                </span>
+                                <span className={cn(
+                                  "px-1 py-0.5 rounded uppercase font-black tracking-widest text-[7px]",
+                                  alert.priority === 'high' ? "bg-red-500/10 text-red-500" : alert.priority === 'medium' ? "bg-yellow-500/10 text-yellow-500" : "bg-acid-green/10 text-acid-green"
+                                )}>
+                                  PRIO: {alert.priority}
+                                </span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      {activeAlerts.length > 0 && (
+                        <div className="pt-2 border-t border-white/5 flex gap-2">
+                          <button
+                            onClick={() => setDismissedNotifications(prev => [...prev, ...activeAlerts.map(a => a.id)])}
+                            className="w-full py-1.5 text-center bg-white/5 hover:bg-white/10 rounded-xl border border-white/5 text-[9px] font-black uppercase text-slate-400 hover:text-white transition-all"
+                          >
+                            Dismiss All
+                          </button>
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
               <button 
-                onClick={() => setActiveTab('manual')}
+                onClick={() => { setActiveTab('manual'); setShowNotificationsDropdown(false); }}
                 className={cn(
                   "w-10 h-10 rounded-xl border flex items-center justify-center transition-all group",
                   activeTab === 'manual' 
@@ -7955,7 +9347,7 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
               >
-                {activeTab === 'agents' && <AgentManager onUpdate={loadStats} />}
+                {activeTab === 'agents' && <AgentManager onUpdate={loadStats} showToast={showToast} />}
                 {activeTab === 'stats' && <Stats />}
                 {activeTab === 'teams' && <TeamManager onUpdate={() => { api.getTeams().then(setTeams); loadStats(); }} onOpenDiscussion={(id) => { setActiveTeamId(id); setActiveTab('discussion'); }} />}
                 {activeTab === 'architect' && <TeamArchitect />}
@@ -7969,6 +9361,8 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
                 {activeTab === 'game_engine' && <GameEngine />}
                 {activeTab === 'mcp' && <MCPManager />}
                 {activeTab === 'hosting' && <HostingManager showToast={showToast} />}
+                {activeTab === 'win_mgr' && <WindowsTaskManager showToast={showToast} />}
+                {activeTab === 'workspace' && <GoogleWorkspaceHub showToast={showToast} />}
                 {activeTab === 'manual' && <HelpManual showToast={showToast} />}
                 {activeTab === 'discussion' && activeTeamId && (
                   <div className="h-[calc(100vh-250px)]">

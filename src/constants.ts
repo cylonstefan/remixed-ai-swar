@@ -73,6 +73,9 @@ export const SYSTEM_PROMPT_EXAMPLES = [
 ];
 
 export const SKILLS_GALLERY = [
+  { id: 'coding', name: 'Coding', icon: Code, desc: 'Pisanie kodu, debugowanie i automatyzacja procesów wytwarzania oprogramowania.' },
+  { id: 'writing', name: 'Writing', icon: FileText, desc: 'Generowanie profesjonalnych raportów, dokumentacji technicznej, artykułów oraz tekstów.' },
+  { id: 'strategy', name: 'Strategy', icon: ShieldCheckIcon, desc: 'Analiza, planowanie celów strategicznych i kierowanie taktyczne procesami.' },
   { id: 'data-analysis', name: 'Analiza Danych', icon: Activity, desc: 'Przetwarzanie dużych zbiorów danych i wyciąganie wniosków.' },
   { id: 'vision-gen', name: 'Generowanie Obrazu', icon: ImageIcon, desc: 'Tworzenie grafik i wizualizacji na podstawie opisów.' },
   { id: 'code-review', name: 'Audyt Kodu', icon: Code, desc: 'Sprawdzanie poprawności i jakości napisanego kodu.' },

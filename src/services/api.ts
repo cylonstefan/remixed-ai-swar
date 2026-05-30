@@ -1,4 +1,4 @@
-import { Agent, Team, Message, Task, ClusterNode, TrainingSession, KnowledgeEntry, VideoMetadata } from "../types";
+import { Agent, Team, Message, Task, ClusterNode, TrainingSession, KnowledgeEntry, VideoMetadata, AgentErrorLog } from "../types";
 
 export const api = {
   async getAgentStats(): Promise<{ id: string; name: string; color: string; messageCount: number; tasksCompleted: number }[]> {
@@ -44,7 +44,7 @@ export const api = {
       body: JSON.stringify({ key, value }),
     });
   },
-  async createTeam(team: { id: string; name: string; description: string; mode?: string; agentIds: string[]; agentTasks?: Record<string, string> }): Promise<void> {
+  async createTeam(team: { id: string; name: string; description: string; mode?: string; agentIds: string[]; agentTasks?: Record<string, string>; flightMode?: 'autopilot' | 'manual' | 'vr'; flightConfig?: string }): Promise<void> {
     await fetch("/api/teams", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -233,6 +233,26 @@ export const api = {
     });
   },
 
+  async getAgentErrors(agentId?: string): Promise<AgentErrorLog[]> {
+    const url = agentId ? `/api/agents/${agentId}/errors` : "/api/training/errors";
+    const res = await fetch(url);
+    return res.json();
+  },
+  async logAgentError(errorLog: AgentErrorLog): Promise<void> {
+    await fetch("/api/training/errors", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(errorLog),
+    });
+  },
+  async updateAgentErrorStatus(id: string, status: 'FAILED_TO_EXECUTE' | 'TUNED' | 'ADAPTED'): Promise<void> {
+    await fetch(`/api/training/errors/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+  },
+
   // MCP & Scenarios
   async getMCPServers(): Promise<any[]> {
     const res = await fetch("/api/mcp/servers");
@@ -361,5 +381,31 @@ export const api = {
   },
   async deleteMCPServer(id: string): Promise<void> {
     await fetch(`/api/mcp/servers/${id}`, { method: "DELETE" });
+  },
+  async getProcessStates(): Promise<any[]> {
+    const res = await fetch("/api/process_states");
+    return res.json();
+  },
+  async runProcessAction(id: string, action: string): Promise<any> {
+    const res = await fetch(`/api/process_states/${id}/action`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+    return res.json();
+  },
+  async updateProcessState(id: string, updates: any): Promise<any> {
+    const res = await fetch(`/api/process_states/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+    return res.json();
+  },
+  async dumpProcessCommand(id: string): Promise<any> {
+    const res = await fetch(`/api/process_states/${id}/dump`, {
+      method: "POST"
+    });
+    return res.json();
   },
 };
