@@ -34,11 +34,12 @@ const SCOPES = [
   'https://www.googleapis.com/auth/calendar',
   'https://www.googleapis.com/auth/spreadsheets',
   'https://www.googleapis.com/auth/presentations',
-  'https://www.googleapis.com/auth/tasks'
+  'https://www.googleapis.com/auth/tasks',
+  'https://www.googleapis.com/auth/documents'
 ];
 SCOPES.forEach(scope => provider.addScope(scope));
 
-type WorkspaceTab = 'gmail' | 'drive' | 'chat' | 'calendar' | 'sheets' | 'slides' | 'tasks';
+type WorkspaceTab = 'gmail' | 'drive' | 'chat' | 'calendar' | 'sheets' | 'slides' | 'tasks' | 'docs';
 
 export const GoogleWorkspaceHub = React.memo(({ showToast }: { showToast: (msg: string) => void }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -64,6 +65,7 @@ export const GoogleWorkspaceHub = React.memo(({ showToast }: { showToast: (msg: 
   const [newFileName, setNewFileName] = useState('');
   const [newFileContent, setNewFileContent] = useState('');
   const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [documents, setDocuments] = useState<any[]>([]);
 
   // CHAT STATES
   const [chatSpaces, setChatSpaces] = useState<any[]>([]);
@@ -197,15 +199,28 @@ export const GoogleWorkspaceHub = React.memo(({ showToast }: { showToast: (msg: 
         case 'tasks':
           loadTaskLists();
           break;
+        case 'docs':
+          loadDocuments();
+          break;
       }
     } catch (e: any) {
       setApiError(e.message);
     }
   }, [activeSubTab, token]);
 
-  // ==========================================
-  // GMAIL MANAGEMENT
-  // ==========================================
+  const loadDocuments = async () => {
+    setActionLoading(true);
+    setApiError(null);
+    try {
+      const data = await apiFetch('https://www.googleapis.com/drive/v3/files?q=mimeType=\'application/vnd.google-apps.document\'&pageSize=15&fields=files(id,name,webViewLink)');
+      setDocuments(data.files || []);
+    } catch (e: any) {
+      setApiError(e.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const loadGmailMessages = async () => {
     setActionLoading(true);
     setApiError(null);
@@ -858,8 +873,8 @@ export const GoogleWorkspaceHub = React.memo(({ showToast }: { showToast: (msg: 
       </div>
 
       {/* Main SubTab Directory Menu (grid of icons) */}
-      <div className="grid grid-cols-3 md:grid-cols-7 gap-2.5">
-        {(['gmail', 'drive', 'chat', 'calendar', 'sheets', 'slides', 'tasks'] as WorkspaceTab[]).map((t) => {
+      <div className="grid grid-cols-4 md:grid-cols-8 gap-2.5">
+        {(['gmail', 'drive', 'chat', 'calendar', 'sheets', 'slides', 'tasks', 'docs'] as WorkspaceTab[]).map((t) => {
           const isActive = activeSubTab === t;
           let icon = <Mail size={16} />;
           let label = 'Gmail';
@@ -896,6 +911,11 @@ export const GoogleWorkspaceHub = React.memo(({ showToast }: { showToast: (msg: 
             label = 'Tasks';
             colorTheme = 'text-pink-400 border-pink-500/20 bg-pink-950/5';
             activeStyles = 'border-pink-500 bg-pink-950/35 text-pink-300 shadow-[0_0_12px_rgba(244,114,182,0.1)]';
+          } else if (t === 'docs') {
+            icon = <BookOpen size={16} />;
+            label = 'Docs';
+            colorTheme = 'text-blue-400 border-blue-500/20 bg-blue-950/5';
+            activeStyles = 'border-blue-500 bg-blue-950/35 text-blue-300 shadow-[0_0_12px_rgba(96,165,250,0.1)]';
           }
 
           return (
@@ -1239,6 +1259,34 @@ export const GoogleWorkspaceHub = React.memo(({ showToast }: { showToast: (msg: 
                     </div>
                   )}
                 </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ======================================================== */}
+          {/* DOCS SECTION */}
+          {/* ======================================================== */}
+          {activeSubTab === 'docs' && (
+            <motion.div key="docs" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
+              <div className="flex justify-between items-center border-b border-white/5 pb-3">
+                <span className="font-display text-xs uppercase font-black tracking-widest text-white flex items-center gap-2">
+                  <BookOpen className="text-blue-400 animate-pulse" size={16} /> DOKUMENTY GOOGLE [INTELLIGENCE_BOX]
+                </span>
+                <button onClick={loadDocuments} className="p-1.5 bg-neutral-900 border border-white/10 rounded-lg text-white hover:bg-neutral-800" title="Odśwież dokumenty">
+                  <RefreshCw size={14} />
+                </button>
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                 {documents.length === 0 ? (
+                    <div className="p-8 text-center text-xs text-slate-500 font-mono">Brak dokumentów w strefie projektu.</div>
+                 ) : (
+                    documents.map((doc: any) => (
+                      <a key={doc.id} href={doc.webViewLink} target="_blank" rel="noopener noreferrer" className="p-3 bg-black/40 border border-white/5 rounded-xl hover:border-blue-500/50 hover:bg-blue-950/20 transition-all flex items-center justify-between">
+                         <span className="text-xs font-bold text-zinc-300">{doc.name}</span>
+                         <ExternalLink size={12} className="text-slate-500" />
+                      </a>
+                    ))
+                 )}
               </div>
             </motion.div>
           )}

@@ -8,6 +8,7 @@ export const SystemInstaller = React.memo(({ onComplete }: { onComplete: () => v
   const [step, setStep] = useState(0);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('Oczekiwanie na inicjalizację...');
+  const [dbUser, setDbUser] = useState('admin');
   const [logs, setLogs] = useState<string[]>([]);
   const [isFinishing, setIsFinishing] = useState(false);
   const [isError, setIsError] = useState(false);
@@ -61,6 +62,8 @@ export const SystemInstaller = React.memo(({ onComplete }: { onComplete: () => v
       
       setTimeout(() => {
         addLog('Dodano presety: KODER-PRO, NADZORCA, RED-TEAM, CREATIVE.');
+        addLog('Instalacja serwera bazy danych Firebird... [OK]');
+        addLog('Konfiguracja sterowników Firebird dla Python... [OK]');
         addLog('Indeksowanie bazy wiedzy... [DONE]');
         addLog('Aktywacja systemu szablonów systemowych... [OK]');
         setProgress(60);
@@ -100,7 +103,17 @@ export const SystemInstaller = React.memo(({ onComplete }: { onComplete: () => v
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-[#020202] flex items-center justify-center p-4 font-sans selection:bg-acid-purple selection:text-white">
+    <div 
+      className="fixed inset-0 z-[100] bg-[#020202] flex items-center justify-center p-4 font-sans selection:bg-acid-purple selection:text-white overflow-hidden relative"
+      style={{
+        backgroundImage: `url('/src/assets/images/cyber_sztab_front_1781045053860.png')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
+    >
+      {/* Immersive backdrop overlay */}
+      <div className="absolute inset-0 bg-gradient-to-b from-neutral-950/95 via-black/85 to-neutral-950/95 backdrop-blur-md z-0" />
+
       <AnimatePresence>
         {isFinishing && (
           <motion.div 
@@ -124,7 +137,7 @@ export const SystemInstaller = React.memo(({ onComplete }: { onComplete: () => v
 
       <motion.div 
         initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-3xl modern-card bg-neutral-950/50 border-white/5 p-1 px-1 rounded-[3rem] shadow-[0_0_150px_rgba(176,38,255,0.1)] relative overflow-hidden"
+        className="w-full max-w-3xl modern-card bg-neutral-950/40 border-white/5 p-1 px-1 rounded-[3rem] shadow-[0_0_150px_rgba(176,38,255,0.1)] relative overflow-hidden z-10"
       >
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-acid-purple to-transparent opacity-50" />
         
@@ -142,12 +155,12 @@ export const SystemInstaller = React.memo(({ onComplete }: { onComplete: () => v
               <h1 className="text-4xl font-display font-bold uppercase text-white tracking-tight leading-none mb-3">AI Swarm OS</h1>
               <p className="text-xs uppercase font-bold text-slate-500 tracking-widest flex items-center justify-center md:justify-start gap-3">
                 <span className="w-2 h-2 rounded-full bg-acid-green animate-pulse" />
-                Dystrybucja Enterprise • Wersja 3.4.2
+                Dystrybucja Enterprise • Wersja 3.5.0
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-3 mb-10">
+          <div className="grid grid-cols-5 gap-3 mb-10">
             {steps.map((s, i) => (
               <div key={i} className="space-y-3">
                 <div className={cn(
@@ -174,6 +187,16 @@ export const SystemInstaller = React.memo(({ onComplete }: { onComplete: () => v
           </div>
 
           <div className="space-y-8">
+            <div className="flex flex-col gap-2">
+              <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest pl-1">Użytkownik Firebird</label>
+              <input
+                type="text"
+                value={dbUser}
+                onChange={(e) => setDbUser(e.target.value)}
+                className="bg-black/80 border border-white/10 rounded-xl px-4 py-3 text-white text-xs font-mono focus:border-acid-purple outline-none w-full"
+              />
+            </div>
+
             <div className="modern-card bg-black/60 border-white/5 p-6 rounded-3xl relative">
               <div className="flex justify-between items-center mb-4 border-b border-white/5 pb-3">
                  <div className="flex items-center gap-2">

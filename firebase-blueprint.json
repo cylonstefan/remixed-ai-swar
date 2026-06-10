@@ -1,0 +1,24 @@
+{
+  "entities": {
+    "Log": {
+      "title": "Log",
+      "description": "System log entry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "agentId": { "type": "string" },
+        "agentName": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "action", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/logs/{logId}": {
+      "schema": "Log",
+      "description": "Collection of system logs"
+    }
+  }
+}

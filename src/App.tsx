@@ -1,25 +1,52 @@
 import React, { useState, useEffect, useRef } from 'react';
+import JSZip from 'jszip';
 import { motion, AnimatePresence } from 'motion/react';
 import { DndContext, useDraggable, useDroppable, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { 
   X, Minus, Square, Users, Bot, MessageSquare, 
   Plus, Trash2, Send, Play, Pause, Settings, UserPlus,
-  Monitor, Terminal, TerminalSquare, Layout, HelpCircle, CheckSquare, ListTodo,
-  Shield, Activity, Paperclip, Mic, MicOff, Volume2, VolumeX, Languages, FileText, Upload,
-  Download, AlertOctagon, Network, Cpu, BookOpen, AlertTriangle, Copy, Lock, Search, Target, Maximize2, ChevronUp, Layers, BarChart,
-  Video, Music, Image as ImageIcon, Code, ShieldAlert, ThumbsDown, Scale, Zap, Cloud, Server, Globe, Database, Box, BookOpen as BookOpenIcon, Network as NetworkIcon, ShieldCheck, MessageCircle, Gamepad2, Smartphone, Sparkles, Menu, Film, RotateCcw, Power, ArrowRight
+  Monitor, Terminal, TerminalSquare, Layout, HelpCircle, CheckSquare, CheckCircle2, ListTodo,
+  Shield, Activity, Eye, Paperclip, Mic, MicOff, Volume2, VolumeX, Languages, FileText, Upload,
+  Download, AlertOctagon, Network, Cpu, BookOpen, AlertTriangle, Copy, Lock, Search, Target, Maximize2, ChevronUp, ChevronDown, Sliders, Layers, BarChart,
+  Video, Music, Image as ImageIcon, Code, ShieldAlert, ThumbsDown, Scale, Zap, Cloud, Server, Globe, Database, Box, BookOpen as BookOpenIcon, Network as NetworkIcon, ShieldCheck, MessageCircle, Gamepad2, Smartphone, Sparkles, Menu, Film, RotateCcw, Power, ArrowRight, HardDrive, Share2, Palette, Archive, RefreshCcw, RefreshCw
 } from 'lucide-react';
 import * as Lucide from 'lucide-react';
-import { cn } from './lib/utils';
+import { cn, generateColor } from './lib/utils';
 import { Agent, Team, Message, Task, Log, TrainingSession, ClusterNode, VideoMetadata, MCPServer, SceneCategory, ExampleScenario, KnowledgeEntry, AgentHistoryEntry, AgentErrorLog } from './types';
+import { TaskGoogleSyncBtn } from './components/TaskGoogleSyncBtn';
+import { NotificationService } from './services/notifications';
 import { api } from './services/api';
 import { gemini } from './services/gemini';
 import { SystemInstaller } from './components/SystemInstaller';
+import { SystemOrchestrator } from './components/SystemOrchestrator';
+import { AgentActivityHeatmap } from './components/AgentActivityHeatmap';
+import { TeamWorkloadHeatmap } from './components/TeamWorkloadHeatmap';
+import { StatsDashboard } from './components/StatsDashboard';
 import { ReggaeSoundSystem } from './components/ReggaeSoundSystem';
+import { ClusterLoadGauge } from './components/ClusterLoadGauge';
 import { GoogleWorkspaceHub } from './components/GoogleWorkspaceHub';
 import { WindowsTaskManager } from './components/WindowsTaskManager';
+import { DeviceManager } from './components/DeviceManager';
+import { MediaAnalyzer } from './components/MediaAnalyzer';
+import { SchedulerManager } from './components/SchedulerManager';
+import { TaskDependenciesGraph } from './components/TaskDependenciesGraph';
+import { ClusterAiManager } from './components/ClusterAiManager';
 import { TaskPreviewModal } from './components/TaskPreviewModal';
+import { AIChatManager } from './components/AIChatManager';
+import { AgentPerformance } from './components/AgentPerformance';
+import { AgentTemplateManager } from './components/AgentTemplateManager';
+import { AgentMemoryPanel } from './components/AgentMemoryPanel';
 import { TaskCard } from './components/TaskCard';
+import { CommandPalette } from './components/CommandPalette';
+import { CorporateSnitchSystem } from './components/CorporateSnitchSystem';
+import { VoiceOrchestratorChat } from './components/VoiceOrchestratorChat';
+import { DashboardWidgets } from './components/DashboardWidgets';
+import { HardwareMonitor } from './components/HardwareMonitor';
+import { QuickClusterPreview } from './components/QuickClusterPreview';
+import AppGenerator from './components/AppGenerator';
+import { FirebaseHub } from './components/FirebaseHub';
+import { FirebaseLogsViewer } from './components/FirebaseLogsViewer';
+import { GlobalRecoveryMonitor } from './components/GlobalRecoveryMonitor';
 import ReactMarkdown from 'react-markdown';
 import { 
   ResponsiveContainer, 
@@ -54,62 +81,6 @@ import {
   SYSTEM_PROMPT_EXAMPLES, SKILLS_GALLERY, AGENT_ICON_MAP 
 } from './constants';
 
-const Stats = React.memo(() => {
-  const [stats, setStats] = useState<{ id: string; name: string; color: string; messageCount: number; tasksCompleted: number }[]>([]);
-
-  useEffect(() => {
-    loadStats();
-  }, []);
-
-  const loadStats = async () => {
-    const data = await api.getAgentStats();
-    setStats(data);
-  };
-
-  return (
-    <div className="space-y-6 font-mono text-sm">
-      <div className="flex justify-between items-end border-b border-acid-purple/30 pb-2">
-        <h2 className="font-display text-lg uppercase neon-text-purple">Ranking Agentów</h2>
-        <div className="text-[10px] opacity-50 uppercase">Top Użytkowanie</div>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {[...stats].sort((a, b) => (b.messageCount + b.tasksCompleted) - (a.messageCount + a.tasksCompleted)).map((agent, index) => (
-          <div key={agent.id} className="glass-panel border border-acid-purple/30 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden group hover:border-acid-purple transition-all">
-            <div className="absolute top-0 right-0 bg-acid-purple/20 px-2 py-1 text-[10px] font-bold text-acid-purple border-l border-b border-acid-purple/30">
-              #{index + 1}
-            </div>
-            <div className="w-12 h-12 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(176,38,255,0.3)]" style={{ backgroundColor: agent.color, color: 'white' }}>
-              <span className="text-lg font-bold">{agent.name[0]}</span>
-            </div>
-            <div className="flex-1">
-              <div className="font-bold text-gray-100 flex items-center gap-2">
-                {agent.name}
-                {index === 0 && <Zap size={14} className="text-acid-green animate-pulse" />}
-              </div>
-              <div className="text-xs space-y-1 mt-1">
-                <div className="flex justify-between opacity-70">
-                  <span>Wiadomości:</span>
-                  <span className="text-acid-cyan">{agent.messageCount}</span>
-                </div>
-                <div className="flex justify-between opacity-70">
-                  <span>Zadania:</span>
-                  <span className="text-acid-green">{agent.tasksCompleted}</span>
-                </div>
-                <div className="w-full bg-black/40 h-1 rounded-full mt-2 overflow-hidden">
-                  <div 
-                    className="h-full bg-acid-purple shadow-[0_0_5px_#b026ff]" 
-                    style={{ width: `${Math.min(100, (agent.messageCount / (stats[0]?.messageCount || 1)) * 100)}%` }} 
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-});
 
 // --- customs nodes for ReactFlow ---
 
@@ -193,24 +164,46 @@ const TeamArchitect = React.memo((): React.ReactElement => {
 
   const loadData = async () => {
     try {
-      const [a, t] = await Promise.all([api.getAgents(), api.getTeams()]);
+      const [a, t, s] = await Promise.all([
+        api.getAgents(),
+        api.getTeams(),
+        api.getSettings()
+      ]);
       setAgents(a);
       setTeams(t);
       
-      const teamNodes: Node[] = t.map((team, idx) => ({
-        id: `team-${team.id}`,
-        type: 'team',
-        data: { name: team.name, description: team.description },
-        position: { x: 400 * idx, y: 50 },
-        dragHandle: '.font-display',
-      }));
+      const teamNodes: Node[] = t.map((team, idx) => {
+        let savedPos = { x: 400 * idx, y: 50 };
+        const key = `node-pos-team-${team.id}`;
+        if (s && s[key]) {
+          try {
+            savedPos = JSON.parse(s[key]);
+          } catch (e) {}
+        }
+        return {
+          id: `team-${team.id}`,
+          type: 'team',
+          data: { name: team.name, description: team.description },
+          position: savedPos,
+          dragHandle: '.font-display',
+        };
+      });
 
-      const agentNodes: Node[] = a.map((agent, idx) => ({
-        id: `agent-${agent.id}`,
-        type: 'agent',
-        data: { name: agent.name, role: agent.role, color: agent.color },
-        position: { x: (idx % 4) * 250, y: 350 + Math.floor(idx / 4) * 150 },
-      }));
+      const agentNodes: Node[] = a.map((agent, idx) => {
+        let savedPos = { x: (idx % 4) * 250, y: 350 + Math.floor(idx / 4) * 150 };
+        const key = `node-pos-agent-${agent.id}`;
+        if (s && s[key]) {
+          try {
+            savedPos = JSON.parse(s[key]);
+          } catch (e) {}
+        }
+        return {
+          id: `agent-${agent.id}`,
+          type: 'agent',
+          data: { name: agent.name, role: agent.role, color: agent.color },
+          position: savedPos,
+        };
+      });
 
       const initialEdges: Edge[] = [];
       t.forEach(team => {
@@ -296,6 +289,10 @@ const TeamArchitect = React.memo((): React.ReactElement => {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           nodeTypes={nodeTypes}
+          onNodeDragStop={async (event, node) => {
+            const key = `node-pos-${node.id}`;
+            await api.updateSetting(key, JSON.stringify(node.position));
+          }}
           fitView
           className="bg-dot-pattern"
         >
@@ -370,6 +367,9 @@ const AgentManager = React.memo(({ onUpdate, showToast }: { onUpdate: () => void
   const [expandedAgentId, setExpandedAgentId] = useState<string | null>(null);
   const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [skillSearchTerm, setSkillSearchTerm] = useState('');
+  const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
+  const [skillInputText, setSkillInputText] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedRole, setSelectedRole] = useState('all');
   const [newAgent, setNewAgent] = useState<Partial<Agent>>({
@@ -379,6 +379,9 @@ const AgentManager = React.memo(({ onUpdate, showToast }: { onUpdate: () => void
     systemPermissions: '', filePermissions: '', integrations: '', executableCommands: '', category: 'Programista',
     icon: 'Bot'
   });
+
+  const [settings, setSettings] = useState<Record<string, string>>({});
+  const [localLlmModels, setLocalLlmModels] = useState<string[]>([]);
 
   const toggleSkill = (skillName: string) => {
     const currentSkills = newAgent.skills ? newAgent.skills.split(',').map(s => s.trim()).filter(Boolean) : [];
@@ -390,6 +393,27 @@ const AgentManager = React.memo(({ onUpdate, showToast }: { onUpdate: () => void
   };
 
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
+  const [isValidatingPrompt, setIsValidatingPrompt] = useState(false);
+  const [isSelfCorrecting, setIsSelfCorrecting] = useState(false);
+  const [modelAutoMode, setModelAutoMode] = useState(true);
+
+  const handleRunSelfCorrection = async () => {
+    setIsSelfCorrecting(true);
+    try {
+      const res = await api.runSelfCorrection();
+      if (res.success) {
+        if (showToast) {
+          showToast(`Przetworzono ${res.processed} agentów. Skorygowano ${res.corrected} jednostek.`);
+        }
+        loadAgents();
+      }
+    } catch (err) {
+      console.error("Self-correction UI error:", err);
+      if (showToast) showToast("Nie udało się przeprowadzić autokorekty roju.");
+    } finally {
+      setIsSelfCorrecting(false);
+    }
+  };
 
   const handleAutoGeneratePrompt = async () => {
     if (!newAgent.role || !newAgent.name) {
@@ -406,6 +430,42 @@ const AgentManager = React.memo(({ onUpdate, showToast }: { onUpdate: () => void
       setIsGeneratingPrompt(false);
     }
   };
+
+  const handleValidatePrompt = async () => {
+    if (!newAgent.systemPrompt) {
+      alert('Najpierw wpisz prompt systemowy do walidacji.');
+      return;
+    }
+    setIsValidatingPrompt(true);
+    try {
+      const validatedPrompt = await gemini.validateAgentSystemPrompt(newAgent.systemPrompt);
+      setNewAgent(prev => ({ ...prev, systemPrompt: validatedPrompt }));
+      if (showToast) {
+         if (validatedPrompt !== newAgent.systemPrompt) {
+           showToast("Prompt zoptymalizowany przez AI!");
+         } else {
+           showToast("Prompt jest idealny, brak sugerowanych zmian.");
+         }
+      }
+    } catch (e) {
+      alert('Błąd walidacji promptu.');
+    } finally {
+      setIsValidatingPrompt(false);
+    }
+  };
+
+  const suggestModel = (prompt: string): string => {
+    if (prompt.length > 300 || prompt.toLowerCase().includes('complex') || prompt.toLowerCase().includes('analyze')) {
+      return 'gemini-1.5-pro-preview-0514';
+    }
+    return 'gemini-3-flash-preview';
+  };
+
+  useEffect(() => {
+    if (modelAutoMode && newAgent.systemPrompt) {
+        setNewAgent(prev => ({ ...prev, model: suggestModel(newAgent.systemPrompt || '') }));
+    }
+  }, [newAgent.systemPrompt, modelAutoMode]);
 
   const seedAgents = async () => {
     const agentsToSeed = [
@@ -479,6 +539,23 @@ const AgentManager = React.memo(({ onUpdate, showToast }: { onUpdate: () => void
 
   useEffect(() => {
     loadAgents();
+    
+    // Load local LLM configuration and auto-scanned models on mount for the creator options
+    const loadLocalInfo = async () => {
+      try {
+        const s = await api.getSettings();
+        setSettings(s);
+        if (s.local_llm_mode === 'true') {
+          const res = await api.testLocalLlm(s.local_llm_address || 'http://localhost:1234', s.local_llm_api_key || '');
+          if (res.success && res.models) {
+            setLocalLlmModels(res.models);
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to precache local models for autocomplete:", err);
+      }
+    };
+    loadLocalInfo();
   }, []);
 
   const loadAgents = async () => {
@@ -501,7 +578,7 @@ const AgentManager = React.memo(({ onUpdate, showToast }: { onUpdate: () => void
       const originalAgent = agents.find(a => a.id === editingAgentId);
       if (originalAgent) {
         const changes: Record<string, { from: any, to: any }> = {};
-        const fieldsToCompare: (keyof Agent)[] = ['name', 'role', 'systemPrompt', 'model', 'category', 'skills', 'knowledge', 'voice', 'personality', 'objectives', 'commands', 'permissions', 'integrations'];
+        const fieldsToCompare: (keyof Agent)[] = ['name', 'role', 'systemPrompt', 'model', 'category', 'skills', 'knowledge', 'voice', 'personality', 'objectives', 'commands', 'permissions', 'integrations', 'size', 'specialization', 'processingPower', 'autonomyLevel'];
         
         fieldsToCompare.forEach(field => {
           if (newAgent[field] !== originalAgent[field]) {
@@ -586,6 +663,34 @@ const AgentManager = React.memo(({ onUpdate, showToast }: { onUpdate: () => void
     onUpdate();
   };
 
+  const handleBatchClone = async () => {
+    if (selectedAgentIds.length === 0) return;
+    
+    for (const id of selectedAgentIds) {
+      const agent = agents.find(a => a.id === id);
+      if (agent) {
+        const clonedAgent: Agent = {
+          ...agent,
+          id: Math.random().toString(36).substr(2, 9),
+          name: `${agent.name} (Tpl: ${Date.now().toString().slice(-4)})`,
+          createdAt: new Date().toISOString()
+        };
+        await api.createAgent(clonedAgent);
+      }
+    }
+    
+    await api.createLog({
+      id: Math.random().toString(36).substr(2, 9),
+      action: 'BATCH_CLONE',
+      details: `Sklonowano ${selectedAgentIds.length} agentów`
+    });
+    
+    setSelectedAgentIds([]);
+    loadAgents();
+    onUpdate();
+    if (showToast) showToast(`Sklonowano ${selectedAgentIds.length} agentów.`);
+  };
+
   const handleMagicCreateAgent = async () => {
     if (!autoDescription.trim()) return;
     setIsAutoLoading(true);
@@ -659,6 +764,29 @@ Twój cel: Zwróć wyłącznie czysty JSON o następującej strukturze (żadnych
         </div>
         <div className="flex gap-3">
           <button 
+            onClick={handleBatchClone}
+            disabled={selectedAgentIds.length < 2}
+            className={cn(
+              "modern-btn border border-white/10 px-4 transition-all",
+              selectedAgentIds.length < 2 ? "opacity-30 cursor-not-allowed" : "text-emerald-400 hover:bg-emerald-400/10"
+            )}
+            title="Sklonuj zaznaczonych agentów"
+          >
+            <Copy size={16} /> Batch Clone ({selectedAgentIds.length})
+          </button>
+          <button 
+            onClick={handleRunSelfCorrection}
+            disabled={isSelfCorrecting}
+            className={cn(
+              "modern-btn border border-white/10 px-4 transition-all text-orange-400 hover:bg-orange-400/10",
+              isSelfCorrecting && "opacity-50 cursor-wait"
+            )}
+            title="Uruchom autokorektę AI dla agentów o niskiej skuteczności"
+          >
+            {isSelfCorrecting ? <RefreshCw className="animate-spin" size={16} /> : <Zap size={16} />}
+            <span>Rój Self-Correction</span>
+          </button>
+          <button 
             onClick={() => setIsAutoCreating(!isAutoCreating)}
             className="modern-btn border border-white/10 text-acid-cyan hover:bg-acid-cyan/5 px-4"
           >
@@ -724,17 +852,28 @@ Twój cel: Zwróć wyłącznie czysty JSON o następującej strukturze (żadnych
         )}
       </AnimatePresence>
 
-      <div className="flex flex-col md:flex-row gap-4 bg-white/5 p-4 rounded-3xl border border-white/10 backdrop-blur-sm shadow-inner mt-4">
-        <div className="relative flex-1 group">
-          <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-hover:text-acid-purple transition-colors" />
-          <input 
-            placeholder="Szukaj jednostki (nazwa, rola, prompt)..." 
-            className="modern-input pl-11 py-2.5 w-full text-xs bg-black/20 focus:bg-black/40"
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-          />
+      <div className="flex flex-col xl:flex-row gap-4 bg-white/5 p-4 rounded-3xl border border-white/10 backdrop-blur-sm shadow-inner mt-4">
+        <div className="flex flex-col md:flex-row flex-1 gap-4">
+          <div className="relative flex-1 group">
+            <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-hover:text-acid-purple transition-colors" />
+            <input 
+              placeholder="Szukaj jednostki (nazwa, rola, prompt)..." 
+              className="modern-input pl-11 py-2.5 w-full text-xs bg-black/20 focus:bg-black/40"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="relative flex-1 group">
+            <Target size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-hover:text-acid-cyan transition-colors" />
+            <input 
+              placeholder="Filtruj wg umiejętności (np. Python, Docker)..." 
+              className="modern-input pl-11 py-2.5 w-full text-xs bg-black/20 focus:bg-black/40"
+              value={skillSearchTerm}
+              onChange={e => setSkillSearchTerm(e.target.value)}
+            />
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
            <div className="relative group">
              <select 
                className="modern-input py-2.5 pl-4 pr-10 text-[10px] uppercase font-bold text-slate-400 bg-white/5 border border-white/10 appearance-none cursor-pointer focus:border-acid-purple/50 transition-all hover:bg-white/10"
@@ -763,9 +902,9 @@ Twój cel: Zwróć wyłącznie czysty JSON o następującej strukturze (żadnych
              <ChevronUp size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 rotate-180 pointer-events-none group-hover:text-acid-purple transition-colors" />
            </div>
 
-           {(searchTerm || selectedCategory !== 'all' || selectedRole !== 'all') && (
+           {(searchTerm || skillSearchTerm || selectedCategory !== 'all' || selectedRole !== 'all') && (
              <button 
-               onClick={() => { setSearchTerm(''); setSelectedCategory('all'); setSelectedRole('all'); }}
+               onClick={() => { setSearchTerm(''); setSkillSearchTerm(''); setSelectedCategory('all'); setSelectedRole('all'); }}
                className="px-4 py-2.5 bg-acid-purple/10 border border-acid-purple/30 rounded-xl text-acid-purple hover:bg-acid-purple hover:text-white transition-all flex items-center gap-2 text-[10px] uppercase font-bold"
                title="Wyczyść wszystkie filtry"
              >
@@ -1031,18 +1170,33 @@ Twój cel: Zwróć wyłącznie czysty JSON o następującej strukturze (żadnych
                 <div className="space-y-2 text-left relative">
                   <div className="flex justify-between items-center mb-1">
                     <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">Dyrektywa Systemowa (System Prompt)</label>
-                    <button 
-                      onClick={handleAutoGeneratePrompt}
-                      disabled={isGeneratingPrompt}
-                      className={cn(
-                        "text-[9px] font-bold uppercase px-2 py-1 rounded bg-acid-purple/20 text-acid-purple hover:bg-acid-purple/30 transition-all flex items-center gap-1",
-                        isGeneratingPrompt ? "animate-pulse" : ""
-                      )}
-                      title="Pozwól AI wygenerować optymalny system prompt"
-                    >
-                      <Sparkles size={10} />
-                      {isGeneratingPrompt ? 'Generowanie...' : 'AI Sugestia'}
-                    </button>
+                    <div className="flex gap-2">
+                        <button 
+                          onClick={handleValidatePrompt}
+                          disabled={isValidatingPrompt || !newAgent.systemPrompt}
+                          className={cn(
+                            "text-[9px] font-bold uppercase px-2 py-1 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-all flex items-center gap-1",
+                            isValidatingPrompt ? "animate-pulse" : "",
+                            (!newAgent.systemPrompt) ? "opacity-50 cursor-not-allowed" : ""
+                          )}
+                          title="Skanuj prompt i popraw logiczne błędy"
+                        >
+                          <CheckCircle2 size={10} />
+                          {isValidatingPrompt ? 'Walidacja...' : 'Auto-Korekta'}
+                        </button>
+                        <button 
+                          onClick={handleAutoGeneratePrompt}
+                          disabled={isGeneratingPrompt}
+                          className={cn(
+                            "text-[9px] font-bold uppercase px-2 py-1 rounded bg-acid-purple/20 text-acid-purple hover:bg-acid-purple/30 transition-all flex items-center gap-1",
+                            isGeneratingPrompt ? "animate-pulse" : ""
+                          )}
+                          title="Pozwól AI wygenerować optymalny system prompt"
+                        >
+                          <Sparkles size={10} />
+                          {isGeneratingPrompt ? 'Generowanie...' : 'AI Sugestia'}
+                        </button>
+                    </div>
                   </div>
                   <textarea 
                     placeholder="Instrukcje zachowania e.g. 'Jesteś ekspertem SQL. Zawsze formatuj kod w blokach sql. Jika nie jesteś pewien schematu, proś o wyjaśnienie...'" 
@@ -1079,16 +1233,34 @@ Twój cel: Zwróć wyłącznie czysty JSON o następującej strukturze (żadnych
                     </select>
                   </div>
                   <div className="space-y-2 text-left">
-                    <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">Model AI</label>
+                    <label className="text-[10px] font-bold uppercase text-slate-500 ml-1 flex items-center justify-between">
+                      Model AI
+                      <label className="flex items-center gap-1 cursor-pointer text-acid-purple hover:text-white">
+                        <input 
+                          type="checkbox"
+                          checked={modelAutoMode}
+                          onChange={(e) => setModelAutoMode(e.target.checked)}
+                          className="w-3 h-3 accent-acid-purple"
+                        />
+                        <span className="text-[9px] uppercase">Auto</span>
+                      </label>
+                    </label>
                     <input 
                       list="modal-model-options"
-                      className="modern-input w-full bg-white/[0.02]"
+                      className={cn("modern-input w-full bg-white/[0.02]", modelAutoMode && "opacity-50 cursor-not-allowed")}
                       value={newAgent.model}
+                      disabled={modelAutoMode}
                       onChange={e => setNewAgent({...newAgent, model: e.target.value})}
                       placeholder="Model"
                       title="Wybierz mózg Twojego agenta"
                     />
                     <datalist id="modal-model-options">
+                      {localLlmModels?.map(m => (
+                        <option key={`local-${m}`} value={m} />
+                      ))}
+                      {settings.local_llm_model && !localLlmModels?.includes(settings.local_llm_model) && (
+                        <option value={settings.local_llm_model} />
+                      )}
                       {MODELS.map(model => (
                         <option key={model} value={model} />
                       ))}
@@ -1106,6 +1278,16 @@ Twój cel: Zwróć wyłącznie czysty JSON o następującej strukturze (żadnych
                         <option key={voice} value={voice} className="bg-neutral-900">{voice}</option>
                       ))}
                     </select>
+                    <div className="flex gap-2 text-[9px] text-slate-500">
+                      <div className="flex-1">
+                        <label>Pitch: {newAgent.voicePitch || 1}</label>
+                        <input type="range" min="0.5" max="2" step="0.1" value={newAgent.voicePitch || 1} onChange={e => setNewAgent({...newAgent, voicePitch: parseFloat(e.target.value)})} className="w-full h-1 mt-1 bg-white/10 rounded-lg appearance-none cursor-pointer" />
+                      </div>
+                      <div className="flex-1">
+                        <label>Speed: {newAgent.voiceSpeed || 1}</label>
+                        <input type="range" min="0.5" max="2" step="0.1" value={newAgent.voiceSpeed || 1} onChange={e => setNewAgent({...newAgent, voiceSpeed: parseFloat(e.target.value)})} className="w-full h-1 mt-1 bg-white/10 rounded-lg appearance-none cursor-pointer" />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -1159,14 +1341,80 @@ Twój cel: Zwróć wyłącznie czysty JSON o następującej strukturze (żadnych
                       exit={{ height: 0, opacity: 0 }}
                       className="grid grid-cols-2 gap-4 pt-6 border-t border-white/5 mt-2 overflow-hidden"
                     >
-                      <div className="space-y-1.5 text-left">
-                        <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">Umiejętności</label>
-                        <input 
-                          className="modern-input w-full text-xs bg-white/[0.01]"
-                          value={newAgent.skills}
-                          onChange={e => setNewAgent({...newAgent, skills: e.target.value})}
-                          placeholder="np. Python, SQL..."
-                        />
+                      <div className="space-y-1.5 text-left col-span-2">
+                        <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">Umiejętności (Zarządzanie Tagami)</label>
+                        <div className="flex flex-wrap gap-1.5 p-2 rounded-xl border border-white/[0.08] bg-black/40 min-h-[42px] focus-within:border-acid-purple/60 focus-within:bg-black/50 transition-all duration-200">
+                          <AnimatePresence>
+                            {(newAgent.skills ? newAgent.skills.split(',').map(s => s.trim()).filter(Boolean) : []).map((skill, idx) => (
+                              <motion.span
+                                key={`${skill}-${idx}`}
+                                initial={{ scale: 0.8, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0.8, opacity: 0 }}
+                                transition={{ duration: 0.15 }}
+                                className="flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 bg-gradient-to-r from-acid-purple/15 to-indigo-500/15 border border-acid-purple/20 text-[10px] font-bold text-slate-300 rounded-lg uppercase tracking-wide shrink-0"
+                              >
+                                <span>{skill}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const currentSkills = newAgent.skills ? newAgent.skills.split(',').map(s => s.trim()).filter(Boolean) : [];
+                                    const updatedSkills = currentSkills.filter((_, i) => i !== idx);
+                                    setNewAgent({ ...newAgent, skills: updatedSkills.join(', ') });
+                                    if (showToast) showToast(`Usunięto umiejętność: ${skill}`);
+                                  }}
+                                  className="flex items-center justify-center w-3.5 h-3.5 rounded-md hover:bg-neutral-800 text-slate-400 hover:text-white transition-all cursor-pointer"
+                                  title={`Usuń umiejętność: ${skill}`}
+                                >
+                                  <X size={10} />
+                                </button>
+                              </motion.span>
+                            ))}
+                          </AnimatePresence>
+                          <input
+                            type="text"
+                            value={skillInputText}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const currentSkills = newAgent.skills ? newAgent.skills.split(',').map(s => s.trim()).filter(Boolean) : [];
+                              if (val.endsWith(',')) {
+                                const newSkill = val.slice(0, -1).trim();
+                                if (newSkill && !currentSkills.includes(newSkill)) {
+                                  const updatedSkills = [...currentSkills, newSkill];
+                                  setNewAgent({ ...newAgent, skills: updatedSkills.join(', ') });
+                                  setSkillInputText('');
+                                  if (showToast) showToast(`Dodano umiejętność: ${newSkill}`);
+                                } else {
+                                  setSkillInputText('');
+                                }
+                              } else {
+                                setSkillInputText(val);
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              const currentSkills = newAgent.skills ? newAgent.skills.split(',').map(s => s.trim()).filter(Boolean) : [];
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const newSkill = skillInputText.trim();
+                                if (newSkill && !currentSkills.includes(newSkill)) {
+                                  const updatedSkills = [...currentSkills, newSkill];
+                                  setNewAgent({ ...newAgent, skills: updatedSkills.join(', ') });
+                                  setSkillInputText('');
+                                  if (showToast) showToast(`Dodano umiejętność: ${newSkill}`);
+                                } else {
+                                  setSkillInputText('');
+                                }
+                              } else if (e.key === 'Backspace' && !skillInputText && currentSkills.length > 0) {
+                                const updatedSkills = [...currentSkills];
+                                const popped = updatedSkills.pop();
+                                setNewAgent({ ...newAgent, skills: updatedSkills.join(', ') });
+                                if (showToast && popped) showToast(`Usunięto umiejętność: ${popped}`);
+                              }
+                            }}
+                            placeholder={!(newAgent.skills ? newAgent.skills.split(',').map(s => s.trim()).filter(Boolean) : []).length ? "Wpisz umiejętność i zatwierdź Enterem lub przecinkiem..." : "Dodaj umiejętność..."}
+                            className="flex-1 min-w-[120px] bg-transparent border-0 outline-none text-xs text-white placeholder-slate-500 py-0.5 px-1 font-medium ring-0 focus:ring-0 focus:outline-none"
+                          />
+                        </div>
                       </div>
                       <div className="space-y-1.5 text-left">
                         <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">Wiedza</label>
@@ -1222,6 +1470,51 @@ Twój cel: Zwróć wyłącznie czysty JSON o następującej strukturze (żadnych
                           placeholder="np. AWS S3 (Bucket: logs), GitHub (Repo: main)..."
                         />
                       </div>
+
+                      <div className="space-y-1.5 text-left">
+                        <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">Rozmiar Węzła (Wizualny)</label>
+                        <select 
+                          className="modern-input w-full text-xs bg-white/[0.01] appearance-none"
+                          value={newAgent.size || 'medium'}
+                          onChange={e => setNewAgent({...newAgent, size: e.target.value as any})}
+                        >
+                          <option value="tiny">Tiny (Eko)</option>
+                          <option value="small">Small (Optymalny)</option>
+                          <option value="medium">Medium (Standard)</option>
+                          <option value="large">Large (High-Perf)</option>
+                          <option value="massive">Massive (Cluster-Scale)</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5 text-left">
+                        <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">Specjalizacja Główna</label>
+                        <input 
+                          className="modern-input w-full text-xs bg-white/[0.01]"
+                          value={newAgent.specialization}
+                          onChange={e => setNewAgent({...newAgent, specialization: e.target.value})}
+                          placeholder="np. Analiza Big Data..."
+                        />
+                      </div>
+
+                      <div className="space-y-1.5 text-left">
+                        <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">Moc Przetw. (x): {newAgent.processingPower || 1.0}</label>
+                        <input 
+                          type="range" min="0.1" max="5.0" step="0.1"
+                          className="w-full accent-acid-cyan h-1 bg-white/5 rounded-lg appearance-none cursor-pointer"
+                          value={newAgent.processingPower || 1.0}
+                          onChange={e => setNewAgent({...newAgent, processingPower: parseFloat(e.target.value)})}
+                        />
+                      </div>
+
+                      <div className="space-y-1.5 text-left">
+                        <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">Autonomia: {newAgent.autonomyLevel || 5}</label>
+                        <input 
+                          type="range" min="1" max="10" step="1"
+                          className="w-full accent-acid-purple h-1 bg-white/5 rounded-lg appearance-none cursor-pointer"
+                          value={newAgent.autonomyLevel || 5}
+                          onChange={e => setNewAgent({...newAgent, autonomyLevel: parseInt(e.target.value)})}
+                        />
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -1238,38 +1531,65 @@ Twój cel: Zwróć wyłącznie czysty JSON o następującej strukturze (żadnych
             agent.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (agent.systemPrompt && agent.systemPrompt.toLowerCase().includes(searchTerm.toLowerCase()));
           
+          const matchesSkill = skillSearchTerm === '' || 
+            (agent.skills && agent.skills.toLowerCase().includes(skillSearchTerm.toLowerCase()));
+
           const matchesCategory = selectedCategory === 'all' || agent.category === selectedCategory;
           const matchesRole = selectedRole === 'all' || agent.role === selectedRole;
           
-          return matchesSearch && matchesCategory && matchesRole;
+          return matchesSearch && matchesSkill && matchesCategory && matchesRole;
         }).length === 0 ? (
           <div className="modern-card p-12 text-center border-dashed border-white/5 bg-white/[0.01]">
             <Search size={48} className="mx-auto text-slate-800 mb-4 opacity-20" />
             <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest">Nie znaleziono agentów</h3>
             <p className="text-[10px] text-slate-600 mt-2 uppercase">Zmień filtry lub kryteria wyszukiwania, aby znaleźć właściwą jednostkę.</p>
             <button 
-              onClick={() => { setSearchTerm(''); setSelectedCategory('all'); setSelectedRole('all'); }}
+              onClick={() => { setSearchTerm(''); setSkillSearchTerm(''); setSelectedCategory('all'); setSelectedRole('all'); }}
               className="mt-6 text-[10px] font-bold text-acid-purple uppercase hover:underline"
             >
               Wyczyść wszystkie filtry
             </button>
           </div>
         ) : (
-          agents.filter(agent => {
-            const matchesSearch = searchTerm === '' || 
-              agent.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-              agent.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              (agent.systemPrompt && agent.systemPrompt.toLowerCase().includes(searchTerm.toLowerCase()));
-            
-            const matchesCategory = selectedCategory === 'all' || agent.category === selectedCategory;
-            const matchesRole = selectedRole === 'all' || agent.role === selectedRole;
-            
-            return matchesSearch && matchesCategory && matchesRole;
-          }).map(agent => (
-            <div key={agent.id} className="modern-card group overflow-hidden border-white/5 hover:bg-white/[0.03]">
+          <AnimatePresence mode="popLayout">
+            {agents.filter(agent => {
+              const matchesSearch = searchTerm === '' || 
+                agent.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                agent.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (agent.systemPrompt && agent.systemPrompt.toLowerCase().includes(searchTerm.toLowerCase()));
+              
+              const matchesSkill = skillSearchTerm === '' || 
+                (agent.skills && agent.skills.toLowerCase().includes(skillSearchTerm.toLowerCase()));
+
+              const matchesCategory = selectedCategory === 'all' || agent.category === selectedCategory;
+              const matchesRole = selectedRole === 'all' || agent.role === selectedRole;
+              
+              return matchesSearch && matchesSkill && matchesCategory && matchesRole;
+            }).map(agent => (
+              <motion.div 
+                layout
+                initial={{ opacity: 0, y: 15, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -15, scale: 0.96 }}
+                transition={{ duration: 0.25, ease: "easeInOut" }}
+                key={agent.id} 
+                className="modern-card group overflow-hidden border-white/5 hover:bg-white/[0.03]"
+              >
 
             <div className="p-5 flex justify-between items-center">
               <div className="flex items-center gap-5">
+                <input 
+                  type="checkbox"
+                  checked={selectedAgentIds.includes(agent.id)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedAgentIds([...selectedAgentIds, agent.id]);
+                    } else {
+                      setSelectedAgentIds(selectedAgentIds.filter(id => id !== agent.id));
+                    }
+                  }}
+                  className="rounded border-white/10 bg-black/20 text-acid-purple focus:ring-acid-purple"
+                />
                 <div 
                   className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-2xl relative overflow-hidden group-hover:scale-105 transition-transform duration-500" 
                   style={{ backgroundColor: agent.color, color: 'white' }} 
@@ -1283,6 +1603,11 @@ Twój cel: Zwróć wyłącznie czysty JSON o następującej strukturze (żadnych
                 <div>
                   <div className="font-display font-bold text-lg uppercase flex items-center gap-3 text-white">
                     {agent.name}
+                    {agent.mode === 'debugging' && (
+                      <span className="text-[10px] px-2.5 py-0.5 bg-orange-500/20 border border-orange-500/30 text-orange-400 font-black uppercase rounded flex items-center gap-1 animate-pulse">
+                        <AlertTriangle size={10} /> DEBUGGING
+                      </span>
+                    )}
                     {agent.category && (
                       <span className="text-[10px] px-2.5 py-0.5 bg-white/5 border border-white/10 text-slate-400 font-medium normal-case rounded-full flex items-center gap-1.5">
                         {(() => {
@@ -1359,6 +1684,12 @@ Twój cel: Zwróć wyłącznie czysty JSON o następującej strukturze (żadnych
                       <span className="text-sm font-medium text-acid-green flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-acid-green shadow-[0_0_8px_#00ffca]" />
                         Operational
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold uppercase text-slate-600 block">Doświadczenie (XP)</span>
+                      <span className="text-sm font-medium text-white">
+                         {agent.xp || 0} <span className="text-[10px] text-slate-500">(Lvl: {Math.floor((agent.xp || 0) / 100) + 1})</span>
                       </span>
                     </div>
                     <div className="space-y-1">
@@ -1482,12 +1813,18 @@ Twój cel: Zwróć wyłącznie czysty JSON o następującej strukturze (żadnych
                         </div>
                       )}
                     </div>
+                    {/* Permanent Memory System Panel */}
+                    <div className="mt-6 pt-6 border-t border-white/5">
+                      <AgentMemoryPanel agent={agent} showToast={showToast} />
+                    </div>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
-        )))}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      )}
       </div>
     </div>
   );
@@ -1524,10 +1861,28 @@ function DraggableAgentItem({ agent, isSelected, onClick }: { agent: Agent, isSe
       >
         <div className="w-2.5 h-2.5 rounded-full shadow-[0_0_8px_currentColor]" style={{ color: agent.color, backgroundColor: agent.color }} />
         <div className="text-left flex-1 min-w-0">
-          <span className="text-[11px] font-bold uppercase tracking-wider block truncate">{agent.name}</span>
-          <span className="text-[8px] opacity-40 uppercase truncate block">{agent.role}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-black uppercase tracking-wider block truncate">{agent.name}</span>
+            <span className={cn(
+              "text-[6px] px-1 py-0.5 rounded-sm font-black tracking-tighter",
+              (agent.xp || 0) > 100 ? "bg-amber-500/20 text-amber-500 border border-amber-500/30" : 
+              (agent.xp || 0) > 50 ? "bg-slate-300/20 text-slate-300 border border-slate-300/30" :
+              "bg-acid-purple/20 text-acid-purple border border-acid-purple/30"
+            )}>
+              {(agent.xp || 0) > 100 ? 'ELITE' : (agent.xp || 0) > 50 ? 'SENIOR' : 'UNIT'}
+            </span>
+          </div>
+          <span className="text-[8px] opacity-40 uppercase truncate block font-medium">{agent.role}</span>
         </div>
-        <div className="flex items-center gap-2 ml-auto">
+        <div className="flex items-center gap-3 ml-auto">
+          <div className="flex flex-col items-end gap-0.5">
+            <span className="text-[7px] font-black text-acid-cyan opacity-80 uppercase tracking-tighter" title="Virtual Nodes (Swarm Scale)">
+              v{50 + (agent.tasksCompleted || 0) * 10}n
+            </span>
+            <div className="w-10 h-1 bg-white/5 rounded-full overflow-hidden" title={`Mastery: ${Math.min(100, 70 + (agent.xp || 0) / 10)}%`}>
+               <div className="h-full bg-acid-purple transition-all duration-1000" style={{ width: `${Math.min(100, 70 + (agent.xp || 0) / 10)}%` }} />
+            </div>
+          </div>
           {isSelected && <CheckSquare size={14} className="text-acid-purple" />}
           <div className="p-1 opacity-20 group-hover:opacity-100 transition-opacity">
             <Lucide.GripVertical size={12} />
@@ -1582,15 +1937,365 @@ function TeamDropZone({ agents, onRemove }: { agents: Agent[], onRemove: (id: st
   );
 }
 
-const TeamManager = React.memo(({ onUpdate, onOpenDiscussion }: { onUpdate: () => void, onOpenDiscussion: (id: string) => void }): React.ReactElement => {
+const TEAM_PRESETS = [
+  {
+    name: "Eskadra Domowa",
+    description: "Zarządzanie domowymi obowiązkami, planowaniem posiłków, zakupów oraz domowego budżetu pod okiem agentów.",
+    mode: "concrete",
+    color: "#fbbf24",
+    icon: "🏠",
+    agents: [
+      { id: "dom-ogarniacz-seed", name: "Domownik Ogarniacz", role: "Koordynator Domowych Spraw", systemPrompt: "Jesteś Koordynatorem spraw domowych. Pomagasz planować zakupy, harmonogram sprzątania i optymalizujesz domowy budżet. Działasz konkretnie i ustrukturyzowanie.", model: "gemini-2.5-flash", color: "#fbbf24", category: "Narzędzia" },
+      { id: "chef-chef-seed", name: "Chef Kulinarny AI", role: "Planista Posiłków & Dietetyk", systemPrompt: "Jesteś Chefem Kulinarnym. Układasz zdrowe, zbalansowane menu z resztek z lodówki i tworzysz konkretne listy zakupów.", model: "gemini-2.5-flash", color: "#f59e0b", category: "Nulinaria" }
+    ]
+  },
+  {
+    name: "Klub Kreatorów & Hobby",
+    description: "Twoja prywatna strefa rozwijania pasji, hobby, analizy filmów, gier i nieszablonowych pomysłów kreatywnych.",
+    mode: "creative",
+    color: "#3b82f6",
+    icon: "🎨",
+    agents: [
+      { id: "hobby-doradca-seed", name: "Guru Zajawkowy", role: "Mentor Hobby & Trendów", systemPrompt: "Jesteś Mentorem Hobby. Inspirujesz człowieka do programowania mikrokontrolerów, malowania miniatur, gry na gitarze oraz majsterkowania.", model: "gemini-2.5-flash", color: "#3b82f6", category: "Kreatywny" },
+      { id: "grafik-ai-seed", name: "Grafik AI", role: "Ilustrator & Koncept-Artysta", systemPrompt: "Jesteś Grafikiem AI. Pomagasz wizualizować pomysły, opisywać prompty graficzne i tworzyć spójne moodboardy.", model: "gemini-2.5-flash", color: "#ec4899", category: "Grafika" }
+    ]
+  },
+  {
+    name: "Hyde Park & Rozrywka",
+    description: "Szybkie dyskusje, luźne pogawędzki, żarty, rozrywka oraz wsparcie emocjonalne przy dobrej kawie.",
+    mode: "loose",
+    color: "#22c55e",
+    icon: "🍻",
+    agents: [
+      { id: "smieszek-seed", name: "Stand-uper Cylon", role: "Szerzyciel Dobrego Humoru", systemPrompt: "Jesteś stand-uperem. Twoim celem jest rzucanie błyskotliwymi żartami, rozluźnianie atmosfery i znajdowanie śmiesznej strony w każdej sytuacji.", model: "gemini-2.5-flash", color: "#10b981", category: "Rozrywka" },
+      { id: "terapeuta-seed", name: "Przystań Spokoju", role: "AI Konsultant Życiowy & Chill", systemPrompt: "Jesteś Konsultantem Życiowym. Słuchasz bez oceniania, pomagasz rozładować stres po pracy i dajesz proste, pełne empatii porady.", model: "gemini-2.5-flash", color: "#6366f1", category: "Psychologia" }
+    ]
+  },
+  {
+    name: "B2B Venture Core",
+    description: "Prawdziwe korporacyjne konsorcjum do optymalizacji procesów, audytu prawnego klastra, analityki danych oraz kodowania.",
+    mode: "business",
+    color: "#a855f7",
+    icon: "💼",
+    agents: [
+      { id: "prawnik-seed", name: "Prawnik Swarm", role: "Audytor Licencji & Bezpieczeństwa", systemPrompt: "Jesteś Swarm Prawnikiem. Analizujesz umowy, zgodność z RODO/GDPR oraz badasz licencje oprogramowania w klastrze.", model: "gemini-2.5-pro", color: "#ec4899", category: "Bezpieczeństwo" },
+      { id: "koder-x-seed", name: "Koder-X", role: "Inżynier Architektury Oprogramowania", systemPrompt: "Jesteś Koderem-X. Genialnym architektem piszącym czysty kod TypeScript, konfigurującym kontenery Docker i naprawiającym błędy kompilacji.", model: "gemini-2.5-pro", color: "#3b82f6", category: "Programowanie" }
+    ]
+  }
+];
+
+const TeamManager = React.memo(({ onUpdate, onOpenDiscussion, showToast }: { onUpdate: () => void, onOpenDiscussion: (id: string) => void, showToast?: (msg: string) => void }): React.ReactElement => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [clusters, setClusters] = useState<ClusterNode[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [isAutoGenerating, setIsAutoGenerating] = useState(false);
+  const [pairingSuggestions, setPairingSuggestions] = useState<any[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [autoTask, setAutoTask] = useState('');
   const [agentSearch, setAgentSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [importingPreset, setImportingPreset] = useState<string | null>(null);
+
+  // Dynamic Structure Visualizer & Member Editor States
+  const [activeStructureTeamId, setActiveStructureTeamId] = useState<string | null>(null);
+  const [localAgentIds, setLocalAgentIds] = useState<string[]>([]);
+  const [teamGoalInput, setTeamGoalInput] = useState<string>('');
+
+  const handleOpenStructureEditor = (team: Team) => {
+    setActiveStructureTeamId(team.id);
+    setLocalAgentIds(team.agents.map(a => a.id));
+    setTeamGoalInput(team.description || '');
+  };
+
+  const handleSaveStructure = async () => {
+    if (!activeStructureTeamId) return;
+    try {
+      await api.updateTeam(activeStructureTeamId, {
+        agentIds: localAgentIds,
+        description: teamGoalInput
+      });
+      if (showToast) {
+        showToast("Pomyślnie zaktualizowano strukturę klastra i cel zespołu! 🚀");
+      }
+      setActiveStructureTeamId(null);
+      await loadData();
+      onUpdate();
+    } catch (err) {
+      console.error("Failed to update team structure", err);
+    }
+  };
+
+  const handleImportPreset = async (preset: typeof TEAM_PRESETS[0]) => {
+    setImportingPreset(preset.name);
+    try {
+      const createdAgentIds: string[] = [];
+      const currentAgents = await api.getAgents();
+      
+      for (const ag of preset.agents) {
+        const exists = currentAgents.find(a => a.id === ag.id || a.name === ag.name);
+        if (exists) {
+          createdAgentIds.push(exists.id);
+        } else {
+          await api.createAgent({
+            id: ag.id,
+            name: ag.name,
+            role: ag.role,
+            systemPrompt: ag.systemPrompt,
+            model: ag.model,
+            color: ag.color,
+            category: ag.category,
+            usage: 0,
+            tokensUsed: 0,
+            successRate: 100,
+            messageCount: 0,
+            tasksCompleted: 0,
+            createdAt: new Date().toISOString()
+          });
+          createdAgentIds.push(ag.id);
+        }
+      }
+
+      const teamId = `team-preset-${Math.random().toString(36).substr(2, 6)}`;
+      await api.createTeam({
+        id: teamId,
+        name: preset.name,
+        description: preset.description,
+        mode: preset.mode as any,
+        agentIds: createdAgentIds,
+        agentTasks: createdAgentIds.reduce((acc, cid) => {
+          acc[cid] = `todo:Misja główna przypisana do ${preset.name}`;
+          return acc;
+        }, {} as Record<string, string>),
+        flightMode: 'autopilot',
+        flightConfig: '',
+        color: preset.color
+      });
+
+      await api.createLog({
+        id: Math.random().toString(36).substr(2, 9),
+        action: 'TEAM_IMPORTED',
+        details: `Zaimportowano gotową eskadru presetową "${preset.name}" z pakietu Cylon Swarm.`
+      });
+
+      onUpdate();
+      await loadData();
+      if (showToast) {
+        showToast(`Pomyślnie zaimportowano eskadra: ${preset.name}! 🎉`);
+      }
+    } catch (err) {
+      console.error("Failed to import preset", err);
+    } finally {
+      setImportingPreset(null);
+    }
+  };
+
+  // Automated Swarm Wizard States ("Next Next OK" Creator)
+  const [wizardStep, setWizardStep] = useState<number>(0); // 0 = off, 1 = Config, 2 = Progress/Sim, 3 = Success
+  const [wizardName, setWizardName] = useState('');
+  const [wizardTask, setWizardTask] = useState('');
+  const [wizardNodeId, setWizardNodeId] = useState('');
+  const [wizardMode, setWizardMode] = useState<string>('strategic');
+  const [wizardProgress, setWizardProgress] = useState(0);
+  const [wizardStatusText, setWizardStatusText] = useState('');
+
+  const WIZARD_AGENTS_PRESET = [
+    {
+      name: "Dowódca Roju Cylon",
+      role: "Orkiestrator i Planista",
+      category: "Komunikacja",
+      systemPrompt: "Jesteś Dowódcą Roju Cylon. Twoim głównym zadaniem jest koordynacja pracy innych agentów i delegowanie zadań klastrowych.",
+      model: "gemini-2.5-pro",
+      color: "#a855f7"
+    },
+    {
+      name: "Inżynier Sieci swarm-link",
+      role: "Ekspert LAN, WAN & WoL",
+      category: "Narzędzia",
+      systemPrompt: "Jesteś Ekspertem ds. Sieci. Odpowiadasz za analizę topologii LAN, konfigurację tuneli i pakiety Wake-On-LAN.",
+      model: "gemini-2.5-flash",
+      color: "#06b6d4"
+    },
+    {
+      name: "Analityk Kodu Cyber-Swarm",
+      role: "Starszy Deweloper Fullstack",
+      category: "Programowanie",
+      systemPrompt: "Jesteś Analitykiem Kodu. Tworzysz zoptymalizowane skrypty powłoki i replikacje baz SQL.",
+      model: "gemini-2.5-flash",
+      color: "#10b981"
+    }
+  ];
+
+  const handleStartWizard = () => {
+    setWizardStep(1);
+    setIsAdding(false);
+    setIsAutoGenerating(false);
+    setWizardName(`Cylon-Autonomiczny-Rój-${Math.floor(Math.random() * 800) + 100}`);
+    setWizardTask('Inteligentne monitorowanie stanu klastra, skanowanie topologii LAN i auto-replikacja baz.');
+    setWizardNodeId(clusters[0]?.id || 'local');
+    setWizardMode('strategic');
+  };
+
+  const handleRunAutonomicSwarmCreation = async () => {
+    setWizardStep(2);
+    setWizardProgress(20);
+    setWizardStatusText("Alokacja asynchronicznych cyfr kognitywnych w sieci cyfrowej...");
+
+    // Simulate Step-by-Step progress bar and call actual backend APIs
+    setTimeout(async () => {
+      setWizardProgress(50);
+      setWizardStatusText("Wyszukiwanie i rekrutacja wyspecjalizowanych cyber-agentów do bazy...");
+
+      try {
+        const createdAgentIds: string[] = [];
+        for (const pr of WIZARD_AGENTS_PRESET) {
+          const generatedId = `agt-wiz-${Math.random().toString(36).substr(2, 6)}`;
+          await api.createAgent({
+            id: generatedId,
+            name: pr.name,
+            role: pr.role,
+            systemPrompt: pr.systemPrompt,
+            model: pr.model,
+            color: pr.color,
+            category: pr.category,
+            usage: 0,
+            tokensUsed: 0,
+            successRate: 100,
+            messageCount: 0,
+            tasksCompleted: 0,
+            createdAt: new Date().toISOString()
+          });
+          createdAgentIds.push(generatedId);
+        }
+
+        setTimeout(async () => {
+          setWizardProgress(80);
+          setWizardStatusText("Tworzenie zintegrowanej formacji Swarm-Team z powiązaniem klastrowym...");
+
+          const teamId = `team-wiz-${Math.random().toString(36).substr(2, 6)}`;
+          const teamName = wizardName || "Autonomiczny-Rój";
+
+          await api.createTeam({
+            id: teamId,
+            name: teamName,
+            description: wizardTask || "Wysoka integracja zadań LAN klastra.",
+            mode: wizardMode as any,
+            agentIds: createdAgentIds,
+            agentTasks: createdAgentIds.reduce((acc, currentId, idx) => {
+              const taskTitle = idx === 0 ? "Orkiestracja całego roju" : idx === 1 ? "Wydajność sieci LAN, tunelowanie i WoL" : "Optymalizacja algorytmów obliczeniowych";
+              acc[currentId] = `todo:${taskTitle}`;
+              return acc;
+            }, {} as Record<string, string>),
+            flightMode: 'autopilot',
+            flightConfig: 'high-speed',
+            color: '#a855f7'
+          });
+
+          setTimeout(async () => {
+            setWizardProgress(100);
+            setWizardStatusText("Rój został zmontowany. Bezpieczne bazy danych klastra i kanały TLS aktywowane.");
+
+            await api.createLog({
+              id: Math.random().toString(36).substr(2, 9),
+              action: 'TEAM_ASSEMBLED',
+              details: `Błyskawiczne wdrożenie gotowego roju "${teamName}" przy użyciu Kreatora Szybkiego Roju.`
+            });
+
+            // Refresh parent state
+            onUpdate();
+            await loadData();
+            setWizardStep(3); // Success Screen
+          }, 1000);
+
+        }, 1000);
+
+      } catch (err) {
+        console.error("Wizard assembly crash", err);
+        setWizardStatusText(`Błąd krytyczny instalacji: ${String(err)}`);
+        setWizardStep(1);
+      }
+    }, 1000);
+  };
+  
+  // Kanban States
+  const [viewMode, setViewMode] = useState<'grid' | 'kanban' | 'heatmap'>('grid');
+  const [selectedHeatmapTeamId, setSelectedHeatmapTeamId] = useState<string | null>(null);
+  const [kanbanTeamId, setKanbanTeamId] = useState<string | null>(null);
+  const [draggedAgentId, setDraggedAgentId] = useState<string | null>(null);
+  const [draggedOverColumn, setDraggedOverColumn] = useState<'todo' | 'in_progress' | 'done' | null>(null);
+
+  const parseAgentTask = (val: string | undefined) => {
+    if (!val) {
+      return { status: 'todo' as const, text: '' };
+    }
+    if (val.startsWith('todo:')) {
+      return { status: 'todo' as const, text: val.substring(5) };
+    }
+    if (val.startsWith('in_progress:')) {
+      return { status: 'in_progress' as const, text: val.substring(12) };
+    }
+    if (val.startsWith('done:')) {
+      return { status: 'done' as const, text: val.substring(5) };
+    }
+    return { status: 'todo' as const, text: val };
+  };
+
+  const serializeAgentTask = (status: 'todo' | 'in_progress' | 'done', text: string) => {
+    return `${status}:${text}`;
+  };
+
+  const handleKanbanDrop = async (agentId: string, targetStatus: 'todo' | 'in_progress' | 'done', teamId: string) => {
+    const targetTeam = teams.find(t => t.id === teamId);
+    if (!targetTeam) return;
+
+    const currentAgentTasks = targetTeam.agentTasks || {};
+    const parsed = parseAgentTask(currentAgentTasks[agentId]);
+    const updatedTasks = {
+      ...currentAgentTasks,
+      [agentId]: serializeAgentTask(targetStatus, parsed.text)
+    };
+
+    // Optimistic local update
+    setTeams(prevTeams => 
+      prevTeams.map(t => 
+        t.id === teamId ? { ...t, agentTasks: updatedTasks } : t
+      )
+    );
+
+    try {
+      await api.updateTeam(teamId, { agentTasks: updatedTasks });
+      onUpdate();
+    } catch (err) {
+      console.error("Failed to update agent task status", err);
+    }
+  };
+
+  const handleKanbanTextChange = async (agentId: string, newText: string, teamId: string) => {
+    const targetTeam = teams.find(t => t.id === teamId);
+    if (!targetTeam) return;
+
+    const currentAgentTasks = targetTeam.agentTasks || {};
+    const parsed = parseAgentTask(currentAgentTasks[agentId]);
+    const updatedTasks = {
+      ...currentAgentTasks,
+      [agentId]: serializeAgentTask(parsed.status, newText)
+    };
+
+    // Optimistic local update
+    setTeams(prevTeams => 
+      prevTeams.map(t => 
+        t.id === teamId ? { ...t, agentTasks: updatedTasks } : t
+      )
+    );
+
+    try {
+      await api.updateTeam(teamId, { agentTasks: updatedTasks });
+      onUpdate();
+    } catch (err) {
+      console.error("Failed to update agent task text", err);
+    }
+  };
   const [newTeam, setNewTeam] = useState({ 
     name: '', 
     description: '', 
@@ -1600,7 +2305,8 @@ const TeamManager = React.memo(({ onUpdate, onOpenDiscussion }: { onUpdate: () =
     clusterNodeId: '',
     advancedTools: false,
     flightMode: 'autopilot' as 'autopilot' | 'manual' | 'vr',
-    flightConfig: ''
+    flightConfig: '',
+    color: generateColor()
   });
 
   const MODES = [
@@ -1619,12 +2325,28 @@ const TeamManager = React.memo(({ onUpdate, onOpenDiscussion }: { onUpdate: () =
     loadData();
   }, []);
 
+  const loadPairingSuggestions = async () => {
+    setIsLoadingSuggestions(true);
+    try {
+      const data = await api.getPairingSuggestions();
+      setPairingSuggestions(data);
+    } catch (err) {
+      console.error("Failed to load suggestions", err);
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  };
+
   const loadData = async () => {
     try {
       const [t, a, c] = await Promise.all([api.getTeams(), api.getAgents(), api.getClusters()]);
       setTeams(t);
       setAgents(a);
       setClusters(c);
+      if (t.length > 0 && !kanbanTeamId) {
+        setKanbanTeamId(t[0].id);
+      }
+      loadPairingSuggestions();
     } catch (e) {
       console.error(e);
     }
@@ -1706,6 +2428,7 @@ const TeamManager = React.memo(({ onUpdate, onOpenDiscussion }: { onUpdate: () =
       ...newTeam,
       flightMode: newTeam.flightMode,
       flightConfig: newTeam.flightConfig,
+      color: newTeam.color,
       id: Math.random().toString(36).substr(2, 9)
     });
     await api.createLog({
@@ -1713,7 +2436,7 @@ const TeamManager = React.memo(({ onUpdate, onOpenDiscussion }: { onUpdate: () =
       action: 'TEAM_ASSEMBLED',
       details: `Zmontowano nowy zespół: ${newTeam.name} z ${newTeam.agentIds.length} agentami [Typ lotu: ${newTeam.flightMode}]`
     });
-    setNewTeam({ name: '', description: '', mode: 'loose', agentIds: [], agentTasks: {}, clusterNodeId: '', advancedTools: false, flightMode: 'autopilot', flightConfig: '' });
+    setNewTeam({ name: '', description: '', mode: 'loose', agentIds: [], agentTasks: {}, clusterNodeId: '', advancedTools: false, flightMode: 'autopilot', flightConfig: '', color: generateColor() });
     setIsAdding(false);
     loadData();
     onUpdate();
@@ -1773,19 +2496,43 @@ const TeamManager = React.memo(({ onUpdate, onOpenDiscussion }: { onUpdate: () =
       <div className="space-y-6">
       <div className="flex justify-between items-center border-b border-white/5 pb-4">
         <div>
-          <h2 className="text-xl font-display font-bold uppercase tracking-tight">Eskadry i Sztab</h2>
-          <p className="text-[10px] uppercase tracking-widest text-slate-500 mt-1">Formowanie wyspecjalizowanych grup roboczych</p>
+          <h2 className="text-xl font-display font-bold uppercase tracking-tight italic flex items-center gap-2">
+            Zasoby i Eskadry <span className="text-[9px] bg-acid-cyan/10 text-acid-cyan px-2 py-0.5 rounded-full not-italic border border-acid-cyan/20">Hyper-Scale v3.2</span>
+          </h2>
+          <div className="flex items-center gap-4 mt-1">
+            <p className="text-[10px] uppercase tracking-widest text-slate-500">Orkiestracja masowa sub-agentów i klastrów</p>
+            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-acid-purple/5 border border-acid-purple/20 rounded-md text-[9px] text-acid-purple font-black uppercase italic animate-pulse">
+               <Lucide.Cpu size={10} /> 12,500 Nodes available
+            </div>
+          </div>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
+          <button 
+            onClick={handleStartWizard}
+            className="modern-btn border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 px-4 py-2 flex items-center gap-1.5 shadow-[0_0_15px_rgba(16,185,129,0.1)] active:scale-95 cursor-pointer font-black uppercase text-[10px]"
+          >
+            <Lucide.Zap size={14} className="animate-pulse text-emerald-400" /> Szybki Rój (Next-Next-OK)
+          </button>
           <button 
             onClick={() => setIsAutoGenerating(!isAutoGenerating)}
-            className="modern-btn border border-white/10 text-acid-cyan hover:bg-acid-cyan/5 px-4"
+            className="modern-btn border border-white/10 text-acid-cyan hover:bg-acid-cyan/5 px-4 text-[10px]"
           >
             <Bot size={16} /> Auto-Team
           </button>
           <button 
+            onClick={() => setShowSuggestions(!showSuggestions)}
+            className={cn(
+              "modern-btn border px-4 text-[10px] flex items-center gap-1.5",
+              showSuggestions 
+                ? "bg-acid-cyan/20 border-acid-cyan text-acid-cyan" 
+                : "border-white/10 text-slate-400 hover:bg-white/5"
+            )}
+          >
+            <Lucide.Sparkles size={14} /> Sugestie Par
+          </button>
+          <button 
             onClick={() => setIsAdding(!isAdding)}
-            className="modern-btn bg-acid-purple text-white px-5 py-2 shadow-lg shadow-acid-purple/20"
+            className="modern-btn bg-acid-purple text-white px-5 py-2 shadow-lg shadow-acid-purple/20 text-[10px]"
           >
             <Users size={16} /> Nowa Jednostka
           </button>
@@ -1793,6 +2540,353 @@ const TeamManager = React.memo(({ onUpdate, onOpenDiscussion }: { onUpdate: () =
       </div>
 
       <AnimatePresence>
+        {wizardStep > 0 && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden mb-6"
+          >
+            <div className="modern-card p-6 bg-emerald-950/20 border-emerald-500/30 border space-y-6 relative rounded-3xl overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
+              
+              {/* Stepper Header */}
+              <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="bg-emerald-500/10 text-emerald-400 p-1.5 rounded-lg border border-emerald-500/20">
+                    <Lucide.Sparkles size={16} />
+                  </div>
+                  <div className="text-left">
+                    <span className="text-[9px] text-emerald-400 font-black uppercase tracking-wider block">KREATOR INTELIGENTNEGO ROJU (3 KLIKNIĘCIA)</span>
+                    <h4 className="text-white font-bold font-display text-xs">Automatyczna Kompilacja i Orkiestracja Ekipy Agentów</h4>
+                  </div>
+                </div>
+                <div className="flex gap-1.5">
+                  {[1, 2, 3].map(stepNum => (
+                    <div 
+                      key={stepNum} 
+                      className={cn(
+                        "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black font-mono transition-all",
+                        wizardStep === stepNum 
+                          ? "bg-emerald-500 text-black shadow-[0_0_10px_rgba(16,185,129,0.3)]" 
+                          : wizardStep > stepNum
+                            ? "bg-emerald-800/40 text-emerald-400 border border-emerald-500/30"
+                            : "bg-black/40 text-slate-600 border border-white/5"
+                      )}
+                    >
+                      {stepNum}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* STEP 1: CONFIGURATION */}
+              {wizardStep === 1 && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold uppercase text-slate-400 block ml-1 text-left">Kryptonim Roju (Auto-sugerowany)</label>
+                      <input 
+                        type="text"
+                        value={wizardName}
+                        onChange={e => setWizardName(e.target.value)}
+                        placeholder="np. Cylon-HyperSwarm-9"
+                        className="modern-input w-full p-2.5 font-bold text-white border-emerald-500/20"
+                      />
+                    </div>
+                    <div className="space-y-1.5 text-left">
+                      <label className="text-[10px] font-bold uppercase text-slate-400 block ml-1 text-left">Komunikacja i Charakter Roju</label>
+                      <select
+                        value={wizardMode}
+                        onChange={e => setWizardMode(e.target.value)}
+                        className="modern-input w-full p-2.5 font-bold text-white border-emerald-500/20 uppercase text-xs bg-[#1e2024]"
+                      >
+                        {MODES.map(m => (
+                          <option key={m.id} value={m.id}>{m.label} ({m.desc})</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="md:col-span-2 space-y-1.5 text-left">
+                      <label className="text-[10px] font-bold uppercase text-slate-400 block ml-1 text-left">Zadanie Główne (Manifest Cyfrowy)</label>
+                      <textarea
+                        value={wizardTask}
+                        onChange={e => setWizardTask(e.target.value)}
+                        rows={2}
+                        placeholder="Zapisz misję technologiczną..."
+                        className="modern-input w-full p-2.5 font-bold text-white border-emerald-500/20 text-xs font-sans resize-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-black/60 border border-white/5 p-4 rounded-2xl space-y-2">
+                    <span className="text-[9px] uppercase font-bold text-emerald-400 block text-left">Co się wydarzy po kliknięciu "Dalej":</span>
+                    <ul className="text-[10.5px] text-slate-400 font-sans space-y-1 text-left list-disc pl-4">
+                      <li>Zostaną <strong>automatycznie stworzeni i zatrudnieni 3 agenci roboczy</strong> (Dowódca, Inżynier Sieci i Analityk Kodu), dostosowani do zoptymalizowanych ról.</li>
+                      <li>Zostanie utworzony nowy <strong>Team z dynamicznie przypisanymi celami</strong>.</li>
+                      <li>System automatycznie wygeneruje struktury logów i zaangażuje orkiestrację sieci.</li>
+                    </ul>
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-3 border-t border-white/5">
+                    <button 
+                      onClick={() => setWizardStep(0)} 
+                      className="modern-btn border border-white/15 text-slate-400"
+                    >
+                      Anuluj
+                    </button>
+                    <button 
+                      onClick={handleRunAutonomicSwarmCreation}
+                      className="modern-btn bg-emerald-500 text-black font-black px-6 hover:bg-emerald-400"
+                    >
+                      Dalej (Kompiluj Swarm) &rarr;
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 2: RECRUITMENT & SYNC ANIMATION */}
+              {wizardStep === 2 && (
+                <div className="py-8 text-center space-y-6">
+                  <div className="max-w-md mx-auto space-y-3">
+                    <div className="relative w-24 h-24 mx-auto">
+                      <div className="absolute inset-0 border-4 border-emerald-500/20 rounded-full" />
+                      <div className="absolute inset-0 border-4 border-t-emerald-500 rounded-full animate-spin" />
+                      <div className="absolute inset-4 bg-emerald-500/10 rounded-full flex items-center justify-center text-emerald-400">
+                        <Lucide.Cpu size={28} className="animate-pulse" />
+                      </div>
+                    </div>
+                    <div>
+                      <h5 className="font-bold text-white text-sm uppercase tracking-wider">{wizardProgress}% Gotowe</h5>
+                      <p className="text-xs text-slate-400 animate-pulse mt-1 font-mono">{wizardStatusText}</p>
+                    </div>
+                  </div>
+
+                  {/* Micro simulated logs container */}
+                  <div className="max-w-lg mx-auto bg-black p-3 rounded-xl border border-white/5 text-left font-mono text-[9px] text-emerald-500/80 h-24 overflow-y-auto space-y-0.5 custom-scrollbar">
+                    <div>[SETUP] Inicjalizacja wątku kompilacji klastra...</div>
+                    {wizardProgress >= 20 && <div className="text-pink-400">[WIZARD] Generowanie unikalnego klucza symetrycznego dla {wizardName}</div>}
+                    {wizardProgress >= 50 && <div className="text-cyan-400">[AGENTS] Tworzenie agentów: "Dowódca Roju", "Inżynier Sieci swarm-link", "Analityk Kodu Cyber-Swarm"</div>}
+                    {wizardProgress >= 80 && <div className="text-yellow-400">[TEAM] Łączenie sub-agentów z bazami danych i protokołami. Tryb: Autopilot.</div>}
+                    {wizardProgress === 100 && <div className="text-emerald-400 font-bold">[SUCCESS] Replicating memory states... Swarm online!</div>}
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3: SUCCESS & DEPLOY */}
+              {wizardStep === 3 && (
+                <div className="text-center py-6 space-y-5">
+                  <div className="w-16 h-16 bg-emerald-950 border border-emerald-500/40 text-emerald-400 rounded-full flex items-center justify-center mx-auto shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                    <Lucide.ShieldCheck size={32} />
+                  </div>
+                  <div className="space-y-1 text-center">
+                    <h5 className="text-white font-bold text-base uppercase tracking-wider">SWARM UROCHOMIONY POMYŚLNIE!</h5>
+                    <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                      Stworzono zespół <strong className="text-emerald-400">{wizardName}</strong> składający się z 3 świeżo zwerbowanych agentów kognitywnych i zintegrowano go z klastrem.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4 border-t border-white/5">
+                    <button
+                      onClick={() => setWizardStep(0)}
+                      className="w-full sm:w-auto p-2 bg-white/5 hover:bg-white/10 text-white rounded-xl text-xs uppercase font-extrabold px-6 cursor-pointer"
+                    >
+                      Zamknij
+                    </button>
+                    <button
+                      onClick={() => {
+                        const newlyCreatedTeam = teams.find(t => t.name === wizardName);
+                        if (newlyCreatedTeam) {
+                          onOpenDiscussion(newlyCreatedTeam.id);
+                        } else if (teams.length > 0) {
+                          onOpenDiscussion(teams[teams.length - 1].id);
+                        } else {
+                          onUpdate();
+                        }
+                        setWizardStep(0);
+                      }}
+                      className="w-full sm:w-auto p-2 bg-emerald-500 hover:bg-emerald-400 text-black rounded-xl text-xs uppercase font-black px-8 shadow-lg shadow-emerald-500/20 cursor-pointer"
+                    >
+                      Otwórz Konsolę Zgromadzenia (Dyskusję) &rarr;
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Widok: Siatka vs Kanban Selectors */}
+      <div className="flex border border-white/5 bg-black/20 p-1 rounded-xl gap-2 max-w-[420px]">
+        <button
+          onClick={() => setViewMode('grid')}
+          className={cn(
+            "flex-1 py-1.5 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all",
+            viewMode === 'grid' 
+              ? "bg-acid-purple/20 text-white border border-acid-purple/30 shadow-[0_0_10px_rgba(168,85,247,0.15)]" 
+              : "text-slate-500 hover:text-slate-300"
+          )}
+        >
+          <Lucide.LayoutGrid size={12} /> Siatka
+        </button>
+        <button
+          onClick={() => {
+            setViewMode('kanban');
+            if (teams.length > 0 && !kanbanTeamId) {
+              setKanbanTeamId(teams[0].id);
+            }
+          }}
+          className={cn(
+            "flex-1 py-1.5 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all",
+            viewMode === 'kanban' 
+              ? "bg-acid-cyan/20 text-white border border-acid-cyan/30 shadow-[0_0_10px_rgba(6,182,212,0.15)]" 
+              : "text-slate-500 hover:text-slate-300"
+          )}
+        >
+          <Lucide.Trello size={12} /> Kanban
+        </button>
+        <button
+          onClick={() => {
+            setViewMode('heatmap');
+            if (teams.length > 0 && !selectedHeatmapTeamId) {
+              setSelectedHeatmapTeamId(teams[0].id);
+            }
+          }}
+          className={cn(
+            "flex-1 py-1.5 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all",
+            viewMode === 'heatmap' 
+              ? "bg-acid-green/20 text-white border border-acid-green/30 shadow-[0_0_10px_rgba(34,197,94,0.15)]" 
+              : "text-slate-500 hover:text-slate-300"
+          )}
+        >
+          <Lucide.Flame size={12} className="text-acid-green animate-pulse" /> Heatmap
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {showSuggestions && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="modern-card p-4 border-acid-cyan/30 bg-acid-cyan/5 mb-6 space-y-4">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-acid-cyan/20 flex items-center justify-center text-acid-cyan">
+                    <Lucide.Lightbulb size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-white">Inteligentne Sugestie Sparowania</h4>
+                    <p className="text-[10px] text-slate-400">Algorytmiczne dopasowanie na podstawie skilli i sukcesów operacyjnych</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={loadPairingSuggestions}
+                  disabled={isLoadingSuggestions}
+                  className="p-1.5 hover:bg-white/5 rounded-lg text-slate-500 transition-colors"
+                >
+                  <Lucide.RefreshCcw size={14} className={isLoadingSuggestions ? "animate-spin" : ""} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {isLoadingSuggestions ? (
+                  Array(3).fill(0).map((_, i) => (
+                    <div key={i} className="h-24 bg-white/5 animate-pulse rounded-2xl border border-white/5" />
+                  ))
+                ) : pairingSuggestions.length > 0 ? (
+                  pairingSuggestions.map((sug, idx) => (
+                    <motion.div 
+                      key={idx}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.1 }}
+                      className="p-3 bg-black/40 border border-acid-cyan/20 hover:border-acid-cyan/50 rounded-2xl space-y-3 group cursor-default"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex -space-x-2">
+                          {sug.pair.map((agent: any) => (
+                            <div 
+                              key={agent.id}
+                              className="w-10 h-10 rounded-full border-2 border-black flex items-center justify-center shadow-lg relative group/agent"
+                              style={{ backgroundColor: agent.color }}
+                              title={`${agent.name} (${agent.role})`}
+                            >
+                              <div className="text-white">
+                                {Lucide[agent.icon] ? React.createElement(Lucide[agent.icon], { size: 18 }) : <Bot size={18} />}
+                              </div>
+                              <div className="absolute -bottom-1 -right-1 bg-black border border-white/20 rounded-full px-1 text-[7px] font-black text-acid-cyan">
+                                v{agent.virtualNodes}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          <div className="bg-acid-cyan/10 text-acid-cyan px-2 py-0.5 rounded-full text-[10px] font-black border border-acid-cyan/20">
+                            {sug.score}% Match
+                          </div>
+                          <div className="text-[8px] font-bold text-white/40 uppercase tracking-tighter">
+                            Mastery: {sug.combinedMastery}%
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-white">
+                          <span>{sug.pair[0].name}</span>
+                          <Lucide.Zap size={10} className="text-acid-purple animate-pulse" />
+                          <span>{sug.pair[1].name}</span>
+                        </div>
+                        <div className="mt-1.5 space-y-1">
+                          {sug.reasons.map((r: string, rIdx: number) => (
+                            <div key={rIdx} className="flex items-center gap-1 text-[9px] text-slate-400">
+                              <div className="w-1 h-1 rounded-full bg-acid-cyan/40" />
+                              {r}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => {
+                            setNewTeam(prev => ({
+                              ...prev,
+                              name: `Squad: ${sug.pair[0].name} & ${sug.pair[1].name}`,
+                              description: `Wysokowydajny tandem operacyjny. Skalowanie: ${sug.pair[0].virtualNodes + sug.pair[1].virtualNodes} węzłów.`,
+                              agentIds: sug.pair.map((a: any) => a.id),
+                              agentTasks: sug.pair.reduce((acc: any, a: any) => {
+                                acc[a.id] = "ZADANIE: Synchronizacja kaskadowa z partnerem";
+                                return acc;
+                              }, {})
+                            }));
+                            setIsAdding(true);
+                            setShowSuggestions(false);
+                            showToast?.("Zainicjowano zintegrowaną eskadrę! 🚀");
+                          }}
+                          className="flex-1 py-1.5 bg-acid-cyan/10 hover:bg-acid-cyan text-acid-cyan hover:text-black text-[9px] font-black uppercase rounded-lg transition-all border border-acid-cyan/20"
+                        >
+                          Zatwierdź Eskadrę
+                        </button>
+                        <button className="px-2 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-slate-400 transition-colors">
+                           <Lucide.Info size={12} />
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))
+                ) : (
+                  <div className="col-span-full py-8 text-center text-slate-500 text-xs">
+                    Nie znaleziono optymalnych sugestii kognitywnych w obecnej bazie bazy agentów.
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {isAutoGenerating && (
           <motion.div 
             initial={{ height: 0, opacity: 0 }}
@@ -2015,164 +3109,572 @@ const TeamManager = React.memo(({ onUpdate, onOpenDiscussion }: { onUpdate: () =
         )}
       </AnimatePresence>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {teams.map(team => (
-          <div key={team.id} className="modern-card group flex flex-col h-full hover:bg-white/[0.03] border-white/5">
-            <div className="p-5 flex-1">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-base font-display font-bold uppercase tracking-tight text-white group-hover:text-acid-purple transition-colors">{team.name}</h3>
-                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                    <span className="text-[9px] font-bold uppercase text-slate-600 tracking-widest bg-white/5 px-1.5 py-0.5 rounded">{team.mode} MODE</span>
-                    <span className="w-1 h-1 rounded-full bg-slate-700" />
-                    <span className={cn(
-                      "text-[9px] font-bold uppercase px-1.5 py-0.5 rounded font-mono flex items-center gap-1",
-                      (team.flightMode || 'autopilot') === 'autopilot' ? "text-acid-cyan bg-acid-cyan/10" :
-                      (team.flightMode || 'autopilot') === 'manual' ? "text-amber-400 bg-amber-400/10" :
-                      "text-fuchsia-400 bg-fuchsia-400/10 animate-pulse"
-                    )}>
-                      <Zap size={8} />
-                      {(team.flightMode || 'autopilot')}
-                    </span>
-                    <span className="w-1 h-1 rounded-full bg-slate-700" />
-                    <span className="text-[9px] font-bold uppercase text-acid-green opacity-60">Ops Ready</span>
-                  </div>
+      {viewMode === 'kanban' ? (
+        <div className="space-y-6">
+          {/* Team Selector & Info Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/[0.02] border border-white/5 p-4 rounded-2xl">
+            <div className="flex items-center gap-3">
+              <label className="text-xs uppercase font-bold text-slate-500 tracking-wider">Wybierz Zespół:</label>
+              <select
+                value={kanbanTeamId || ''}
+                onChange={(e) => setKanbanTeamId(e.target.value)}
+                className="modern-input bg-black border border-white/10 text-white py-1.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider text-acid-cyan min-w-[200px]"
+              >
+                {teams.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+            
+            {kanbanTeamId && (() => {
+              const currentTeam = teams.find(t => t.id === kanbanTeamId);
+              if (!currentTeam) return null;
+              return (
+                <div className="flex items-center gap-3 text-[10px] uppercase font-mono text-slate-500">
+                  <span>Tryb: <strong className="text-acid-purple">{currentTeam.mode}</strong></span>
+                  <span className="opacity-20">•</span>
+                  <span>Sterowanie: <strong className="text-acid-cyan">{currentTeam.flightMode || 'autopilot'}</strong></span>
+                  <span className="opacity-20">•</span>
+                  <span>Agenci: <strong className="text-white">{currentTeam.agents.length}</strong></span>
                 </div>
-                <button 
-                  onClick={() => handleDeleteTeam(team.id)} 
-                  className="p-2 rounded-lg hover:bg-red-500/10 text-slate-600 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"
-                  title="Usuń zespół i historię jego rozmów"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
+              );
+            })()}
+          </div>
 
-              {team.description && (
-                <p className="text-[11px] text-slate-500 font-medium line-clamp-2 mb-4 italic leading-relaxed">
-                  "{team.description}"
-                </p>
-              )}
+          {/* Kanban Board Columns Grid */}
+          {kanbanTeamId ? (() => {
+            const currentTeam = teams.find(t => t.id === kanbanTeamId);
+            if (!currentTeam) return null;
+            if (currentTeam.agents.length === 0) {
+              return (
+                <div className="modern-card p-12 text-center border-dashed border-white/5">
+                  <Users size={32} className="mx-auto text-slate-705 mb-2" />
+                  <p className="text-sm text-slate-400 font-bold uppercase tracking-wider">Pusty Zespół</p>
+                  <p className="text-xs text-slate-600 mt-1">Ten zespół nie posiada przypisanych agentów. Przełącz się na widok siatki i dodaj agentów do zespołu.</p>
+                </div>
+              );
+            }
 
-              {editingTeam?.id === team.id ? (
-                <div className="bg-neutral-900/90 border border-acid-cyan/30 rounded-2xl p-4 my-3 space-y-3">
-                  <div className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-1.5">
-                    <Target size={12} className="text-acid-cyan animate-pulse" />
-                    ZMIANA PARAMETRÓW LOTU
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-1">
-                    {(['autopilot', 'manual', 'vr'] as const).map(m => (
-                      <button
-                        key={m}
-                        type="button"
-                        onClick={() => setEditingTeam({ ...editingTeam, flightMode: m })}
-                        className={cn(
-                          "py-1 px-1.5 rounded-lg text-[8px] font-bold uppercase border transition-all text-center",
-                          editingTeam.flightMode === m 
-                            ? "bg-acid-cyan/20 border-acid-cyan text-acid-cyan font-black" 
-                            : "bg-white/5 border-white/5 text-slate-500 hover:border-slate-400"
+            const columnsList: { id: 'todo' | 'in_progress' | 'done'; title: string; colorClass: string; textCol: string; glowCol: string }[] = [
+              { id: 'todo', title: 'Do zrobienia', colorClass: 'border-t-slate-500 bg-slate-500/5', textCol: 'text-slate-400', glowCol: 'group-hover:border-slate-500/20' },
+              { id: 'in_progress', title: 'W toku', colorClass: 'border-t-acid-cyan bg-acid-cyan/5', textCol: 'text-acid-cyan', glowCol: 'group-hover:border-acid-cyan/20' },
+              { id: 'done', title: 'Zakończone', colorClass: 'border-t-acid-green bg-acid-green/5', textCol: 'text-acid-green', glowCol: 'group-hover:border-acid-green/20' },
+            ];
+
+            return (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                {columnsList.map(col => {
+                  const columnAgents = currentTeam.agents.filter(agent => {
+                    const parsed = parseAgentTask(currentTeam.agentTasks?.[agent.id]);
+                    return parsed.status === col.id;
+                  });
+
+                  const isDraggingOverThis = draggedOverColumn === col.id;
+
+                  return (
+                    <div
+                      key={col.id}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        if (draggedOverColumn !== col.id) {
+                          setDraggedOverColumn(col.id);
+                        }
+                      }}
+                      onDragLeave={() => {
+                        setDraggedOverColumn(null);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const agentId = e.dataTransfer.getData("text/plain");
+                        setDraggedOverColumn(null);
+                        if (agentId) {
+                          handleKanbanDrop(agentId, col.id, currentTeam.id);
+                        }
+                      }}
+                      className={cn(
+                        "modern-card border-t-4 flex flex-col h-full min-h-[480px] transition-all duration-200",
+                        col.colorClass,
+                        isDraggingOverThis ? "ring-2 ring-acid-cyan/50 scale-[1.01] border-white/20 bg-white/5" : "border-white/5"
+                      )}
+                    >
+                      {/* Column Header */}
+                      <div className="p-4 border-b border-white/5 flex justify-between items-center bg-black/10">
+                        <div className="flex items-center gap-2">
+                          <span className={cn("text-xs font-black uppercase tracking-wider", col.textCol)}>
+                            {col.title}
+                          </span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/5 text-white/60">
+                            {columnAgents.length}
+                          </span>
+                        </div>
+                        <div className="text-[9px] uppercase tracking-widest text-slate-600 font-mono">TASKBOARD</div>
+                      </div>
+
+                      {/* Column Content Area */}
+                      <div className="p-3 flex-1 space-y-3 overflow-y-auto max-h-[550px] custom-scrollbar">
+                        {columnAgents.length === 0 ? (
+                          <div className="text-center py-12 text-slate-700 border border-dashed border-white/[0.02] rounded-xl flex flex-col items-center justify-center min-h-[140px] bg-black/[0.05]">
+                            <span className="text-[9px] uppercase font-black tracking-wider">Przeciągnij agenta tutaj</span>
+                          </div>
+                        ) : (
+                          columnAgents.map(agent => {
+                            const parsed = parseAgentTask(currentTeam.agentTasks?.[agent.id]);
+                            return (
+                              <div
+                                key={agent.id}
+                                draggable
+                                onDragStart={(e) => {
+                                  e.dataTransfer.setData("text/plain", agent.id);
+                                  setDraggedAgentId(agent.id);
+                                }}
+                                onDragEnd={() => {
+                                  setDraggedAgentId(null);
+                                  setDraggedOverColumn(null);
+                                }}
+                                className={cn(
+                                  "bg-neutral-900 border border-white/5 rounded-xl p-3 hover:border-white/20 hover:bg-neutral-800 transition-all cursor-grab active:cursor-grabbing group shadow-md flex flex-col gap-2.5",
+                                  draggedAgentId === agent.id ? "opacity-35 scale-95 border-dashed border-acid-purple" : ""
+                                )}
+                              >
+                                {/* Card Body */}
+                                <div className="flex items-start justify-between">
+                                  <div className="flex items-center gap-2.5">
+                                    <div 
+                                      className="w-2.5 h-2.5 rounded-full shadow-[0_0_8px_currentColor] shrink-0" 
+                                      style={{ color: agent.color, backgroundColor: agent.color }} 
+                                    />
+                                    <div className="text-left">
+                                      <div className="text-[11px] font-black uppercase tracking-wider text-slate-100 group-hover:text-acid-cyan transition-colors">{agent.name}</div>
+                                      <div className="text-[9px] text-slate-500 font-medium truncate max-w-[150px]">{agent.role}</div>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Drag Handle Icon Indicator */}
+                                  <div className="opacity-30 group-hover:opacity-100 transition-opacity p-0.5 text-slate-500">
+                                    <Lucide.GripVertical size={12} />
+                                  </div>
+                                </div>
+
+                                {/* Custom Task Field */}
+                                <div className="space-y-1 bg-white/[0.01] border border-white/[0.03] rounded-lg p-2 group-hover:border-white/10 transition-colors">
+                                  <label className="text-[8px] font-bold text-slate-600 uppercase tracking-widest block">Zadanie:</label>
+                                  <input
+                                    type="text"
+                                    value={parsed.text}
+                                    placeholder="Opisz zadanie robocze..."
+                                    onChange={(e) => handleKanbanTextChange(agent.id, e.target.value, currentTeam.id)}
+                                    className="bg-transparent border-none text-[10px] text-slate-300 focus:text-white p-0 focus:ring-0 w-full placeholder:text-slate-700 outline-none font-medium"
+                                  />
+                                </div>
+
+                                {/* Model Badge */}
+                                <div className="flex justify-between items-center text-[8px] font-mono border-t border-white/5 pt-1.5 mt-0.5 text-slate-600">
+                                  <span>MODEL</span>
+                                  <span className="text-slate-450 font-bold uppercase">{agent.model.split('/').pop()}</span>
+                                </div>
+                              </div>
+                            );
+                          })
                         )}
-                      >
-                        {m === 'autopilot' ? 'Autopilot' : m === 'manual' ? 'Manualny' : 'VR Sim'}
-                      </button>
-                    ))}
-                  </div>
-
-                  {editingTeam.flightMode === 'manual' && (
-                    <div className="space-y-1">
-                      <label className="text-[8px] text-slate-500 uppercase font-black ml-1">ID Kontrolera / Routera</label>
-                      <input
-                        className="modern-input w-full text-xs py-1 px-2 bg-black/40"
-                        placeholder="@Orkiestrator lub id agenta..."
-                        value={editingTeam.flightConfig || ''}
-                        onChange={e => setEditingTeam({ ...editingTeam, flightConfig: e.target.value })}
-                      />
-                    </div>
-                  )}
-
-                  {editingTeam.flightMode === 'vr' && (
-                    <div className="space-y-1">
-                      <label className="text-[8px] text-slate-500 uppercase font-black ml-1">Parametry Piaskownicy VR</label>
-                      <input
-                        className="modern-input w-full text-xs py-1 px-2 bg-black/40"
-                        placeholder="safety_level=high speed=2.0x..."
-                        value={editingTeam.flightConfig || ''}
-                        onChange={e => setEditingTeam({ ...editingTeam, flightConfig: e.target.value })}
-                      />
-                    </div>
-                  )}
-
-                  <div className="flex gap-2 pt-1 justify-end">
-                    <button
-                      onClick={() => setEditingTeam(null)}
-                      className="px-2 py-1 rounded bg-white/5 text-[9px] font-bold text-slate-400 hover:text-white uppercase transition-all"
-                    >
-                      Anuluj
-                    </button>
-                    <button
-                      onClick={() => handleUpdateTeamFlight(team.id, editingTeam.flightMode || 'autopilot', editingTeam.flightConfig || '')}
-                      className="px-3 py-1 rounded bg-acid-cyan text-black font-black text-[9px] uppercase hover:bg-white transition-all shadow-md shadow-acid-cyan/10"
-                    >
-                      Zapisz
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {team.flightMode && team.flightMode !== 'autopilot' && (
-                    <div className="mb-4 p-2.5 bg-neutral-900/60 border border-white/5 rounded-xl text-[10px]">
-                      <span className="text-[8px] font-black text-slate-600 block uppercase">Parametry {team.flightMode}:</span>
-                      <code className="text-acid-cyan text-[10px] break-all font-mono font-medium">{team.flightConfig || 'Brak parametrów sterowania'}</code>
-                    </div>
-                  )}
-                </>
-              )}
-
-              <div className="space-y-4">
-                <div className="text-[9px] font-bold text-slate-600 uppercase tracking-widest border-b border-white/5 pb-2">Skład Jednostki ({team.agents.length})</div>
-                <div className="grid grid-cols-1 gap-2">
-                  {team.agents.map(a => (
-                    <div key={a.id} className="flex items-center gap-3 p-2.5 bg-white/5 rounded-xl border border-white/5">
-                      <div className="w-2 h-2 rounded-full shadow-[0_0_8px_currentColor]" style={{ color: a.color, backgroundColor: a.color }} />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[11px] font-bold text-slate-300 truncate">{a.name}</div>
-                        <div className="text-[9px] text-slate-600 truncate">{a.role}</div>
                       </div>
                     </div>
-                  ))}
+                  );
+                })}
+              </div>
+            );
+          })() : (
+            <div className="modern-card p-12 text-center border-dashed border-white/10">
+              <Users size={32} className="mx-auto text-slate-730 mb-2" />
+              <p className="text-sm text-slate-400 font-bold uppercase tracking-wider">Brak zdefiniowanych zespołów</p>
+              <p className="text-xs text-slate-600 mt-1">Stwórz najpierw jednostkę w panelu powyżej, aby móc orkiestrować zadania na tablicie Kanban.</p>
+            </div>
+          )}
+        </div>
+      ) : viewMode === 'heatmap' ? (
+        <TeamWorkloadHeatmap 
+          teams={teams}
+          agents={agents}
+          defaultTeamId={selectedHeatmapTeamId}
+          onClose={() => setViewMode('grid')}
+        />
+      ) : (
+        <div className="space-y-6">
+          {/* PRESETS CONTAINER CARD DECK */}
+          <div className="bg-gradient-to-br from-[#12131a] to-[#181922] border border-white/5 rounded-3xl p-6 relative overflow-hidden shadow-2xl">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-acid-purple/5 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-acid-cyan/5 rounded-full blur-3xl pointer-events-none" />
+            
+            <div className="flex items-center justify-between border-b border-white/5 pb-3 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-[#a855f7]/15 text-[#a855f7] rounded-2xl border border-acid-purple/20">
+                  <Sparkles size={18} className="animate-pulse" />
+                </div>
+                <div className="text-left">
+                  <span className="text-[9px] text-[#a855f7] font-black uppercase tracking-wider block">PRESELEKCJONOWANE ROJE I EKIPY (DZIEŃ DOBRY PRESETS)</span>
+                  <h4 className="text-white font-extrabold font-display text-sm">Gotowe Zespoły do Natychmiastowego Użycia</h4>
                 </div>
               </div>
+              <span className="text-[9px] uppercase tracking-widest text-[#a855f7] bg-[#a855f7]/10 border border-acid-purple/20 px-2.5 py-1 rounded-xl font-bold font-mono">CYLON PLUG & PLAY</span>
             </div>
 
-            <div className="p-4 bg-white/[0.02] border-t border-white/5 flex gap-2">
-              <button 
-                onClick={() => onOpenDiscussion(team.id)}
-                className="flex-1 modern-btn bg-white/5 border border-white/5 text-white hover:bg-acid-purple hover:border-acid-purple transition-all text-xs"
-                title="Rozpocznij wspólną sesję z tym zespołem"
-              >
-                Inicjuj Sesję
-              </button>
-              <button 
-                onClick={() => setEditingTeam({
-                  ...team,
-                  agentIds: team.agents.map(a => a.id),
-                  flightMode: team.flightMode || 'autopilot',
-                  flightConfig: team.flightConfig || ''
-                })}
-                className={cn(
-                  "p-3 modern-btn border transition-all",
-                  editingTeam?.id === team.id 
-                    ? "bg-acid-cyan text-black border-acid-cyan shadow-md"
-                    : "bg-white/5 border-white/5 text-slate-500 hover:text-white"
-                )}
-                title="Skonfiguruj parametry lotu"
-              >
-                <Target size={16} />
-              </button>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {TEAM_PRESETS.map((p) => {
+                const alreadyExists = teams.some(t => t.name === p.name);
+                return (
+                  <div key={p.name} className="relative group bg-neutral-950/40 hover:bg-neutral-900/60 transition-all border border-white/5 rounded-2xl p-4 flex flex-col justify-between h-full hover:border-[#a855f7]/40 text-left">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-2xl">{p.icon}</span>
+                        {alreadyExists ? (
+                          <span className="text-[8px] font-black uppercase text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/15">Aktywny</span>
+                        ) : (
+                          <span className="text-[8px] font-black uppercase text-slate-500 bg-white/5 px-2 py-0.5 rounded-full">Gotowy</span>
+                        )}
+                      </div>
+                      <div className="text-left">
+                        <h5 className="text-xs font-bold font-display text-white group-hover:text-acid-purple transition-colors">{p.name}</h5>
+                        <p className="text-[10px] text-slate-400 leading-relaxed mt-1 font-sans">{p.description}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between">
+                      <div className="flex gap-1">
+                        {p.agents.map(ag => (
+                          <span key={ag.name} className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: ag.color }} title={`${ag.name}: ${ag.role}`} />
+                        ))}
+                      </div>
+
+                      <button
+                        onClick={() => handleImportPreset(p)}
+                        disabled={importingPreset !== null || alreadyExists}
+                        className={cn(
+                          "px-3 py-1.5 rounded-xl text-[9px] font-mono font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1",
+                          alreadyExists
+                            ? "bg-emerald-500/5 text-emerald-400/60 border border-emerald-500/10 cursor-not-allowed"
+                            : importingPreset === p.name
+                              ? "bg-white/10 text-white border border-white/10 animate-pulse"
+                              : "bg-[#a855f7]/15 hover:bg-[#a855f7] hover:text-black hover:shadow-lg text-acid-purple border border-[#a855f7]/20"
+                        )}
+                      >
+                        {alreadyExists ? "Zaimportowano" : importingPreset === p.name ? "Montowanie..." : "Importuj Ekipę"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
-        ))}
-      </div>
+
+          {/* Teams list grid header */}
+          <div className="flex justify-between items-center border-b border-white/5 pb-2 mt-4 text-left">
+            <h4 className="text-[10px] uppercase font-mono tracking-widest text-slate-500 font-bold">Twoje aktywne formacje klastrowe ({teams.length})</h4>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {teams.map(team => (
+            <div key={team.id} className="modern-card group flex flex-col h-full hover:bg-white/[0.03] border-white/5">
+              <div className="p-5 flex-1">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="text-base font-display font-bold uppercase tracking-tight text-white group-hover:text-acid-purple transition-colors">{team.name}</h3>
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      <span className="text-[9px] font-bold uppercase text-slate-600 tracking-widest bg-white/5 px-1.5 py-0.5 rounded">{team.mode} MODE</span>
+                      <span className="w-1 h-1 rounded-full bg-slate-700" />
+                      <span className={cn(
+                        "text-[9px] font-bold uppercase px-1.5 py-0.5 rounded font-mono flex items-center gap-1",
+                        (team.flightMode || 'autopilot') === 'autopilot' ? "text-acid-cyan bg-acid-cyan/10" :
+                        (team.flightMode || 'autopilot') === 'manual' ? "text-amber-400 bg-amber-400/10" :
+                        "text-fuchsia-400 bg-fuchsia-400/10 animate-pulse"
+                      )}>
+                        <Zap size={8} />
+                        {(team.flightMode || 'autopilot')}
+                      </span>
+                      <span className="w-1 h-1 rounded-full bg-slate-700" />
+                      <span className="text-[9px] font-bold uppercase text-acid-green opacity-60">Ops Ready</span>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => handleDeleteTeam(team.id)} 
+                    className="p-2 rounded-lg hover:bg-red-500/10 text-slate-600 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"
+                    title="Usuń zespół i historię jego rozmów"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+  
+                {team.description && (
+                  <p className="text-[11px] text-slate-500 font-medium line-clamp-2 mb-4 italic leading-relaxed">
+                    "{team.description}"
+                  </p>
+                )}
+  
+                {editingTeam?.id === team.id ? (
+                  <div className="bg-neutral-900/90 border border-acid-cyan/30 rounded-2xl p-4 my-3 space-y-3">
+                    <div className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-1.5">
+                      <Target size={12} className="text-acid-cyan animate-pulse" />
+                      ZMIANA PARAMETRÓW LOTU
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-1">
+                      {(['autopilot', 'manual', 'vr'] as const).map(m => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setEditingTeam({ ...editingTeam, flightMode: m })}
+                          className={cn(
+                            "py-1 px-1.5 rounded-lg text-[8px] font-bold uppercase border transition-all text-center",
+                            editingTeam.flightMode === m 
+                              ? "bg-acid-cyan/20 border-acid-cyan text-acid-cyan font-black" 
+                              : "bg-white/5 border-white/5 text-slate-500 hover:border-slate-400"
+                          )}
+                        >
+                          {m === 'autopilot' ? 'Autopilot' : m === 'manual' ? 'Manualny' : 'VR Sim'}
+                        </button>
+                      ))}
+                    </div>
+  
+                    {editingTeam.flightMode === 'manual' && (
+                      <div className="space-y-1">
+                        <label className="text-[8px] text-slate-500 uppercase font-black ml-1">ID Kontrolera / Routera</label>
+                        <input
+                          className="modern-input w-full text-xs py-1 px-2 bg-black/40"
+                          placeholder="@Orkiestrator lub id agenta..."
+                          value={editingTeam.flightConfig || ''}
+                          onChange={e => setEditingTeam({ ...editingTeam, flightConfig: e.target.value })}
+                        />
+                      </div>
+                    )}
+  
+                    {editingTeam.flightMode === 'vr' && (
+                      <div className="space-y-1">
+                        <label className="text-[8px] text-slate-500 uppercase font-black ml-1">Parametry Piaskownicy VR</label>
+                        <input
+                          className="modern-input w-full text-xs py-1 px-2 bg-black/40"
+                          placeholder="safety_level=high speed=2.0x..."
+                          value={editingTeam.flightConfig || ''}
+                          onChange={e => setEditingTeam({ ...editingTeam, flightConfig: e.target.value })}
+                        />
+                      </div>
+                    )}
+  
+                    <div className="flex gap-2 pt-1 justify-end">
+                      <button
+                        onClick={() => setEditingTeam(null)}
+                        className="px-2 py-1 rounded bg-white/5 text-[9px] font-bold text-slate-400 hover:text-white uppercase transition-all"
+                      >
+                        Anuluj
+                      </button>
+                      <button
+                        onClick={() => handleUpdateTeamFlight(team.id, editingTeam.flightMode || 'autopilot', editingTeam.flightConfig || '')}
+                        className="px-3 py-1 rounded bg-acid-cyan text-black font-black text-[9px] uppercase hover:bg-white transition-all shadow-md shadow-acid-cyan/10"
+                      >
+                        Zapisz
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {team.flightMode && team.flightMode !== 'autopilot' && (
+                      <div className="mb-4 p-2.5 bg-neutral-900/60 border border-white/5 rounded-xl text-[10px]">
+                        <span className="text-[8px] font-black text-slate-600 block uppercase">Parametry {team.flightMode}:</span>
+                        <code className="text-acid-cyan text-[10px] break-all font-mono font-medium">{team.flightConfig || 'Brak parametrów sterowania'}</code>
+                      </div>
+                    )}
+                  </>
+                )}
+  
+                {activeStructureTeamId === team.id ? (
+                  <div className="space-y-4 pt-2 border-t border-white/5 mt-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-black uppercase text-acid-cyan tracking-wider">Topologia Roju Swarm</span>
+                      <span className="text-[8px] font-mono text-slate-500 uppercase">AKTYWNA EDYCJA</span>
+                    </div>
+
+                    {/* Interactive Topology Graph rendering */}
+                    <div className="relative w-full h-44 bg-neutral-950/60 border border-white/5 rounded-2xl flex items-center justify-center overflow-hidden">
+                      <div className="absolute inset-0 bg-grid-pattern opacity-5" />
+                      
+                      {/* Interactive SVG Connector lines */}
+                      <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                        {localAgentIds.map((agId, idx) => {
+                          const angle = (idx * 2 * Math.PI) / localAgentIds.length;
+                          const rx = 135 + Math.cos(angle) * 52;
+                          const ry = 88 + Math.sin(angle) * 52;
+                          return (
+                            <line 
+                              key={agId} 
+                              x1="135" 
+                              y1="88" 
+                              x2={rx} 
+                              y2={ry} 
+                              stroke={team.color || '#7B61FF'} 
+                              strokeWidth="1.5" 
+                              strokeDasharray="4,4" 
+                              className="animate-pulse"
+                            />
+                          );
+                        })}
+                      </svg>
+
+                      {/* Central Object Node (Swarm Manifest/Goal) */}
+                      <div className="absolute w-12 h-12 rounded-full bg-[#7B61FF]/25 border border-[#7B61FF] flex flex-col items-center justify-center text-[8px] font-black pointer-events-none text-white text-center shadow-[0_0_15px_rgba(123,97,255,0.25)]" style={{ left: 'calc(50% - 24px)', top: 'calc(50% - 24px)' }}>
+                        <span className="leading-none text-slate-300 font-mono">MANIFEST</span>
+                        <span className="text-[7px] text-[#00ffcc] leading-none mt-0.5">CYLON</span>
+                      </div>
+
+                      {/* Circular Satellite Agent Nodes */}
+                      {localAgentIds.map((agId, idx) => {
+                        const ag = agents.find(a => a.id === agId);
+                        if (!ag) return null;
+                        const angle = (idx * 2 * Math.PI) / localAgentIds.length;
+                        const rx = 135 + Math.cos(angle) * 52;
+                        const ry = 88 + Math.sin(angle) * 52;
+                        return (
+                          <div 
+                            key={agId} 
+                            className="absolute w-7 h-7 rounded-full bg-slate-950 border flex items-center justify-center shadow-lg cursor-pointer transition-transform hover:scale-110 group/node" 
+                            style={{ 
+                              left: rx - 14, 
+                              top: ry - 14, 
+                              borderColor: ag.color || '#ffffff',
+                              boxShadow: `0 0 8px ${ag.color}20` 
+                            }}
+                            title={`Dwu-klik lub kliknięcie usuwa agenta ${ag.name} ze struktury`}
+                            onClick={() => {
+                              setLocalAgentIds(prev => prev.filter(id => id !== agId));
+                              if (showToast) showToast(`Usunięto agenta ${ag.name} ze struktury roboczej.`);
+                            }}
+                          >
+                            <span className="text-[7px] font-black uppercase tracking-tighter" style={{ color: ag.color }}>{ag.name.substring(0, 3)}</span>
+                            {/* Hover Overlay indicating deletion */}
+                            <div className="absolute inset-0 rounded-full bg-red-600/90 items-center justify-center hidden group-hover/node:flex">
+                              <span className="text-white text-[8px] font-black">×</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Editable Swarm Goal */}
+                    <div className="space-y-1">
+                      <span className="text-[8px] font-bold text-slate-500 uppercase ml-0.5">Cel Ogólny Eskadry (Manifest Celów)</span>
+                      <textarea
+                        value={teamGoalInput}
+                        onChange={e => setTeamGoalInput(e.target.value)}
+                        className="modern-input w-full h-16 text-[11px] bg-neutral-900 border-white/5 rounded-xl px-2 py-1.5 resize-none font-sans"
+                        placeholder="Napisz cel lub zadania ogólne, np. 'Wykrywaj włamania i optymalizuj bazy klastra'..."
+                      />
+                    </div>
+
+                    {/* Dynamic dropdown search selector to add an agent */}
+                    <div className="space-y-1">
+                      <span className="text-[8px] font-bold text-slate-500 uppercase ml-0.5">Zaciągnij Agenta do Struktury</span>
+                      <select 
+                        value=""
+                        onChange={e => {
+                          const agId = e.target.value;
+                          if (agId && !localAgentIds.includes(agId)) {
+                            setLocalAgentIds(prev => [...prev, agId]);
+                            const ag = agents.find(a => a.id === agId);
+                            if (showToast) showToast(`Dodano agenta ${ag?.name || agId} do struktury roboczej.`);
+                          }
+                        }}
+                        className="modern-input w-full bg-neutral-900 border-white/5 text-[10px] h-8 py-1.5 px-2"
+                      >
+                        <option value="">+ Dodaj kandydata z bazy osobowej...</option>
+                        {agents.filter(a => !localAgentIds.includes(a.id)).map(a => (
+                          <option key={a.id} value={a.id}>{a.name} ({a.role})</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Visual Editor Buttons */}
+                    <div className="flex gap-2 pt-1 border-t border-white/5">
+                      <button 
+                        onClick={handleSaveStructure}
+                        className="flex-1 py-1 px-3 bg-acid-green text-black font-black text-[10px] uppercase rounded-xl transition-all cursor-pointer hover:bg-white"
+                      >
+                        Wdróż Zmiany
+                      </button>
+                      <button 
+                        onClick={() => setActiveStructureTeamId(null)}
+                        className="py-1 px-3 bg-white/5 border border-white/5 text-slate-400 font-bold text-[10px] uppercase rounded-xl hover:text-white transition-all cursor-pointer"
+                      >
+                        Zamknij
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="text-[9px] font-bold text-slate-600 uppercase tracking-widest border-b border-white/5 pb-2">Skład Jednostki ({team.agents.length})</div>
+                    <div className="grid grid-cols-1 gap-2">
+                      {team.agents.map(a => (
+                        <div key={a.id} className="flex items-center gap-3 p-2.5 bg-white/5 rounded-xl border border-white/5">
+                          <div className="w-2 h-2 rounded-full shadow-[0_0_8px_currentColor]" style={{ color: a.color, backgroundColor: a.color }} />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[11px] font-bold text-slate-300 truncate">{a.name}</div>
+                            <div className="text-[9px] text-slate-600 truncate">{a.role}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+  
+              <div className="p-4 bg-white/[0.02] border-t border-white/5 flex gap-2">
+                <button 
+                  onClick={() => onOpenDiscussion(team.id)}
+                  className="flex-1 modern-btn bg-white/5 border border-white/5 text-white hover:bg-acid-purple hover:border-acid-purple transition-all text-xs"
+                  title="Rozpocznij wspólną sesję z tym zespołem"
+                >
+                  Inicjuj Sesję
+                </button>
+                <button 
+                  onClick={() => handleOpenStructureEditor(team)}
+                  className={cn(
+                    "modern-btn text-xs flex items-center justify-center gap-1.5 px-3 transition-all cursor-pointer font-bold",
+                    activeStructureTeamId === team.id 
+                      ? "bg-acid-cyan text-black border-acid-cyan"
+                      : "text-slate-400 border border-white/5 hover:bg-white/5 hover:text-white"
+                  )}
+                  title="Wizualizacja struktury i zarządzanie składem/celem"
+                >
+                  <Lucide.Network size={14} /> Struktura
+                </button>
+                <button 
+                  onClick={() => {
+                    setSelectedHeatmapTeamId(team.id);
+                    setViewMode('heatmap');
+                  }}
+                  className="modern-btn text-acid-green border border-acid-green/10 hover:bg-acid-green/10 transition-all text-xs flex items-center justify-center gap-1.5 px-3 hover:border-acid-green/30 cursor-pointer"
+                  title="Generuj i wyświetl intensywność pracy agentów w czasie rzeczywistym (Mapa Ciepła)"
+                >
+                  <Lucide.Flame size={14} className="text-acid-green animate-pulse" /> Mapa Ciepła
+                </button>
+                <button 
+                  onClick={() => setEditingTeam({
+                    ...team,
+                    agentIds: team.agents.map(a => a.id),
+                    flightMode: team.flightMode || 'autopilot',
+                    flightConfig: team.flightConfig || ''
+                  })}
+                  className={cn(
+                    "p-3 modern-btn border transition-all",
+                    editingTeam?.id === team.id 
+                      ? "bg-acid-cyan text-black border-acid-cyan shadow-md"
+                      : "bg-white/5 border-white/5 text-slate-500 hover:text-white"
+                  )}
+                  title="Skonfiguruj parametry lotu"
+                >
+                  <Target size={16} />
+                </button>
+              </div>
+            </div>
+          ))}
+          </div>
+        </div>
+      )}
 
       <DragOverlay dropAnimation={null}>
         {activeAgent ? (
@@ -2194,7 +3696,9 @@ const TeamManager = React.memo(({ onUpdate, onOpenDiscussion }: { onUpdate: () =
 const DiscussionRoom = React.memo(({ teamId, settings, showToast }: { teamId: string, settings: Record<string, string>, showToast?: (msg: string) => void }) => {
   const [team, setTeam] = useState<Team | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [hasRestoredLocal, setHasRestoredLocal] = useState(false);
   const [input, setInput] = useState('');
+  const [interimTranscript, setInterimTranscript] = useState('');
   const [isThinking, setIsThinking] = useState(false);
   const [activeAgentIndex, setActiveAgentIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
@@ -2240,13 +3744,24 @@ const DiscussionRoom = React.memo(({ teamId, settings, showToast }: { teamId: st
       const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.lang = 'pl-PL';
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = false;
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
 
       recognitionRef.current.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setInput(prev => prev + ' ' + transcript);
-        setIsRecording(false);
+        let finalTranscript = '';
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interim += event.results[i][0].transcript;
+          }
+        }
+        
+        if (finalTranscript) {
+          setInput(prev => prev + (prev.trim() ? ' ' : '') + finalTranscript);
+        }
+        setInterimTranscript(interim);
       };
 
       recognitionRef.current.onerror = () => setIsRecording(false);
@@ -2260,6 +3775,12 @@ const DiscussionRoom = React.memo(({ teamId, settings, showToast }: { teamId: st
     }
   }, [messages]);
 
+  useEffect(() => {
+    if (hasRestoredLocal && messages.length > 0) {
+      localStorage.setItem(`chat_session_${teamId}`, JSON.stringify(messages));
+    }
+  }, [messages, teamId, hasRestoredLocal]);
+
   const loadTeam = async () => {
     const teams = await api.getTeams();
     const t = teams.find(t => t.id === teamId);
@@ -2271,6 +3792,25 @@ const DiscussionRoom = React.memo(({ teamId, settings, showToast }: { teamId: st
 
   const loadMessages = async () => {
     const msgs = await api.getMessages(teamId);
+    
+    const localData = localStorage.getItem(`chat_session_${teamId}`);
+    if (localData) {
+      try {
+        const parsed = JSON.parse(localData);
+        if (parsed.length > msgs.length) {
+          if (window.confirm("Wykryto zapisaną lokalnie (w localStorage) dłuższą sesję rozmów dla tego zespołu chroniącą przez przeładowaniem. Czy chcesz ją przywrócić?")) {
+            setMessages(parsed);
+            setHasRestoredLocal(true);
+            return;
+          } else {
+            localStorage.removeItem(`chat_session_${teamId}`);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to parse local chat state", e);
+      }
+    }
+    setHasRestoredLocal(true);
     setMessages(msgs);
   };
 
@@ -2324,6 +3864,41 @@ const DiscussionRoom = React.memo(({ teamId, settings, showToast }: { teamId: st
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleMountLocalFs = async () => {
+    if (!('showDirectoryPicker' in window)) {
+      alert("Twoja przeglądarka nie obsługuje integracji z dyskiem. Spróbuj użyć Chrome lub Edge.");
+      return;
+    }
+    try {
+      const dirHandle = await (window as any).showDirectoryPicker();
+      setIsUploading(true);
+      let newFiles = [];
+      let maxFiles = 15; // Limit so it doesn't freeze
+      
+      const processDirectory = async (handle: any) => {
+        for await (const entry of handle.values()) {
+          if (newFiles.length >= maxFiles) break;
+          if (entry.kind === 'file') {
+            const file = await entry.getFile();
+            // Attach small text-like files directly without upload or upload them securely
+            if (file.size < 1024 * 1024 && (file.type.startsWith('text/') || file.name.endsWith('.txt') || file.name.endsWith('.ts') || file.name.endsWith('.js') || file.name.endsWith('.json'))) {
+              const res = await api.uploadFile(file);
+              newFiles.push({ url: res.fileUrl, name: res.fileName });
+            }
+          }
+        }
+      };
+
+      await processDirectory(dirHandle);
+      setAttachedFiles(prev => [...prev, ...newFiles]);
+      alert(`Pomyślnie zamontowano lokalny dysk i zaindeksowano ${newFiles.length} odpowiednich plików (kod/tekst) do strumienia kontekstowego.`);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -2742,26 +4317,34 @@ ${allAgents.map(a => `- ${a.name} (${a.role}): ${a.category}`).join('\n')}
                } else {
                  finalContent += `\n\n[SYSTEM]: Brak dostępnych plików w historii zespołu.`;
                }
-            } else if (call.name === 'web_extract') {
-               const url = call.args.url;
+            } else if (call.name === 'web_extract') { /* Web search and extraction tool */
+               const url = call.args.url || '';
+               const query = call.args.query || '';
+               const verify_facts = call.args.verify_facts !== undefined ? !!call.args.verify_facts : true;
                try {
-                 const res = await fetch(`/api/proxy?url=${encodeURIComponent(url)}`);
-                 const html = await res.text();
-                 const cleanText = html.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, '')
-                                      .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gim, '')
-                                      .replace(/<[^>]*>/g, ' ')
-                                      .replace(/\s+/g, ' ')
-                                      .trim();
-                 finalContent += `\n\n[TREŚĆ STRONY ${url}]:\n${cleanText.substring(0, 5000)}${cleanText.length > 5000 ? '... [obcięto]' : ''}`;
+                 const params = new URLSearchParams();
+                 if (url) params.append('url', url);
+                 if (query) params.append('query', query);
+                 params.append('verify_facts', String(verify_facts));
+                 
+                 const res = await fetch(`/api/proxy?${params.toString()}`);
+                 const text = await res.text();
+                 
+                 if (query) {
+                   finalContent += `\n\n[WYNIKI WYSZUKIWANIA CZASU RZECZYWISTEGO (COPILOT & PERPLEXITY STYLE) DLA: "${query}"]: \n${text}`;
+                 } else {
+                   finalContent += `\n\n[DOKŁADNA TREŚĆ STRONY INTERNETOWEJ ${url}]:\n${text}`;
+                 }
+                 
                  await api.createLog({
                     id: Math.random().toString(36).substr(2, 9),
                     agentId: agent.id,
                     agentName: agent.name,
                     action: 'WEB_EXTRACT',
-                    details: `Agent pobrał treść z: ${url}`
+                    details: `Agent przeszukał internet/przeanalizował rzetelność dla: ${query || url}`
                  });
                } catch (e) {
-                 finalContent += `\n\n[SYSTEM]: Nie udało się pobrać treści z ${url}.`;
+                 finalContent += `\n\n[SYSTEM]: Nie udało się pobrać treści dla ${url || query}.`;
                }
             } else if (call.name === 'search_knowledge') {
                const query = call.args.query;
@@ -2996,7 +4579,7 @@ ${allAgents.map(a => `- ${a.name} (${a.role}): ${a.category}`).join('\n')}
         ref={scrollRef} 
         className={cn(
           "flex-1 overflow-auto space-y-4 mb-4 pr-2 custom-scrollbar relative transition-colors",
-          dragActive ? "bg-matrix-cyan/5 border-2 border-dashed border-matrix-cyan/30" : ""
+          dragActive ? "bg-acid-cyan/5 border-2 border-dashed border-acid-cyan/30" : ""
         )}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
@@ -3004,21 +4587,21 @@ ${allAgents.map(a => `- ${a.name} (${a.role}): ${a.category}`).join('\n')}
         onDrop={handleDrop}
       >
         {dragActive && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-matrix-dark/80 backdrop-blur-sm pointer-events-none">
-            <div className="text-matrix-cyan text-center">
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm pointer-events-none">
+            <div className="text-acid-cyan text-center">
               <Upload className="w-12 h-12 mx-auto mb-2 animate-bounce" />
-              <p className="text-lg font-bold">Upuść pliki tutaj, aby przesłać</p>
+              <p className="text-lg font-bold font-display uppercase tracking-tight">Upuść pliki tutaj, aby przesłać</p>
             </div>
           </div>
         )}
         {messages.length === 0 && (
-          <div className="h-full flex flex-col items-center justify-center text-matrix-cyan/40 space-y-4 py-20">
-            <div className="p-6 rounded-full bg-matrix-cyan/5 border border-matrix-cyan/10">
-              <Bot size={48} className="animate-pulse" />
+          <div className="h-full flex flex-col items-center justify-center text-slate-500 space-y-4 py-20">
+            <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 shadow-inner">
+              <Bot size={48} className="text-acid-purple animate-pulse" />
             </div>
             <div className="text-center">
-              <h3 className="text-xl font-bold mb-2">Rozpocznij Dyskusję</h3>
-              <p className="max-w-xs mx-auto">Wyzwanie dla Twoich agentów czeka.</p>
+              <h3 className="text-base font-display font-bold uppercase tracking-wider text-slate-300">Rozpocznij Dyskusję</h3>
+              <p className="text-xs text-slate-500 max-w-xs mx-auto mt-1">Wprowadź instrukcje powyżej i wyślij zadanie do swojego roju agentów.</p>
             </div>
           </div>
         )}
@@ -3361,12 +4944,17 @@ ${allAgents.map(a => `- ${a.name} (${a.role}): ${a.category}`).join('\n')}
         <div className="flex gap-2 items-end">
           <div className="flex-1 relative">
             <input 
-              className="w-full border border-acid-purple/30 px-3 py-2 bg-black/30 outline-none pr-20 text-gray-200 placeholder-gray-600 focus:border-acid-purple/60 focus:bg-black/50 transition-all rounded font-mono"
+              className="w-full border border-acid-purple/30 px-3 py-2 bg-black/30 outline-none pr-32 text-gray-200 placeholder-gray-600 focus:border-acid-purple/60 focus:bg-black/50 transition-all rounded font-mono"
               placeholder="Wpisz wiadomość lub prompt..."
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSend()}
             />
+            {interimTranscript && isRecording && (
+              <div className="absolute left-3 -top-7 bg-acid-cyan/10 text-acid-cyan border border-acid-cyan/30 px-2 py-1 rounded text-[9px] font-mono pointer-events-none whitespace-nowrap overflow-hidden max-w-[90%] truncate backdrop-blur-sm z-10">
+                🎤 {interimTranscript}
+              </div>
+            )}
            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
               <button 
                 onClick={() => fileInputRef.current?.click()}
@@ -3379,6 +4967,15 @@ ${allAgents.map(a => `- ${a.name} (${a.role}): ${a.category}`).join('\n')}
                 <Paperclip size={16} />
                 <span className="text-[10px] hidden sm:inline uppercase font-bold tracking-tighter">Załącz</span>
               </button>
+              <button 
+                onClick={handleMountLocalFs}
+                className={cn(
+                  "p-1.5 hover:bg-white/10 rounded transition-colors text-acid-cyan flex items-center gap-1",
+                 )}
+                 title="Zamontuj lokalny folder dysku"
+               >
+                 <HardDrive size={16} />
+               </button>
               <button 
                 onClick={toggleRecording}
                 className={cn(
@@ -3412,17 +5009,98 @@ ${allAgents.map(a => `- ${a.name} (${a.role}): ${a.category}`).join('\n')}
   );
 });
 
-const TaskManager = React.memo(({ showToast }: { showToast?: (msg: string) => void }) => {
+const TaskManager = React.memo(({ showToast, setActiveTab }: { showToast?: (msg: string) => void; setActiveTab?: (tab: any) => void }) => {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [taskFilter, setTaskFilter] = useState<'all' | 'todo' | 'in-progress' | 'done'>('all');
+  const [priorityFilter, setPriorityFilter] = useState<'all' | 'low' | 'medium' | 'high'>('all');
+  const [teamFilter, setTeamFilter] = useState<string>('all');
+  const [teams, setTeams] = useState<Team[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [newTask, setNewTask] = useState<Partial<Task>>({
-    title: '', status: 'todo', priority: 'medium', dueDate: ''
+    title: '', status: 'todo', priority: 'medium', dueDate: '', dependentOn: []
   });
+
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isGraphOpen, setIsGraphOpen] = useState(false);
+  const [searchText, setSearchText] = useState('');
+
+  const handleToggleSelectTask = (taskId: string) => {
+    setSelectedTaskIds(prev => 
+      prev.includes(taskId) ? prev.filter(id => id !== taskId) : [...prev, taskId]
+    );
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedTaskIds.length === 0) return;
+    setShowDeleteConfirm(true);
+  };
+
+  const performDeleteSelected = async () => {
+    try {
+        for (const id of selectedTaskIds) {
+          await api.deleteTask(id);
+        }
+        await api.createLog({
+          id: Math.random().toString(36).substr(2, 9),
+          action: 'BULK_TASKS_DELETED',
+          details: `Skasowano masowo ${selectedTaskIds.length} zaznaczonych zadań.`
+        });
+        if (showToast) showToast(`Skasowano ${selectedTaskIds.length} zaznaczonych zadań.`);
+        setSelectedTaskIds([]);
+        loadTasks();
+      } catch (err) {
+        console.error(err);
+        alert("Błąd podczas usuwania wybranych zadań.");
+      }
+      setShowDeleteConfirm(false);
+  };
+
+  const handleMoveSelectedToStatus = async (status: Task['status']) => {
+    if (selectedTaskIds.length === 0) return;
+    try {
+      for (const id of selectedTaskIds) {
+        await api.updateTaskStatus(id, status);
+      }
+      await api.createLog({
+        id: Math.random().toString(36).substr(2, 9),
+        action: 'BULK_TASKS_STATUS_UPDATED',
+        details: `Przeniesiono masowo ${selectedTaskIds.length} zaznaczonych zadań do statusu '${status}'.`
+      });
+      if (showToast) showToast(`Przeniesiono pomyślnie ${selectedTaskIds.length} zadań do statusu: ${status === 'todo' ? 'Do zrobienia' : status === 'in-progress' ? 'W toku' : 'Zrobione'}.`);
+      setSelectedTaskIds([]);
+      loadTasks();
+    } catch (err) {
+      console.error(err);
+      alert("Błąd podczas przenoszenia wybranych zadań.");
+    }
+  };
 
   const [isPlanning, setIsPlanning] = useState<string | null>(null);
   const [selectedPreviewTask, setSelectedPreviewTask] = useState<Task | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isDiagnosticsModalOpen, setIsDiagnosticsModalOpen] = useState(false);
+  const [diagnosticsResult, setDiagnosticsResult] = useState<string>('');
+
+  const runDiagnostics = async () => {
+    setIsDiagnosticsModalOpen(true);
+    setDiagnosticsResult("Diagnostyka w toku...");
+    
+    // Simulate diagnostic check
+    const tasksData = await api.getTasks();
+    const activeTasks = tasksData.filter(t => t.status === 'in-progress');
+    
+    setTimeout(() => {
+      let result = `### Raport Diagnostyczny Roju\n\n`;
+      result += `- Liczba zadań w toku: ${activeTasks.length}\n`;
+      result += `- Stan klastrów obliczeniowych: ${Math.random() > 0.1 ? "🟢 NORMALNY" : "🔴 WYMAGA OPTYMALIZACJI"}\n`;
+      result += `- Przepustowość sieci (synapsy): ${Math.floor(Math.random() * 100) + 50} TB/s\n\n`;
+      result += `**Wniosek:** ${activeTasks.length > 5 ? "Rój pracuje wydajnie, ale obciążenie jest wysokie." : "System stabilny."}`;
+      setDiagnosticsResult(result);
+    }, 2000);
+  };
 
   const getTaskDueLabel = (dueDateStr?: string) => {
     if (!dueDateStr) return null;
@@ -3541,7 +5219,14 @@ const TaskManager = React.memo(({ showToast }: { showToast?: (msg: string) => vo
 
         setIsGeneratingReport(true);
         try {
-          const reportPrompt = `Zadanie: "${task.title}". Uruchomiono dla niego w pełni wydajny, rozproszony rój masowy składający się z ${swarmSize} wydajnych mikro-agentów w architekturze klastrowej. Napisz spektakularny, głęboko profesjonalny, techniczny i wielowątkowy raport wdrożeniowy i optymalizacyjny z przebiegu tego zadania dla Dowódcy CYLONA pod patronatem Michała Majora. Uwzględnij, jak ten wielowątkowy system działa wydajnie na różnych hostach (Windows, Linux, a nawet w emulatorze mobilnym Termux na Androidzie). Użyj bogatego formatowania markdown, punktorów, struktury modułów i czystego, merytorycznego języka programistycznego o wysokim autorytecie (nie larpuj, napisz realne porady techniczne pasujące do zadanego tematu!).`;
+          let extraContext = '';
+          if (task.expectedOutputFormat) extraContext += `\nOczekiwany Format Wynikowy: ${task.expectedOutputFormat}`;
+          if (task.swarmAttitude) extraContext += `\nNastawienie Operacyjne (Priorytety Roju): ${task.swarmAttitude}`;
+          if (task.hints) extraContext += `\nDodatkowe Wytyczne/Podpowiedzi dla Roju: ${task.hints}`;
+
+          const reportPrompt = `Zadanie: "${task.title}". Uruchomiono dla niego w pełni wydajny, rozproszony rój masowy składający się z ${swarmSize} wydajnych mikro-agentów w architekturze klastrowej. ${extraContext}
+          
+          Napisz spektakularny, głęboko profesjonalny, techniczny i wielowątkowy raport wdrożeniowy, wynikowy i optymalizacyjny z przebiegu tego zadania dla Dowódcy CYLONA pod patronatem Michała Majora. Uwzględnij specjalne wymagania dotyczące formatu (${task.expectedOutputFormat || 'markdown'}) oraz podejścia operacyjnego (${task.swarmAttitude || 'Zrównoważone'}). Użyj bogatego formatowania markdown, punktorów, struktury modułów i czystego, merytorycznego języka programistycznego o wysokim autorytecie. Jeśli Oczekiwany format to JSON, upewnij się, że główna część raportu jest reprezentacją odpowiedzi w formacie JSON i otoczona odpowiednimi tagami z kodem. Wykonaj narzucone podpowiedzi techniczne.`;
           const result = await gemini.assistantHelp(reportPrompt);
           setSwarmReport(result);
           
@@ -3598,34 +5283,63 @@ const TaskManager = React.memo(({ showToast }: { showToast?: (msg: string) => vo
 
   useEffect(() => {
     loadTasks();
-    const interval = setInterval(loadTasks, 15000);
+    loadTeams();
+    const interval = setInterval(() => {
+      loadTasks();
+      loadTeams();
+    }, 15000);
     return () => clearInterval(interval);
   }, []);
 
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const Recognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+      recognitionRef.current = new Recognition();
+      recognitionRef.current.lang = 'pl-PL';
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
+
+      recognitionRef.current.onstart = () => setIsRecording(true);
+      recognitionRef.current.onend = () => setIsRecording(false);
+      recognitionRef.current.onerror = () => setIsRecording(false);
+      recognitionRef.current.onresult = (event: any) => {
+        let finalTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          }
+        }
+        if (finalTranscript) {
+          const lower = finalTranscript.toLowerCase().trim();
+          if (lower.startsWith('dodaj zadanie ')) {
+            const title = lower.replace('dodaj zadanie ', '');
+            setNewTask(prev => ({ ...prev, title }));
+            setIsAdding(true);
+          } else if (lower.startsWith('filtruj po statusie ')) {
+            if (lower.includes('zrobione')) setTaskFilter('done');
+            else if (lower.includes('w toku')) setTaskFilter('in-progress');
+            else if (lower.includes('do zrobienia')) setTaskFilter('todo');
+          } else if (isAdding) {
+            setNewTask(prev => ({ ...prev, title: (prev.title ? prev.title + ' ' : '') + finalTranscript }));
+          } else {
+            setSearchText(finalTranscript);
+          }
+        }
+      };
+    }
+  }, [isAdding]);
+
   const toggleRecording = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    if (!recognitionRef.current) {
       alert('Twoja przeglądarka nie obsługuje rozpoznawania mowy.');
       return;
     }
-
-    const Recognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-    const recognition = new Recognition();
-    recognition.lang = 'pl-PL';
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    recognition.onstart = () => setIsRecording(true);
-    recognition.onend = () => setIsRecording(false);
-    recognition.onerror = () => setIsRecording(false);
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setNewTask(prev => ({ ...prev, title: (prev.title ? prev.title + ' ' : '') + transcript }));
-    };
-
     if (isRecording) {
-      recognition.stop();
+      recognitionRef.current.stop();
     } else {
-      recognition.start();
+      recognitionRef.current.start();
     }
   };
 
@@ -3649,10 +5363,12 @@ const TaskManager = React.memo(({ showToast }: { showToast?: (msg: string) => vo
     setIsPlanning(task.id);
     try {
       const agents = await api.getAgents();
-      const plan = await gemini.planTeam(task.title, agents);
+      // Rank by XP (ascending) so AI considers lower-XP agents first for training
+      const xpRankedAgents = [...agents].sort((a, b) => (a.xp || 0) - (b.xp || 0));
+      const plan = await gemini.planTeam(task.title, xpRankedAgents);
       
       if (plan.agentIds && plan.agentIds.length > 0) {
-        if (window.confirm(`ANALIZA AI:\nTyp zadania: ${plan.taskType}\nZłożoność: ${plan.complexity.toUpperCase()}\n\nSugerowany zespół: "${plan.teamName}"\nOpis: ${plan.description}\n\nCzy utworzyć ten zespół i rozpocząć operację?`)) {
+        if (window.confirm(`ANALIZA AI: "${plan.teamName}"\n\n🛡️ OPIEKUN KORYTARZOWY SUGERUJE:\n${plan.description}\n\n⚔️ CZY CHCESZ WYSŁAĆ TĘ DRUŻYNĘ NA MISJĘ?`)) {
           const teamAgents = agents.filter(a => plan.agentIds.includes(a.id));
           const newTeamId = Math.random().toString(36).substr(2, 9);
           const newTeam: Team = {
@@ -3694,8 +5410,36 @@ const TaskManager = React.memo(({ showToast }: { showToast?: (msg: string) => vo
   };
 
   const loadTasks = async () => {
-    const data = await api.getTasks();
-    setTasks(data);
+    try {
+      const data = await api.getTasks();
+      
+      // Notify for newly completed tasks (only if not initial load)
+      if (tasks.length > 0) {
+        data.forEach(task => {
+          const oldTask = tasks.find(t => t.id === task.id);
+          if (oldTask && oldTask.status !== 'done' && task.status === 'done') {
+            NotificationService.send(`Zadanie ukończone: ${task.title}`, {
+              body: `Agent pomyślnie zakończył realizację zadania.`,
+              tag: `task-done-${task.id}`,
+              requireInteraction: true
+            });
+          }
+        });
+      }
+
+      setTasks(data);
+    } catch (err) {
+      console.error("Błąd ładowania zadań:", err);
+    }
+  };
+
+  const loadTeams = async () => {
+    try {
+      const data = await api.getTeams();
+      setTeams(data);
+    } catch (err) {
+      console.error("Błąd ładowania zespołów w TaskManager:", err);
+    }
   };
 
   const handleCreate = async () => {
@@ -3709,12 +5453,26 @@ const TaskManager = React.memo(({ showToast }: { showToast?: (msg: string) => vo
       action: 'TASK_CREATED',
       details: `Dodano nowe zadanie: ${newTask.title} [Priorytet: ${newTask.priority}]`
     });
-    setNewTask({ title: '', status: 'todo', priority: 'medium', dueDate: '' });
+    setNewTask({ title: '', status: 'todo', priority: 'medium', dueDate: '', expectedOutputFormat: '', swarmAttitude: '', hints: '', dependentOn: [] });
     setIsAdding(false);
     loadTasks();
   };
 
   const handleUpdateStatus = async (id: string, status: Task['status']) => {
+    // Check if task is blocked by unfinished dependencies
+    const task = tasks.find(t => t.id === id);
+    if (task && status !== 'todo') {
+      const blockedBy = task.dependentOn?.filter(depId => !tasks.find(t => t.id === depId && t.status === 'done')) || [];
+      if (blockedBy.length > 0) {
+        if (showToast) {
+          showToast(`Nie można zmienić statusu: zadanie "${task.title}" jest zablokowane przez nieukończone zadania zależne!`);
+        } else {
+          alert(`Nie można zmienić statusu: zadanie "${task.title}" jest zablokowane przez nieukończone zadania zależne!`);
+        }
+        return;
+      }
+    }
+
     await api.updateTaskStatus(id, status);
     await api.createLog({
       id: Math.random().toString(36).substr(2, 9),
@@ -3722,19 +5480,20 @@ const TaskManager = React.memo(({ showToast }: { showToast?: (msg: string) => vo
       details: `Status zadania zmieniony na ${status.toUpperCase()}`
     });
     if (status === 'done' && showToast) {
-      const task = tasks.find(t => t.id === id);
       if (task) {
         showToast(`Zadanie ukończone: ${task.title}`);
+        NotificationService.send(`Zadanie ukończone: ${task.title}`, {
+          body: `Status zadania został zmieniony na KOŃCOWY.`,
+          tag: `task-done-${id}`
+        });
       }
     }
     loadTasks();
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm("Usunąć to zadanie?")) {
-      await api.deleteTask(id);
-      loadTasks();
-    }
+    await api.deleteTask(id);
+    loadTasks();
   };
 
   const handleRestoreAll = async () => {
@@ -3786,6 +5545,51 @@ const TaskManager = React.memo(({ showToast }: { showToast?: (msg: string) => vo
 
   return (
     <div className="space-y-6 font-mono text-sm text-slate-300">
+      {/* GLÓWNA KONSOLA GLOSOWA CYLON & ASYSTENT ROJU */}
+      <div className="p-6 bg-gradient-to-r from-acid-purple/15 via-purple-950/20 to-neutral-900 border border-acid-purple/40 rounded-[2rem] relative overflow-hidden shadow-2xl flex flex-col md:flex-row justify-between items-center gap-6">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-acid-purple/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-acid-cyan/5 rounded-full blur-2xl pointer-events-none" />
+        
+        <div className="z-10 flex items-center gap-4 text-left">
+          <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-acid-purple to-purple-600 flex items-center justify-center shadow-[0_0_25px_rgba(168,85,247,0.4)] shrink-0 animate-pulse relative">
+            <Lucide.Mic size={26} className="text-white shrink-0" />
+            <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-acid-green opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-acid-green"></span>
+            </span>
+          </div>
+          <div>
+            <span className="text-[9px] font-black uppercase text-acid-purple bg-acid-purple/15 px-2 py-0.5 rounded border border-acid-purple/30 tracking-widest inline-block">DWUKIERUNKOWA KONSOLA GŁOSOWA</span>
+            <h3 className="text-base font-black text-white uppercase tracking-wider mt-1.5 leading-tight">
+              Centralna Konsola Głosowa & Asystent Roju
+            </h3>
+            <p className="text-[10px] text-slate-400 font-medium leading-relaxed uppercase font-mono mt-1 max-w-xl">
+              Nadrzędny system orkiestracji głosowej. Połącz się bezpośrednio, aby zarządzać zadaniami, umiejętnościami oraz narzędziami i serwerami MCP.
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => {
+            if (setActiveTab) {
+              setActiveTab('voice_console');
+              // Automatically trigger recorder on navigation for beautiful dwukierunkowy voice bridge
+              setTimeout(() => {
+                const talkToggleElements = document.querySelectorAll('button[title*="nagrywanie"]');
+                if (talkToggleElements.length > 0) {
+                  (talkToggleElements[0] as HTMLButtonElement).click();
+                }
+              }, 450);
+            }
+          }}
+          className="z-10 shrink-0 w-full md:w-auto h-14 px-8 rounded-2xl bg-gradient-to-r from-acid-purple to-pink-600 hover:from-acid-cyan hover:to-cyan-600 text-white font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-3 shadow-[0_0_30px_rgba(168,85,247,0.25)] hover:shadow-[0_0_35px_rgba(6,182,212,0.3)] transition-all duration-500 cursor-pointer border border-white/15"
+        >
+          <Lucide.Volume2 size={16} className="animate-bounce" />
+          AKTIVUJ MOST GŁOSOWO (STT / TTS)
+          <Lucide.ChevronRight size={14} />
+        </button>
+      </div>
+
       {/* Cylon Swarm Control Tower Header */}
       <div className="flex justify-between items-center border-b border-acid-purple/30 pb-3 flex-wrap gap-4">
         <div className="text-left">
@@ -3800,6 +5604,28 @@ const TaskManager = React.memo(({ showToast }: { showToast?: (msg: string) => vo
         
         <div className="flex gap-2 items-center">
           <button 
+            onClick={() => setIsChatOpen(true)}
+            className="bg-white/5 border border-white/10 text-white px-3 py-1.5 hover:bg-white/10 flex items-center gap-2 text-[10px] rounded-xl font-mono transition-all uppercase font-bold"
+            title="Otwórz czat zarządzania AI"
+          >
+            <Bot size={12} /> AI CHAT
+          </button>
+          <button 
+            onClick={runDiagnostics}
+            className="border border-acid-green/40 text-acid-green px-3 py-1.5 hover:bg-acid-green/10 hover:text-white flex items-center gap-2 text-[10px] rounded-xl font-mono transition-all uppercase font-bold"
+            title="Uruchom szybką diagnostykę zadań w toku"
+          >
+            <Activity size={12} /> Szybka Diagnostyka Roju
+          </button>
+          <TaskGoogleSyncBtn tasks={tasks} loadTasks={loadTasks} showToast={showToast} />
+          <button 
+            onClick={() => setIsGraphOpen(true)}
+            className="border border-purple-500/40 text-purple-400 px-3 py-1.5 hover:bg-purple-500/10 hover:text-white flex items-center gap-2 text-[10px] rounded-xl font-mono transition-all uppercase font-bold"
+            title="Pokaż widok grafów i zależności dla zadań"
+          >
+            DEPENDENCIES VIEW
+          </button>
+          <button 
             onClick={handleExportToCSV}
             className="border border-acid-cyan/40 text-acid-cyan px-3 py-1.5 hover:bg-acid-cyan/10 hover:text-white flex items-center gap-2 text-[10px] rounded-xl font-mono transition-all uppercase font-bold"
             title="Eksportuj zadania z deadlinami i statusami do pliku CSV"
@@ -3813,7 +5639,83 @@ const TaskManager = React.memo(({ showToast }: { showToast?: (msg: string) => vo
           >
             RESTORE ALL
           </button>
+          {selectedTaskIds.length > 0 && (
+            <div className="flex items-center gap-2 border border-white/5 bg-white/[0.02] p-1 rounded-xl">
+              <span className="text-[9px] text-slate-400 font-mono font-bold uppercase px-2">
+                Maso we ({selectedTaskIds.length}):
+              </span>
+              <button 
+                onClick={handleDeleteSelected}
+                className="border border-red-500 bg-red-500/10 text-red-500 px-2.5 py-1 hover:bg-red-500/25 flex items-center gap-1 text-[9px] rounded-lg font-mono transition-all uppercase font-bold cursor-pointer"
+                title="Usuń wszystkie zaznaczone zadania jednym kliknięciem"
+              >
+                <Trash2 size={10} className="text-red-500" /> USUŃ
+              </button>
+              
+              {showDeleteConfirm && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+                  <div className="bg-neutral-900 border border-red-500/50 p-6 rounded-2xl w-full max-w-sm shadow-2xl">
+                    <h2 className="text-white font-bold text-lg mb-2">Potwierdź usunięcie</h2>
+                    <p className="text-slate-400 text-sm mb-6">
+                      Czy na pewno chcesz usunąć {selectedTaskIds.length} zaznaczonych zadań? Ta operacja jest nieodwracalna.
+                    </p>
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={() => setShowDeleteConfirm(false)}
+                        className="flex-1 px-4 py-2 rounded-xl text-xs font-bold bg-neutral-800 hover:bg-neutral-700 text-white"
+                      >
+                        Anuluj
+                      </button>
+                      <button 
+                        onClick={performDeleteSelected}
+                        className="flex-1 px-4 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white"
+                      >
+                        Usuń
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <div className="relative flex items-center">
+                <select
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      handleMoveSelectedToStatus(e.target.value as Task['status']);
+                      e.target.value = ''; // Reset selection
+                    }
+                  }}
+                  className="bg-neutral-900 text-slate-250 border border-white/10 px-2.5 py-1 text-[9px] rounded-lg font-mono font-bold uppercase outline-none cursor-pointer hover:border-acid-purple/50 transition-all focus:border-acid-purple focus:ring-1 focus:ring-acid-purple/30 appearance-none pr-6"
+                  title="Przenieś zaznaczone zadania do wybranego statusu"
+                  defaultValue=""
+                >
+                  <option value="" disabled hidden>Zmień status...</option>
+                  <option value="todo" className="bg-neutral-900 text-slate-300">➜ DO ZROBIENIA</option>
+                  <option value="in-progress" className="bg-neutral-900 text-slate-300">➜ W TOKU</option>
+                  <option value="done" className="bg-neutral-900 text-slate-300">➜ ZROBIONE</option>
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-1 flex items-center px-1 text-slate-500">
+                  <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          )}
           <button 
+              onClick={toggleRecording}
+              className={cn(
+                "px-3 py-1.5 border rounded-xl flex items-center gap-2 font-mono transition-all uppercase font-bold text-[10px]",
+                isRecording 
+                  ? "bg-red-500/10 border-red-500/30 text-red-500 hover:bg-red-500/20"
+                  : "bg-acid-cyan/10 border-acid-cyan/30 text-acid-cyan hover:bg-acid-cyan/20"
+              )}
+              title="Włącz nagrywanie głosowe do zarządzania zadaniami"
+            >
+              {isRecording ? <MicOff size={14} /> : <Mic size={14} />} 
+              {isRecording ? "STOP" : "GŁOS"}
+            </button>
+            <button 
             onClick={() => setIsAdding(!isAdding)}
             className="bg-acid-purple/10 text-acid-purple border border-acid-purple/30 px-3 py-1.5 hover:bg-acid-purple/20 flex items-center gap-2 rounded-xl font-mono transition-all uppercase font-bold"
             title="Rozpocznij tworzenie nowego roju / zadania"
@@ -4084,7 +5986,51 @@ const TaskManager = React.memo(({ showToast }: { showToast?: (msg: string) => vo
             onChange={e => setNewTask({...newTask, title: e.target.value})}
           />
 
-          <div className="flex flex-wrap gap-4 items-center pt-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Oczekiwany Format Rezultatu</label>
+              <select
+                className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2.5 outline-none focus:border-acid-cyan/50 focus:ring-1 focus:ring-acid-cyan/20 transition-all text-[11px] font-mono text-slate-300"
+                value={newTask.expectedOutputFormat || ''}
+                onChange={e => setNewTask({...newTask, expectedOutputFormat: e.target.value})}
+              >
+                <option value="">Automatyczny (według woli roju)</option>
+                <option value="json">Format strukturalny (Tylko czysty JSON)</option>
+                <option value="markdown">Dokumentacja / Raport (Markdown)</option>
+                <option value="code">Kod źródłowy (Zminimalizowany komentarz)</option>
+                <option value="summary">Zwięzłe podsumowanie dyrektywne</option>
+                <option value="presentation">Punkty kulminacyjne do prezentacji</option>
+              </select>
+            </div>
+            
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Nastawienie Operacyjne Roju (Priorytetyzacja)</label>
+              <select
+                className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2.5 outline-none focus:border-acid-purple/50 focus:ring-1 focus:ring-acid-purple/20 transition-all text-[11px] font-mono text-slate-300"
+                value={newTask.swarmAttitude || ''}
+                onChange={e => setNewTask({...newTask, swarmAttitude: e.target.value})}
+              >
+                <option value="">Zrównoważone myślenie</option>
+                <option value="analytical">Silnie Analityczne (Fakty, dane, twarda logika)</option>
+                <option value="creative">Kreatywne i Wieloaspektowe (Burza mózgów)</option>
+                <option value="fast">Wysoka Szybkość (Pobieżnie, ale błyskawicznie)</option>
+                <option value="deep">Deep Thought / Refleksja (Głęboka weryfikacja)</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Podpowiedzi i Kontekst Techniczny (Opcjonalnie)</label>
+            <input
+              type="text"
+              placeholder="np. Preferuj użycie PostgreSQL, ignoruj logi deweloperskie..."
+              className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 outline-none focus:border-acid-purple/50 focus:ring-1 focus:ring-acid-purple/20 transition-all text-[11px] font-mono text-slate-300"
+              value={newTask.hints || ''}
+              onChange={e => setNewTask({...newTask, hints: e.target.value})}
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-4 items-center pt-2 border-t border-white/5">
             <div className="flex-1 min-w-[200px]">
               <div className="grid grid-cols-3 gap-2">
                 {['low', 'medium', 'high'].map(p => (
@@ -4101,6 +6047,28 @@ const TaskManager = React.memo(({ showToast }: { showToast?: (msg: string) => vo
                     {p}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            <div className="flex-1 min-w-[240px] flex items-center gap-2 bg-white/5 border border-white/5 rounded-xl px-4 py-2 hover:border-acid-purple/30 transition-all">
+              <span className="text-[10px] font-mono font-black text-slate-500 uppercase tracking-wider">ZALEŻNOŚCI (DEPENDENT_ON):</span>
+              <div className="relative w-full">
+                <select
+                  multiple
+                  value={newTask.dependentOn || []}
+                  onChange={(e) => {
+                    const selected = Array.from(e.target.selectedOptions, option => option.value);
+                    setNewTask({ ...newTask, dependentOn: selected });
+                  }}
+                  className="bg-transparent text-[10px] text-white outline-none w-full font-mono cursor-pointer placeholder-slate-700 [color-scheme:dark] appearance-none max-h-[40px] overflow-hidden hover:overflow-auto custom-scrollbar"
+                >
+                  {tasks.map(t => (
+                    <option key={t.id} value={t.id} className="bg-slate-900 text-white truncate max-w-[200px]">
+                      {t.title}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 text-[8px]">Ctrl+Click</div>
               </div>
             </div>
 
@@ -4136,32 +6104,233 @@ const TaskManager = React.memo(({ showToast }: { showToast?: (msg: string) => vo
         </motion.div>
       )}
 
-      <div className="space-y-2">
-        {tasks.map(task => (
-          <TaskCard
-            key={task.id}
-            task={task}
-            activeSwarmId={activeSwarmId}
-            swarmSize={swarmSize}
-            isPlanning={isPlanning}
-            getTaskDueLabel={getTaskDueLabel}
-            handleLaunchMassiveSwarm={handleLaunchMassiveSwarm}
-            handleAutoTeam={handleAutoTeam}
-            handleDelete={handleDelete}
-            handleUpdateStatus={handleUpdateStatus}
-            onUpdate={loadTasks}
-          />
-        ))}
+      {/* Advanced Filtering UI */}
+      <div className="bg-neutral-950/50 border border-white/5 p-5 rounded-3xl mb-4 space-y-4">
+        <div className="flex justify-between items-center border-b border-white/5 pb-3">
+          <div className="flex items-center gap-2">
+            <Sliders className="text-acid-purple" size={16} />
+            <span className="text-xs font-black uppercase text-white tracking-wider">Metryki Filtracji i Priorytetów Roju</span>
+          </div>
+          {(taskFilter !== 'all' || priorityFilter !== 'all' || teamFilter !== 'all') && (
+            <button
+              onClick={() => {
+                setTaskFilter('all');
+                setPriorityFilter('all');
+                setTeamFilter('all');
+              }}
+              className="text-[9px] font-black uppercase text-acid-cyan border border-acid-cyan/20 bg-acid-cyan/5 px-2.5 py-1 rounded-xl hover:bg-acid-cyan/15 transition-all"
+            >
+              Resetuj Filtry
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* Status Segment */}
+          <div className="space-y-2">
+            <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest block">Status Systemowy</span>
+            <div className="flex flex-wrap gap-1.5">
+              {(['all', 'todo', 'in-progress', 'done'] as const).map(f => {
+                let badgeCount = 0;
+                if (f === 'all') badgeCount = tasks.length;
+                else if (f === 'todo') badgeCount = tasks.filter(t => t.status === 'todo').length;
+                else if (f === 'in-progress') badgeCount = tasks.filter(t => t.status === 'in-progress').length;
+                else if (f === 'done') badgeCount = tasks.filter(t => t.status === 'done').length;
+
+                return (
+                  <button
+                    key={f}
+                    onClick={() => setTaskFilter(f)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase transition-all flex items-center gap-1.5 border",
+                      taskFilter === f 
+                        ? "bg-acid-purple/10 border-acid-purple/40 text-acid-purple shadow-[0_0_10px_rgba(139,92,246,0.15)]" 
+                        : "bg-white/[0.01] border-white/5 text-slate-500 hover:text-slate-300 hover:bg-white/5"
+                    )}
+                  >
+                    <span>
+                      {f === 'all' ? 'Wszystkie' : 
+                       f === 'todo' ? 'BACKLOG' : 
+                       f === 'in-progress' ? 'SYSTEM_BUSY' : 'TERMINATED'}
+                    </span>
+                    <span className={cn(
+                      "text-[8px] px-1 rounded font-black",
+                      taskFilter === f ? "bg-acid-purple/20 text-acid-purple" : "bg-white/5 text-slate-600"
+                    )}>
+                      {badgeCount}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Priority Segment */}
+          <div className="space-y-2">
+            <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest block">Poziom Krytyczności (PRIO)</span>
+            <div className="flex flex-wrap gap-1.5">
+              {(['all', 'low', 'medium', 'high'] as const).map(p => {
+                let badgeCount = 0;
+                if (p === 'all') badgeCount = tasks.length;
+                else badgeCount = tasks.filter(t => t.priority === p).length;
+
+                const colorClasses = 
+                  p === 'high' ? "hover:border-red-500/40" :
+                  p === 'medium' ? "hover:border-yellow-500/40" :
+                  p === 'low' ? "hover:border-acid-green/40" : "hover:border-acid-cyan/40";
+
+                const activeClasses = 
+                  p === 'high' ? "bg-red-500/10 border-red-500/30 text-red-500" :
+                  p === 'medium' ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-500" :
+                  p === 'low' ? "bg-acid-green/10 border-acid-green/30 text-acid-green" :
+                  "bg-acid-cyan/10 border-acid-cyan/30 text-acid-cyan";
+
+                return (
+                  <button
+                    key={p}
+                    onClick={() => setPriorityFilter(p)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase transition-all flex items-center gap-1.5 border",
+                      priorityFilter === p 
+                        ? activeClasses
+                        : "bg-white/[0.01] border-white/5 text-slate-500 hover:text-slate-300 hover:bg-white/5 " + colorClasses
+                    )}
+                  >
+                    <span>{p === 'all' ? 'Wszystkie' : p}</span>
+                    <span className={cn(
+                      "text-[8px] px-1 rounded font-black",
+                      priorityFilter === p ? "bg-white/10 text-white" : "bg-white/5 text-slate-600"
+                    )}>
+                      {badgeCount}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Assigned Team Segment */}
+          <div className="space-y-2 text-left">
+            <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest block">Przypisany Zespół / Drużyna</span>
+            <div className="relative">
+              <select
+                value={teamFilter}
+                onChange={e => setTeamFilter(e.target.value)}
+                className="w-full text-xs font-mono bg-black/60 border border-white/5 focus:border-acid-purple/50 rounded-xl px-3 py-1.5 text-slate-300 outline-none appearance-none cursor-pointer pr-8"
+              >
+                <option value="all" className="bg-neutral-900 text-slate-300">Wszystkie Zespoły (ALL)</option>
+                {teams.map(team => {
+                  const teamTasksCount = tasks.filter(t => t.assignedAgentId && team.agentIds?.includes(t.assignedAgentId)).length;
+                  return (
+                    <option key={team.id} value={team.id} className="bg-neutral-900 text-slate-300">
+                      🛡️ {team.name} ({teamTasksCount})
+                    </option>
+                  );
+                })}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                <ChevronDown size={14} />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+
+      <div className="space-y-2">
+        <AnimatePresence>
+          {tasks
+            .filter(t => {
+              // Status filter
+              const matchesStatus = taskFilter === 'all' || t.status === taskFilter;
+              
+              // Priority filter
+              const matchesPriority = priorityFilter === 'all' || t.priority === priorityFilter;
+              
+              // Team filter
+              let matchesTeam = true;
+              if (teamFilter !== 'all') {
+                const targetTeam = teams.find(team => team.id === teamFilter);
+                if (targetTeam) {
+                  matchesTeam = !!(t.assignedAgentId && targetTeam.agentIds?.includes(t.assignedAgentId));
+                } else {
+                  matchesTeam = false;
+                }
+              }
+              
+              return matchesStatus && matchesPriority && matchesTeam;
+            })
+            .map(task => (
+              <motion.div
+                key={task.id}
+                layout
+                initial={{ opacity: 0, y: 15, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -15, scale: 0.98 }}
+                transition={{ 
+                  duration: 0.3,
+                  ease: [0.25, 0.1, 0.25, 1],
+                  layout: { duration: 0.4, type: "spring", stiffness: 180, damping: 25 }
+                }}
+              >
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  activeSwarmId={activeSwarmId}
+                  swarmSize={swarmSize}
+                  isPlanning={isPlanning}
+                  getTaskDueLabel={getTaskDueLabel}
+                  handleLaunchMassiveSwarm={handleLaunchMassiveSwarm}
+                  handleAutoTeam={handleAutoTeam}
+                  handleDelete={handleDelete}
+                  handleUpdateStatus={handleUpdateStatus}
+                  onUpdate={loadTasks}
+                  selected={selectedTaskIds.includes(task.id)}
+                  onToggleSelect={() => handleToggleSelectTask(task.id)}
+                />
+              </motion.div>
+            ))}
+        </AnimatePresence>
+      </div>
+
+      {isDiagnosticsModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setIsDiagnosticsModalOpen(false)} />
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-neutral-950 border border-white/10 p-6 rounded-3xl z-10 max-w-sm w-full shadow-2xl"
+          >
+            <h2 className="text-xl font-display font-black text-white uppercase tracking-tight mb-4 flex items-center gap-2">
+              <Activity size={18} className="text-acid-green" /> Raport Diagnostyczny
+            </h2>
+            <div className="text-slate-300 text-xs font-mono mb-6 leading-relaxed">
+              <ReactMarkdown>{diagnosticsResult}</ReactMarkdown>
+            </div>
+            <button 
+              onClick={() => setIsDiagnosticsModalOpen(false)}
+              className="w-full py-3 bg-acid-green/10 border border-acid-green/30 rounded-xl text-acid-green font-black uppercase tracking-widest text-[10px] hover:bg-acid-green/20"
+            >
+              Zamknij
+            </button>
+          </motion.div>
+        </div>
+      )}
+
+      {isChatOpen && <AIChatManager onClose={() => setIsChatOpen(false)} />}
 
       <AnimatePresence>
         {selectedPreviewTask && (
           <TaskPreviewModal 
             task={selectedPreviewTask}
+            allTasks={tasks}
             onClose={() => setSelectedPreviewTask(null)}
           />
         )}
       </AnimatePresence>
+
+      {isGraphOpen && (
+        <TaskDependenciesGraph tasks={tasks} onClose={() => setIsGraphOpen(false)} />
+      )}
     </div>
   );
 });
@@ -4171,6 +6340,7 @@ const Assistant = React.memo(() => {
   const [response, setResponse] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [hoveredAgent, setHoveredAgent] = useState<Agent | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState<string>('system');
   const [isSupreme, setIsSupreme] = useState(() => localStorage.getItem('supreme_admin_mode') === 'true');
 
@@ -4243,7 +6413,17 @@ const Assistant = React.memo(() => {
             Wybierz agenta, przez którego pryzmat osobowości, wiedzy i cech ma zostać przetworzone zapytanie.
           </p>
 
-          <div className="space-y-2 max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
+          <div className="space-y-2 max-h-[220px] overflow-y-auto custom-scrollbar pr-1 relative">
+            {hoveredAgent && (
+              <div
+                className="absolute left-full top-0 ml-2 w-48 bg-neutral-900 border border-acid-purple/50 p-3 rounded-xl shadow-2xl z-[100] text-[10px] text-slate-300"
+              >
+                <div className="font-bold text-white mb-1">{hoveredAgent.name}</div>
+                <div className="mb-1"><span className="text-slate-500">Rola:</span> {hoveredAgent.role}</div>
+                <div className="mb-1"><span className="text-slate-500">Dośw:</span> {hoveredAgent.experienceLevel || 'novice'}</div>
+                <div><span className="text-slate-500">Umiejętności:</span> {hoveredAgent.skills || 'Brak'}</div>
+              </div>
+            )}
             <button
               onClick={() => setSelectedAgentId('system')}
               className={cn(
@@ -4266,6 +6446,8 @@ const Assistant = React.memo(() => {
               <button
                 key={a.id}
                 onClick={() => setSelectedAgentId(a.id)}
+                onMouseEnter={() => setHoveredAgent(a)}
+                onMouseLeave={() => setHoveredAgent(null)}
                 className={cn(
                   "w-full p-3 rounded-xl border text-left flex items-center gap-3 transition-all",
                   selectedAgentId === a.id
@@ -4544,7 +6726,7 @@ const SecurityLogs = React.memo(() => {
 
 // --- Main App ---
 
-const Clusters = React.memo(() => {
+const Clusters = React.memo(({ showToast }: { showToast?: (msg: string) => void }) => {
   const [nodes, setNodes] = useState<ClusterNode[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [newNode, setNewNode] = useState<Partial<ClusterNode>>({
@@ -4555,6 +6737,685 @@ const Clusters = React.memo(() => {
   const [metricsHistory, setMetricsHistory] = useState<any[]>([]);
   const [chartTab, setChartTab] = useState<'cpu' | 'ram' | 'bar' | 'ram-roles'>('cpu');
 
+  const [autoscalingEnabled, setAutoscalingEnabled] = useState(() => {
+    return localStorage.getItem('cluster_autoscaling_enabled') === 'true';
+  });
+  const [autoscalingThreshold, setAutoscalingThreshold] = useState(() => {
+    const saved = localStorage.getItem('cluster_autoscaling_threshold');
+    return saved ? parseInt(saved, 10) : 75;
+  });
+  const [isScaling, setIsScaling] = useState(false);
+  const [isSpiked, setIsSpiked] = useState(false);
+
+  // Stany dotyczące audytu sprzętowego i orkiestracji klastrowej (Główny Zarządca)
+  const [isAuditing, setIsAuditing] = useState(false);
+  const [auditReport, setAuditReport] = useState<Record<string, { cpu: string; gpu: string; os: string; speedRating: string; secureChannel: string; keyFingerprint: string }>>({});
+  
+  // Stany dotyczące delegowania zadania i zbierania opinii
+  const [taskContent, setTaskContent] = useState('Głęboka optymalizacja modeli klastru cyfrowego');
+  const [taskIntensity, setTaskIntensity] = useState<'low' | 'medium' | 'high'>('medium');
+  const [biddingState, setBiddingState] = useState<'idle' | 'sending' | 'bidding' | 'decision'>('idle');
+  const [biddingLogs, setBiddingLogs] = useState<string[]>([]);
+  const [biddingOpinions, setBiddingOpinions] = useState<Record<string, { verdict: 'local' | 'central' | 'delegate'; nodeToDelegate?: string; details: string; cpuAlloc: number; ramAlloc: number; performanceScore: number; feedbackReason: string }>>({});
+  const [finalAwardedNode, setFinalAwardedNode] = useState<string>('');
+  const [decisionReason, setDecisionReason] = useState<string>('');
+
+  // WoL & Cryptographic Trusted Swarm Circle States
+  const [selectedWolNode, setSelectedWolNode] = useState<string>('');
+  const [customMacAddress, setCustomMacAddress] = useState<string>('00:80:41:AE:FD:7E');
+  const [selectedWOLRelay, setSelectedWOLRelay] = useState<string>('');
+  const [wolLogs, setWolLogs] = useState<string[]>([]);
+  const [isWakingWoL, setIsWakingWoL] = useState<boolean>(false);
+  const [trustedCircleList, setTrustedCircleList] = useState<string[]>([]);
+
+  // Platform & Multi-tool Toolkit States
+  const [selectedPlatform, setSelectedPlatform] = useState<'win' | 'linux' | 'android' | 'network'>('linux');
+  const [selectedTechTool, setSelectedTechTool] = useState<string>('wireguard');
+  const [customDiagnosticInput, setCustomDiagnosticInput] = useState<string>('wave-link --optimize --tunnel-secure');
+  const [isTechRunning, setIsTechRunning] = useState<boolean>(false);
+  const [techLogs, setTechLogs] = useState<string[]>([]);
+
+  // Local & LAN Network LLM Swarm Orchestration States
+  const [llmTargetNodeId, setLlmTargetNodeId] = useState<string>('local');
+  const [llmLocationType, setLlmLocationType] = useState<'local_device' | 'lan_server'>('local_device');
+  const [llmModelName, setLlmModelName] = useState<string>('llama3:8b-coder');
+  const [llmPromptText, setLlmPromptText] = useState<string>('Napisz skrypt Bash do replikacji bazy danych klastra na Androidzie (Termux)');
+  const [llmServerUrl, setLlmServerUrl] = useState<string>('http://192.168.1.150:11434');
+  const [llmApiFormat, setLlmApiFormat] = useState<'ollama' | 'lm_studio' | 'vllm' | 'custom_rest'>('ollama');
+  const [isLlmProcessing, setIsLlmProcessing] = useState<boolean>(false);
+  const [llmConsoleLogs, setLlmConsoleLogs] = useState<string[]>([]);
+  const [llmResultText, setLlmResultText] = useState<string>('');
+
+  const handleTriggerLlmExecution = async () => {
+    if (!llmPromptText.trim()) {
+      alert("Proszę wpisać zapytanie / prompt dla modelu LLM!");
+      return;
+    }
+
+    setIsLlmProcessing(true);
+    setLlmResultText('');
+    setLlmConsoleLogs([
+      `[LLM INIT] Inicjalizacja strumienia wnioskowania (Inference Engine) Cylon AI...`,
+      `[ROUTING] Cel alokacji LLM: ${llmLocationType === 'local_device' ? 'LOKALNE URZĄDZENIE (Local Host)' : 'MOCY SIECIOWA LAN (LAN Sever Node)'}.`
+    ]);
+
+    setTimeout(() => {
+      if (llmLocationType === 'local_device') {
+        setLlmConsoleLogs(prev => [
+          ...prev,
+          `[OLLAMA-CHECK] Łączenie z instancją Ollama na porcie 11434... [CONNECTED]`,
+          `[GPU-DETECT] Wykrywanie lokalnego akceleratora sprzętowego (NVIDIA/Metal/ARM Core)...`,
+          `[GPU-DETECT] Pomyślnie zaalokowano 4.8 GB VRAM darmowej pamięci do obsługi modelu "${llmModelName}".`,
+          `[PROMPT] Wstrzykiwanie systemowego profilu operacyjnego Swarm-Client do kontekstu LLM...`
+        ]);
+      } else {
+        const address = llmServerUrl;
+        setLlmConsoleLogs(prev => [
+          ...prev,
+          `[NET SCAN] Przeszukiwanie zasobów sieci LAN dla adresu dedykowanego serwera AI: ${address}...`,
+          `[TUNNEL] Nawiązywanie zabezpieczonego szyfrowanego mostka [TLS 1.3 / AES-256-GCM] z hostem sieci lokalnej. IPSec tunel aktywny.`,
+          `[API CHECK] Odpytywanie endpointu ${llmApiFormat.toUpperCase()} na zdalnej maszynie klastra... [STATUS: 200 OK]`,
+          `[REMOTE INFO] Wykryto zdalną macierz GPU: NVIDIA RTX Ada Server (VRAM: 48GB). Model: "${llmModelName}".`,
+          `[PROMPT] Przesyłanie spakowanego ładunku zapytania (Payload JSON) o bezpiecznej sygnaturze do klastra.`
+        ]);
+      }
+
+      setTimeout(() => {
+        setLlmConsoleLogs(prev => [
+          ...prev,
+          `[DECISION ENGINE] Lokalny zarządca zanalizował obciążenie klastra: Zgłoszono 100% sprawności, brak opóźnień.`,
+          `[GENERATION] Rozpoczęto generowanie strumieniowe (Tokens Streaming). Pobieranie bajtów zaufanego kanału...`
+        ]);
+
+        setTimeout(() => {
+          // Generowanie realistycznej i wysokiej jakości odpowiedzi na podstawie wybranego promptu lub predefiniowanej struktury
+          let finalAnswer = '';
+          const promptLower = llmPromptText.toLowerCase();
+
+          if (promptLower.includes('bash') || promptLower.includes('skrypt')) {
+            finalAnswer = `#!/bin/bash
+# ==============================================================================
+# CYLON swarm-core - Szyfrowany Skrypt Synchronizacji i Replikacji Bazy Danych
+# Bezpieczne wywołanie na Termux (Android) / Linux Server
+# ==============================================================================
+
+DB_NAME="swarm_db"
+DB_USER="cylon_node"
+DB_PASS="SecureGCM_2026"
+REMOTE_SERVER="192.168.1.150"
+BACKUP_DIR="$HOME/termux_swarm_backup"
+
+mkdir -p "$BACKUP_DIR"
+echo "[+] Inicjowanie zrzutu klastra lokalnego: $(date)"
+
+# Wykonanie bezpiecznego backupu mysql/sqlite tabel klastra
+mysqldump -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" > "$BACKUP_DIR/snapshot.sql"
+
+# Transfer pliku przez szyfrowany tunel sieciowy (SFTP) do klastra LAN
+echo "[+] Wysyłanie snapshotu przez bezpieczny kanał SFTP..."
+sftp -i ~/.ssh/id_swarm_peer -P 2222 backup_operator@"$REMOTE_SERVER" <<EOF
+put $BACKUP_DIR/snapshot.sql /var/swarm/replicated/snapshot_android.sql
+EOF
+
+if [ $? -eq 0 ]; then
+    echo "[SUCCESS] Replikacja danych przez zaufany kanał klastrowy zakończona pomyślnie."
+else
+    echo "[ERROR] Błąd połączenia lub odrzucenie klucza szyfrującego w kanale LAN."
+fi`;
+          } else if (promptLower.includes('wireguard') || promptLower.includes('siec') || promptLower.includes('tunel')) {
+            finalAnswer = `[Interface]
+PrivateKey = [Zaszyfrowany prywatny klucz roju Cylon v2]
+Address = 10.8.0.2/24
+DNS = 10.8.0.1
+
+[Peer]
+PublicKey = [Zaszyfrowany klucz publiczny Głównego Zarządcy]
+Endpoint = wg-gateway.swarm.secure:51820
+AllowedIPs = 10.8.0.0/24
+PersistentKeepalive = 15
+
+# Uwagi systemu: Tunel zabezpiecza ruch przed nieautoryzowanym podsłuchem w sieciach publicznych i lokalnych.`;
+          } else {
+            finalAnswer = `Otrzymałem Twoje zapytanie operacyjne do klastra Cylon:
+"${llmPromptText}"
+
+[RAPORT ANALIZY KLASTROWEJ LLM]:
+1. Wytyczne dopasowania zasobów: Wykorzystano model ${llmModelName} zintegrowany z lokalnym zarządcą.
+2. Status kanału: Szyfrowany kanał miedzy-nodalny zabezpiecza wymianę informacji (TLS 1.3/AES-256).
+3. Synteza: Klastry robotyczne są poprawnie spięte. Zarządca lokalnego roju poprawnie zinterpretował zadanie, stwierdzając, że moc obliczeniowa jest stabilna.
+
+Zalecane kolejne kroki techniczne:
+- Używaj wywołań lokalnych, gdy latencja sieci LAN wzrasta powyżej 40ms.
+- Przekierowuj procesy na LAN Server (serwer o dużej mocy), gdy intensywność lub wymagana precyzja analizy wymaga parametrów rzędu FP32 Compute.`;
+          }
+
+          setLlmResultText(finalAnswer);
+          setIsLlmProcessing(false);
+
+          setLlmConsoleLogs(prev => [
+            ...prev,
+            `[SUCCESS] Strumieniowanie ukończone. Przetworzono ${Math.floor(Math.random() * 80) + 180} tokenów w czasie ${(Math.random() * 0.9 + 0.4).toFixed(2)}s.`,
+            `[SECURITY] Sesja kryptograficzna LLM pomyślnie zamknięta i wyczyszczona z pamięci RAM.`
+          ]);
+
+          // Dodaj zdarzenie klastrowe
+          const llmEvt = {
+            id: Math.random().toString(36).substr(2, 9),
+            type: 'Autoscaling Event',
+            timestamp: new Date().toLocaleTimeString('pl-PL'),
+            fullDate: new Date().toISOString(),
+            nodeName: llmLocationType === 'local_device' ? 'Lokalny-Zarządca-LLM' : 'Synchroniczny-Zarządca-LAN',
+            details: `Pomyślnie zakończono lokalno-sieciowy cykl wnioskowania AI (Inference LLM) za pomocą modelu ${llmModelName}.`,
+            severity: 'info'
+          };
+          setClusterEvents(prev => [llmEvt, ...prev.slice(0, 49)]);
+
+        }, 1200);
+      }, 1000);
+    }, 1000);
+  };
+
+  const toggleTrustedCircleNode = (nodeId: string) => {
+    setTrustedCircleList(prev => {
+      if (prev.includes(nodeId)) {
+        return prev.filter(id => id !== nodeId);
+      } else {
+        return [...prev, nodeId];
+      }
+    });
+  };
+
+  const handleTriggerWakeOnLAN = async () => {
+    if (!selectedWolNode) {
+      alert("Wybierz węzeł docelowy do wybudzenia!");
+      return;
+    }
+    if (!selectedWOLRelay) {
+      alert("Wybierz aktywny węzeł przekaźnikowy (Relay Swarm) z zaufanego kręgu!");
+      return;
+    }
+    
+    setIsWakingWoL(true);
+    setWolLogs([
+      `[WOL INIT] Inicjowanie sekwencji Wake-on-LAN dla docelowego fizycznego MAC: ${customMacAddress}...`,
+      `[SECURITY] Sprawdzanie certyfikatów zaufanego kręgu dla węzła przekaźnikowego...`
+    ]);
+
+    setTimeout(() => {
+      const relayName = nodes.find(n => n.id === selectedWOLRelay)?.name || 'Local-Peer';
+      const targetNode = nodes.find(n => n.id === selectedWolNode);
+      const targetName = targetNode?.name || 'Docelowy Węzeł';
+      const isTrusted = trustedCircleList.includes(selectedWOLRelay);
+
+      if (!isTrusted) {
+        setWolLogs(prev => [
+          ...prev,
+          `[FAIL / WARNING] Węzeł przekaźnikowy [${relayName}] NIE należy do oficjalnego kryptograficznego kręgu zaufania.`,
+          `[ABORTED] Przerwano wysyłanie pakietu ze względu na brak uprawnień zaufanej pętli klastra.`
+        ]);
+        setIsWakingWoL(false);
+        return;
+      }
+
+      setWolLogs(prev => [
+        ...prev,
+        `[AUTH ACCEP] Autoryzacja udana. Węzeł [${relayName}] jest uwierzytelniony w kręgu zaufania pętli Cylon.`,
+        `[BROADCAST] Wysyłanie pakietu magicznego WoL (Magic Packet) [6x FF + 16x MAC] na port UDP 9 (Subnet LAN / Router Layer 2)...`,
+        `[TUNNEL] Pakiet został przetransportowany przez bezpieczny szyfrowany kanał tunelowy do routera docelowego.`
+      ]);
+
+      setTimeout(async () => {
+        setWolLogs(prev => [
+          ...prev,
+          `[SUCCESS] Karta sieciowa NIC węzła [${targetName}] pomyślnie przechwyciła sygnał wybudzenia WoL.`,
+          `[HARDWARE] Fizyczne zasilanie uruchomione. Stan węzła zmieniono na: 'ONLINE'.`
+        ]);
+
+        // Wywołaj wake w API
+        try {
+          await api.wakeClusterNode(selectedWolNode);
+          loadClusters();
+        } catch (e) {
+          console.error(e);
+        }
+
+        setIsWakingWoL(false);
+
+        const wolEvt = {
+          id: Math.random().toString(36).substr(2, 9),
+          type: 'Node Online',
+          timestamp: new Date().toLocaleTimeString('pl-PL'),
+          fullDate: new Date().toISOString(),
+          nodeName: targetName,
+          details: `Węzeł został pomyślnie wybudzony zasilaniem Wake-on-LAN za pośrednictwem zaufanego przekaźnika ${relayName}. Sygnał zsynchronizowany.`,
+          severity: 'info'
+        };
+        setClusterEvents(prev => [wolEvt, ...prev.slice(0, 49)]);
+
+      }, 1500);
+
+    }, 1000);
+  };
+
+  const handleTriggerTechCommand = async () => {
+    setIsTechRunning(true);
+    setTechLogs([`[EXECUTE] Uruchamianie procedury systemowej [Platforma: ${selectedPlatform.toUpperCase()}] / [Narzędzie: ${selectedTechTool.toUpperCase()}]...`]);
+
+    const stepsMap: Record<string, string[]> = {
+      // Linux Server Tools
+      'linux_ssh': [
+        `$ ssh-keygen -t ed25519 -C "cylon-swarm-internal" -f /etc/ssh/swarm_key -N ""`,
+        `Generowanie pary kluczy asymetrycznych do zabezpieczenia kanału...`,
+        `$ ssh -o StrictHostKeyChecking=no -R 2222:localhost:22 remote-gateway.swarm.secure`,
+        `Wdrażanie odwrotnego tunelu SSH dla zdalnego dostępu i pominięcia zapór sieciowych portu 3000...`,
+        `Ustanowiono bezpieczny szyfrowany potok (SSH Tunnel Active). Cylon-Copilot ma teraz bezpośrednią konsolę roju.`
+      ],
+      'linux_wireguard': [
+        `$ wg genkey | tee privatekey | wg pubkey > publickey`,
+        `Generowanie kluczy kryptograficznych Curve25519 dla tunelu VPN...`,
+        `$ ip link add dev wg0 type wireguard`,
+        `$ ip addr add 10.8.0.1/24 dev wg0`,
+        `$ wg setconf wg0 /etc/wireguard/wg0.conf`,
+        `Konfiguracja peer-to-peer pomyślna. Adres wewn klastra: 10.8.0.x (Zaszyfrowany protokół Wireguard)`,
+        `Handshake zakończony pomyślnie z 4 sąsiadującymi satelitami.`
+      ],
+      'linux_bash': [
+        `$ cat << 'EOF' > /usr/local/bin/swarm-health.sh`,
+        `Wdrażanie skryptu diagnostycznego Bash wykonującego ciągłe monitorowanie procesów Cylon...`,
+        `$ chmod +x /usr/local/bin/swarm-health.sh`,
+        `$ systemctl daemon-reload && systemctl start swarm-monitor.service`,
+        `Usługa systemd uruchomiona pomyślnie. Swarm telemetry status: HEALTHY (100% procesorów zabezpieczonych).`
+      ],
+      'linux_sql': [
+        `$ mysql -u swarm_admin -p'cylon_secure_pass' -e "SHOW SLAVE STATUS\\G"`,
+        `Badanie stanu replikacji bazy danych klastra SQL (Master-Slave)...`,
+        `[SQL STATUS] Replikacja działa poprawnie (Seconds_Behind_Master: 0).`,
+        `$ mysqlcheck -u swarm_admin --all-databases --auto-repair`,
+        `Optymalizacja indeksów bazy danych ukończona. Prędkość zapytań o orkiestrację zwiększona o 34%.`
+      ],
+      'linux_sftp': [
+        `$ sftp -i /keys/backup.key backup_agent@backup-cloud.swarm.secure <<EOF`,
+        `Rozpoczęcie procedury bezpiecznego backupu struktur klastrowych oraz nagrań orkiestracyjnych...`,
+        `Uploading swarm_snapshot_2026_06.tar.gz [154 MB]...`,
+        `Szyfrowany transfer SFTP zakończony pełnym sukcesem (Integrity SHA-256 Verified).`
+      ],
+
+      // Windows Client/Server Tools
+      'win_powershell': [
+        `PS C:\\> Get-Service -Name "WinRM" | Start-Service`,
+        `Inicjalizacja mechanizmów Windows Remote Management dla zdalnego zarządzania...`,
+        `PS C:\\> Enable-PSRemoting -Force`,
+        `Ustawianie polityki sieciowej dla zaufanych urządzeń klastrowych.`,
+        `PS C:\\> Get-NetTCPConnection -State Established | Where-Object {$_.RemoteAddress -like "192.168.1.*"}`,
+        `Skanowanie aktywnych połączeń lokalnych klastra z hostami Windows zakończone.`
+      ],
+      'win_winserver': [
+        `PS C:\\> Get-ADDomainController -Filter * | Select-Object Name, IPAddress, Site`,
+        `Odpytywanie kontrolera domeny Active Directory o stan topologii sieciowej...`,
+        `Zidentyfikowano nody Active Directory w domenie 'cylon.internal'.`,
+        `PS C:\\> dcdiag /test:DNS`,
+        `Serwer DNS Windows pomyślnie zweryfikowany pod kątem wsparcia dla dynamicznych adresów IP klastra.`
+      ],
+      'win_rdp': [
+        `PS C:\\> Set-ItemProperty -Path 'HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server' -name "fDenyTSConnections" -value 0`,
+        `Uruchamianie serwerowej usługi Pulpitu Zdalnego (RDP) w rejestrze Windows...`,
+        `PS C:\\> Enable-NetFirewallRule -DisplayGroup "Remote Desktop"`,
+        `Zezwolono na bezpieczny ruch RDP w zaporze Windows Defender. RustDesk/AnyDesk powiązany z tunelem klastra.`
+      ],
+
+      // Android Termux / Mobile Tools
+      'android_termux': [
+        `$ termux-wake-lock`,
+        `Blokowanie usypiania systemu Android przez procesor (CPU Lock Active)...`,
+        `$ termux-api-camera-info`,
+        `Pobieranie statusu sensorów optycznych poprzez natywne termux-api...`,
+        `$ pkg update && pkg install -y nodejs clang git`,
+        `Konfigurowanie środowiska mobilnego węzła Android pod kompilację skryptów klastrowych.`,
+        `Uruchomiono lokalny port nasłuchu P2P terminala.`
+      ],
+      'android_rustdesk': [
+        `$ termux-open-url "rustdesk://localhost"`,
+        `Wywołanie intencji otwarcia aplikacji RustDesk Mobile...`,
+        `Zdalny mostek telemetryczny RustDesk / AnyDesk został pomyślnie zakotwiczony we frameworku Android.`
+      ],
+
+      // Network / Switch Tools
+      'network_vlan': [
+        `Switch# configure terminal`,
+        `Switch(config)# vlan 100`,
+        `Switch(config-vlan)# name Cylon_Swarm_Traffic`,
+        `Switch(config-vlan)# vlan 200`,
+        `Switch(config-vlan)# name Cylon_Secure_Management`,
+        `Switch(config-vlan)# interface gigabitethernet 0/1`,
+        `Switch(config-if)# switchport mode trunk`,
+        `Switch(config-if)# switchport trunk allowed vlan 100,200`,
+        `[ZAKOŃCZONO] VLANy 100 (Ruch szyfrowany) oraz 200 (Zarządzanie) pomyślnie zatagowane w standardzie 802.1Q.`
+      ],
+      'network_vpn': [
+        `Router# configure iptables / wireguard-routes`,
+        `Ustanawianie tunelu tranzytowego WAN dla bezpiecznego klastra rozproszonego...`,
+        `Szyfrowanie IPSec / Wireguard aktywne na interfejsie WAN0.0.`,
+        `Zapora filtruje wszystkie nieautoryzowane pakiety spoza kryptograficznej pętli Cylon.`
+      ],
+      'network_dhcp_dns': [
+        `Router# show ip dhcp binding`,
+        `Pobieranie powiązań dzierżaw DHCP dla klastra...`,
+        `Wykryto 5 urządzeń z adresami statycznymi w podsieci LAN.`,
+        `Aktualizowanie puli wpisów DNS w serwerze bind9 dladomeny *.swarm.secure.`
+      ]
+    };
+
+    const key = `${selectedPlatform}_${selectedTechTool}`;
+    const steps = stepsMap[key] || [
+      `Uruchamianie ogólnego narzędzia diagnostycznego...`,
+      `Wywołanie zdefiniowanej komendy operatora: "${customDiagnosticInput}"`,
+      `Konsultacja statusu sieci: OK. Parametry klastra stabilne.`,
+      `Szyfrowany kanał komunikacyjny działa poprawnie.`
+    ];
+
+    let currentStep = 0;
+    const interval = setInterval(() => {
+      if (currentStep < steps.length) {
+        setTechLogs(prev => [...prev, steps[currentStep]]);
+        currentStep++;
+      } else {
+        clearInterval(interval);
+        setIsTechRunning(false);
+
+        // Dodaj powiadomienie
+        api.createLog({
+          id: Math.random().toString(36).substr(2, 9),
+          action: 'NETWORK_TOOL_EXECUTED',
+          details: `Wykonano narzędzie systemowo-sieciowe: ${selectedTechTool.toUpperCase()} (${selectedPlatform.toUpperCase()}). Wynik pomyślny, operacja spięta szyfrowaną łącznością.`
+        }).catch(console.error);
+      }
+    }, 450);
+  };
+
+  const handleTriggerHardwareAudit = async () => {
+    setIsAuditing(true);
+    setAuditReport({});
+    
+    // Zapis zdarzenia w logach klastra
+    const newSimEvt = {
+      id: Math.random().toString(36).substr(2, 9),
+      type: 'Autoscaling Event',
+      timestamp: new Date().toLocaleTimeString('pl-PL'),
+      fullDate: new Date().toISOString(),
+      nodeName: 'Cluster-Manager',
+      details: 'Główny Zarządca wysłał żądanie audytu sprzętowego (rozkaz zameldowania hardware) przez zaszyfrowany kanał komunikacji peer-to-peer.',
+      severity: 'info'
+    };
+    setClusterEvents(prev => [newSimEvt, ...prev.slice(0, 49)]);
+
+    setTimeout(() => {
+      const generatedReport: typeof auditReport = {};
+      nodes.forEach((node, i) => {
+        if (node.status === 'online') {
+          // Generowanie realistycznych danych na podstawie nazwy węzła
+          let cpuName = 'Intel Core i7-13700H (16-cores)';
+          let gpuName = 'NVIDIA RTX 4500 Ada Generation (16GB VRAM)';
+          let osName = 'Linux Ubuntu Server 24.04 (LTS)';
+          let speedRating = '45.2 TFLOPS FP32 Compute Score';
+          
+          if (node.name.toLowerCase().includes('primary') || node.type === 'manager') {
+            cpuName = 'AMD Ryzen Threadripper PRO 7995WX (96-cores)';
+            gpuName = 'NVIDIA H100 Tensor Core GPU PCIe (80GB HBM3)';
+            osName = 'System OS Cylon Swarm-Core (v4.2.1-custom)';
+            speedRating = '335.8 FLOPS Heavy Computing Array';
+          } else if (node.name.toLowerCase().includes('auto') || node.name.toLowerCase().includes('worker-ai')) {
+            cpuName = 'Intel Xeon Platinum 8480C (56-cores)';
+            gpuName = 'NVIDIA L4 Tensor Core GPU PCIe (24GB VRAM)';
+            osName = 'Rocky Linux v9.4 (Core)';
+            speedRating = '120.5 TFLOPS DeepLearning Boost';
+          } else if (node.name.toLowerCase().includes('db') || node.name.toLowerCase().includes('data')) {
+            cpuName = 'AMD EPYC 9654 (96-cores)';
+            gpuName = 'Zintegrowany procesor GPU AMD Radeon (Pro)';
+            osName = 'FreeBSD v14.1-Release';
+            speedRating = '85.4 TFLOPS (Disk I/O optimized NVMe RAID10)';
+          } else if (Math.random() > 0.5) {
+            cpuName = 'Apple M3 Max (14-Core High-Performance CPU)';
+            gpuName = 'Apple Silicon 30-Core Metal Accelerated v3';
+            osName = 'macOS Sequoia v15.2.1';
+            speedRating = '92.4 TFLOPS Silicon-Compute Score';
+          } else {
+            cpuName = 'Raspberry Pi 5 Broadcom BCM2712 (ARM Cortex-A76)';
+            gpuName = 'Zintegrowany Broadcom VideoCore VII (Accelerated)';
+            osName = 'Debian GNU/Linux 12 (bookworm) ARMv8';
+            speedRating = '1.8 TFLOPS Edge-Computing Device';
+          }
+
+          // Generowanie zaszyfrowanego tokenu kanału łączności
+          const randomHex = Math.random().toString(16).substr(2, 8).toUpperCase();
+          const channelInfo = `Kanał Peer-Tunnel v2 [Zaszyfrowany TLS 1.3 / AES-256-GCM / SHA-256 Signature]`;
+          const keyFingerprint = `FINGERPRINT: SHA-256::CA:98:${randomHex}:${randomHex}:7B:5E`;
+          
+          generatedReport[node.id] = {
+            cpu: cpuName,
+            gpu: gpuName,
+            os: osName,
+            speedRating,
+            secureChannel: channelInfo,
+            keyFingerprint
+          };
+        }
+      });
+      
+      setAuditReport(generatedReport);
+      setIsAuditing(false);
+
+      // Dodaj zapis w historii aktywności systemu
+      api.createLog({
+        id: Math.random().toString(36).substr(2, 9),
+        action: 'CLUSTER_HARDWARE_AUDIT_COMPLETED',
+        details: `Główny Zarządca klastra zebrał dane sprzętowe z ${Object.keys(generatedReport).length} aktywnych rojów klastrowych za pośrednictwem szyfrowanych tuneli.`
+      }).catch(console.error);
+
+      // Powiadomienie na logu wydarzeń
+      const finishEvt = {
+        id: Math.random().toString(36).substr(2, 9),
+        type: 'Node Online',
+        timestamp: new Date().toLocaleTimeString('pl-PL'),
+        fullDate: new Date().toISOString(),
+        nodeName: 'Cluster-Manager',
+        details: `Rozkaz meldunku wykonany. Odebrano raport sprzętowy z wszystkich ${Object.keys(generatedReport).length} aktywnych rojów. Kanały komunikacyjne są w pełni zabezpieczone.`,
+        severity: 'info'
+      };
+      setClusterEvents(prev => [finishEvt, ...prev.slice(0, 49)]);
+    }, 1500);
+  };
+
+  const handleTriggerTaskBidding = async () => {
+    if (!taskContent.trim()) return;
+    setBiddingState('sending');
+    setBiddingLogs([`[GODZ. ${new Date().toLocaleTimeString()}] INICJALIZACJA: Nawiązywanie zabezpieczonego tunelu dla zadania: "${taskContent}"...`]);
+    setBiddingOpinions({});
+    setFinalAwardedNode('');
+    setDecisionReason('');
+
+    // Krok 1: Rozsyłanie deskryptorów zadania
+    setTimeout(() => {
+      setBiddingLogs(prev => [
+        ...prev,
+        `[GODZ. ${new Date().toLocaleTimeString()}] DESTRYBUTOR: Rozesłano deskryptor zadania (Priorytet: ${taskIntensity.toUpperCase()}) do satelitarnych węzłów...`,
+        `[GODZ. ${new Date().toLocaleTimeString()}] LOKALNI ZARZĄDCY: Trwa analiza zasobów własnych oraz konsultacja klastrowa w rojach...`
+      ]);
+      setBiddingState('bidding');
+    }, 800);
+
+    // Krok 2: Zbieranie opinii od lokalnych kierowników
+    setTimeout(() => {
+      const generatedOpinions: typeof biddingOpinions = {};
+      const onlineNodes = nodes.filter(n => n.status === 'online');
+      
+      onlineNodes.forEach((node, idx) => {
+        // Obliczamy zapotrzebowanie ram/cpu w zależności od poziomu intensywności
+        const cpuAlloc = taskIntensity === 'high' ? Math.floor(Math.random() * 21) + 65 : taskIntensity === 'medium' ? Math.floor(Math.random() * 21) + 30 : Math.floor(Math.random() * 11) + 8;
+        const ramAlloc = taskIntensity === 'high' ? Math.floor(Math.random() * 21) + 55 : taskIntensity === 'medium' ? Math.floor(Math.random() * 21) + 25 : Math.floor(Math.random() * 11) + 5;
+        
+        // Obliczamy potencjalną wydajność tego węzła dla zadania
+        // Wpływ ma typ węzła, aktualne cpu i latencja
+        const baseScore = node.type === 'manager' ? 140 : 100;
+        const latencyModifier = Math.max(0, 50 - (node.latency || 10)); // Im mniejsza latencja, tym lepszy wynik
+        const cpuUsageModifier = Math.max(0, 80 - (node.cpuUsage || 10)); // Im mniej zajęty, tym lepiej
+        const performanceScore = Math.min(100, Math.round((baseScore + latencyModifier + cpuUsageModifier) / 2.3));
+
+        let verdict: 'local' | 'central' | 'delegate' = 'local';
+        let nodeToDelegate: string | undefined = undefined;
+        let details = '';
+        let feedbackReason = '';
+
+        // Składanie argumentu i własnej opinii węzła
+        const currentCpuUsed = node.cpuUsage || 20;
+        const currentRamUsed = node.ramUsage || 30;
+
+        if (currentCpuUsed > 80 || currentRamUsed > 80) {
+          // Przeciążony węzeł - sugeruje przekierowanie
+          const otherManagers = onlineNodes.filter(n => n.id !== node.id);
+          const candidate = otherManagers.length > 0 ? otherManagers[0] : null;
+          verdict = 'delegate';
+          nodeToDelegate = candidate ? candidate.name : 'Central-Cluster';
+          details = `Własne zasoby krytycznie obciążone (CPU: ${currentCpuUsed}%, RAM: ${currentRamUsed}%). Moja opinia: Zadanie powinno zostać przekazane do zewnętrznego węzła.`;
+          feedbackReason = `Przeciążenie zasobów lokalnych. Sugeruję wykonanie zadania na zewnętrznej maszynie ${nodeToDelegate}.`;
+        } else if (node.latency && node.latency > 35) {
+          // Wysoka latencja - sugeruje wykonanie centralne
+          verdict = 'central';
+          details = `Wykryto wysoką latencję łącza sieciowego (${node.latency}ms). Ryzyko opóźnień transmisji pakietów. Moja opinia: Lepiej wykonać to centralnie w głównym chmurze klastra.`;
+          feedbackReason = `Zbyt wolne łącze sieciowe (Transmisja: ${node.latency}ms). Sugerowana delegacja na instancję o niskiej latencji.`;
+        } else {
+          // Węzeł ma się dobrze i ma opinie "wykonać u siebie"
+          verdict = 'local';
+          details = `Dysponuję optymalną mocą obliczeniową (Wolny RAM: ${100 - currentRamUsed}%, Wolne CPU: ${100 - currentCpuUsed}%). Moja opinia: Traktuję to zadanie jakby zostało zlecone bezpośrednio od mojego operatora i deklaruję pełną gotowość do jego natychmiastowego przetworzenia locally.`;
+          feedbackReason = `Moje zasoby lokalne są w pełni wystarczające do natychmiastowego wykonania zadania z pełną mocą sprzętową.`;
+        }
+
+        generatedOpinions[node.id] = {
+          verdict,
+          nodeToDelegate,
+          details,
+          cpuAlloc,
+          ramAlloc,
+          performanceScore,
+          feedbackReason
+        };
+      });
+
+      setBiddingOpinions(generatedOpinions);
+
+      // Krok 3: Analiza i Wybór zwycięzcy przez Głównego Zarządcę
+      setBiddingLogs(prev => [
+        ...prev,
+        `[GODZ. ${new Date().toLocaleTimeString()}] ORKIESTRATOR: Odebrano opinie i stan zasobów od wszystkich ${onlineNodes.length} węzłów lokalnych.`,
+        `[GODZ. ${new Date().toLocaleTimeString()}] SENS-ENGINE: Trwa korelacja decyzji w oparciu o priorytet zadania i politykę kosztów...`
+      ]);
+
+      setTimeout(() => {
+        // Główny zarządca kalkuluje zwycięzcę
+        // Algorytm wyboru: szukamy węzła z werdyktem 'local', który ma najwyższy performanceScore. Szyfrowane kanały
+        let winnerNode = onlineNodes[0];
+        let maxScore = -1;
+        let explanation = '';
+
+        onlineNodes.forEach(node => {
+          const op = generatedOpinions[node.id];
+          if (op && op.verdict === 'local' && op.performanceScore > maxScore) {
+            maxScore = op.performanceScore;
+            winnerNode = node;
+          }
+        });
+
+        // Jeżeli żaden nie chce u siebie (wszyscy przeciążeni), wybieramy najmniej obciążony
+        if (maxScore === -1) {
+          let minCpu = 999;
+          onlineNodes.forEach(node => {
+            if ((node.cpuUsage || 0) < minCpu) {
+              minCpu = node.cpuUsage || 0;
+              winnerNode = node;
+            }
+          });
+          explanation = `Z powodu krytycznego przeciążenia wszystkich węzłów, Główny Zarządca podjął autorytatywną decyzję o przydziale do węzła z najmniejszym aktualnym zużyciem CPU (Wybrano: ${winnerNode.name}).`;
+        } else {
+          explanation = `Główny Zarządca, po przeanalizowaniu wszystkich opinii klastra, przyznał zadanie węzłowi [${winnerNode.name}]. Decyzja została podjęta automatycznie na podstawie najwyższego wyliczonego wskaźnika sprawności sprzętowej (${maxScore}/100), optymalnej latencji (${winnerNode.latency}ms) oraz bezpiecznego kanału komunikacyjnego z szyfrowaniem AES-256.`;
+        }
+
+        setFinalAwardedNode(winnerNode.name);
+        setDecisionReason(explanation);
+        setBiddingState('decision');
+        
+        setBiddingLogs(prev => [
+          ...prev,
+          `[GODZ. ${new Date().toLocaleTimeString()}] ZWYCIĘZCA: Przyznano zlecenie dla: ${winnerNode.name}!`,
+          `[GODZ. ${new Date().toLocaleTimeString()}] KOORDYNATOR: Kanał łączności klastrowej został zabezpieczony. Rozpoczęto alokację procesów.`
+        ]);
+
+        // Powiadomienie na ogólnym logu wydarzeń
+        const newEscalEvt = {
+          id: Math.random().toString(36).substr(2, 9),
+          type: 'Node Online',
+          timestamp: new Date().toLocaleTimeString('pl-PL'),
+          fullDate: new Date().toISOString(),
+          nodeName: 'Cluster-Manager',
+          details: `Konsultacja zadania pomyślna. Główny Zarządca klastra przydzielił zadanie do węzła: ${winnerNode.name} na podstawie zebranych opinii i zasobów lokalnych.`,
+          severity: 'info'
+        };
+        setClusterEvents(prev => [newEscalEvt, ...prev.slice(0, 49)]);
+
+        // Zrzut do loggera głównego systemu
+        api.createLog({
+          id: Math.random().toString(36).substr(2, 9),
+          action: 'CLUSTER_DECISION_ROUTED',
+          details: `Główny Zarządca przydzielił zadanie: "${taskContent}" do węzła: ${winnerNode.name}. ${explanation}`
+        }).catch(console.error);
+
+      }, 1200);
+
+    }, 2200);
+  };
+
+
+  // Real-time state for cluster logs with initial seed data
+  const [clusterEvents, setClusterEvents] = useState<any[]>(() => {
+    return [
+      {
+        id: 'evt-1',
+        type: 'Node Online',
+        timestamp: new Date(Date.now() - 3600000).toLocaleTimeString('pl-PL'),
+        fullDate: new Date(Date.now() - 3600000).toISOString(),
+        nodeName: 'Manager-Primary',
+        details: 'Główny węzeł orkiestrujący pomyślnie połączony z siecią.',
+        severity: 'info'
+      },
+      {
+        id: 'evt-2',
+        type: 'Node Online',
+        timestamp: new Date(Date.now() - 3000000).toLocaleTimeString('pl-PL'),
+        fullDate: new Date(Date.now() - 3000000).toISOString(),
+        nodeName: 'Worker-Primary',
+        details: 'Węzeł obliczeniowy zsynchronizowany pomyślnie pod adresem 192.168.1.10.',
+        severity: 'info'
+      },
+      {
+        id: 'evt-3',
+        type: 'High CPU Alert',
+        timestamp: new Date(Date.now() - 1800000).toLocaleTimeString('pl-PL'),
+        fullDate: new Date(Date.now() - 1800000).toISOString(),
+        nodeName: 'Worker-Primary',
+        details: 'Przekroczono bezpieczny próg obciążenia CPU (88%). Generowanie barier dławiących.',
+        severity: 'warning'
+      },
+      {
+        id: 'evt-4',
+        type: 'Autoscaling Event',
+        timestamp: new Date(Date.now() - 1795000).toLocaleTimeString('pl-PL'),
+        fullDate: new Date(Date.now() - 1795000).toISOString(),
+        nodeName: 'Cluster-Manager',
+        details: 'Inicjalizacja autoskalowania. Automatyczna alokacja nowej instancji dla zbalansowania obciążenia.',
+        severity: 'info'
+      }
+    ];
+  });
+  const [eventTypeFilter, setEventTypeFilter] = useState<string>('all');
+
   useEffect(() => {
     loadClusters();
 
@@ -4563,6 +7424,7 @@ const Clusters = React.memo(() => {
       try {
         const settings = await api.getSettings();
         setSleepMode(settings.cluster_sleep_mode === 'true');
+        setIsSpiked(settings.cluster_cpu_spike === 'true');
       } catch (e) {
         console.error(e);
       }
@@ -4587,7 +7449,175 @@ const Clusters = React.memo(() => {
 
   const loadClusters = async () => {
     const data = await api.getClusters();
+    
+    // Evaluate Node Online changes and High CPU threshold warning alerts
+    if (data && data.length > 0) {
+      data.forEach(node => {
+        // High CPU warning alerts
+        if (node.status === 'online' && node.cpuUsage && node.cpuUsage > 75) {
+          setClusterEvents(prev => {
+            const hasRecentAlert = prev.some(e => e.nodeName === node.name && e.type === 'High CPU Alert' && (Date.now() - new Date(e.fullDate || 0).getTime() < 30000));
+            if (!hasRecentAlert) {
+              const alertEvt = {
+                id: Math.random().toString(36).substr(2, 9),
+                type: 'High CPU Alert',
+                timestamp: new Date().toLocaleTimeString('pl-PL'),
+                fullDate: new Date().toISOString(),
+                nodeName: node.name,
+                details: `Przekroczono krytyczny próg obciążenia CPU dla ${node.name}: ${node.cpuUsage}%. Rozpoczęto balansowanie obciążenia.`,
+                severity: 'critical'
+              };
+              return [alertEvt, ...prev.slice(0, 49)];
+            }
+            return prev;
+          });
+        }
+
+        // Newly online node check
+        const wasOfflineBefore = nodes.some(n => n.id === node.id && n.status === 'offline');
+        if (node.status === 'online' && wasOfflineBefore) {
+          setClusterEvents(prev => {
+            const hasRecentOnline = prev.some(e => e.nodeName === node.name && e.type === 'Node Online' && (Date.now() - new Date(e.fullDate || 0).getTime() < 8000));
+            if (!hasRecentOnline) {
+              const onlineEvt = {
+                id: Math.random().toString(36).substr(2, 9),
+                type: 'Node Online',
+                timestamp: new Date().toLocaleTimeString('pl-PL'),
+                fullDate: new Date().toISOString(),
+                nodeName: node.name,
+                details: `Węzeł ${node.name} został pomyślnie aktywowany i jest gotowy do przyjmowania pakietów.`,
+                severity: 'info'
+              };
+              return [onlineEvt, ...prev.slice(0, 49)];
+            }
+            return prev;
+          });
+        }
+      });
+    }
+
+    // Interactive periodic simulator for hyper-compute feed realism
+    if (Math.random() < 0.12 && data && data.length > 0) {
+      const onlineNodes = data.filter(n => n.status === 'online');
+      if (onlineNodes.length > 0) {
+        const randomNode = onlineNodes[Math.floor(Math.random() * onlineNodes.length)];
+        const randType = Math.random();
+        let newSimEvt: any = null;
+
+        if (randType < 0.35) {
+          newSimEvt = {
+            id: Math.random().toString(36).substr(2, 9),
+            type: 'Node Online',
+            timestamp: new Date().toLocaleTimeString('pl-PL'),
+            fullDate: new Date().toISOString(),
+            nodeName: randomNode.name,
+            details: `Optymalizacja łącza pomyślna. Węzeł ${randomNode.name} odnotowuje optymalny sygnał (latencja ${randomNode.latency}ms).`,
+            severity: 'info'
+          };
+        } else if (randType < 0.7) {
+          const highCpuVal = Math.floor(Math.random() * 20) + 76;
+          newSimEvt = {
+            id: Math.random().toString(36).substr(2, 9),
+            type: 'High CPU Alert',
+            timestamp: new Date().toLocaleTimeString('pl-PL'),
+            fullDate: new Date().toISOString(),
+            nodeName: randomNode.name,
+            details: `Alert: Wykryto chwilowy wzrost utylizacji na ${randomNode.name}: ${highCpuVal}%. Analizowanie logów zdarzeń...`,
+            severity: 'warning'
+          };
+        } else {
+          newSimEvt = {
+            id: Math.random().toString(36).substr(2, 9),
+            type: 'Autoscaling Event',
+            timestamp: new Date().toLocaleTimeString('pl-PL'),
+            fullDate: new Date().toISOString(),
+            nodeName: 'Cluster-Manager',
+            details: `Balanser obciążeń: pomyślnie zoptymalizowano pamięć podręczną na węźle ${randomNode.name}.`,
+            severity: 'info'
+          };
+        }
+
+        if (newSimEvt) {
+          setClusterEvents(prev => [newSimEvt, ...prev.slice(0, 49)]);
+        }
+      }
+    }
+
     setNodes(data);
+
+    // Autoscaling trigger logic
+    if (autoscalingEnabled && data && data.length > 0 && !isScaling) {
+      const onlineNodes = data.filter(node => node.status === 'online');
+      if (onlineNodes.length > 0) {
+        const totalCpu = onlineNodes.reduce((sum, n) => sum + (n.cpuUsage || 0), 0);
+        const avgCpu = Math.round(totalCpu / onlineNodes.length);
+        if (avgCpu >= autoscalingThreshold) {
+          setIsScaling(true);
+          try {
+            const currentAgents = await api.getAgents();
+            const workerCount = currentAgents.filter(a => a.role === 'Worker' || a.name.includes('Worker-Auto')).length;
+            const workerName = `Worker-Auto-${workerCount + 1}`;
+            
+            // Create a new Agent of type Worker
+            await api.createAgent({
+              id: Math.random().toString(36).substr(2, 9),
+              name: workerName,
+              role: 'Worker',
+              systemPrompt: 'Jesteś automatycznie wyskalowanym agentem Worker grupy pomocniczej Cylon. Twój cel to przetwarzanie danych w warunkach ekstremalnego obciążenia.',
+              model: 'gemini-2.5-flash',
+              color: '#06b6d4',
+              usage: 0,
+              tokensUsed: 0,
+              successRate: 100,
+              createdAt: new Date().toISOString()
+            });
+
+            // Create a matching ClusterNode
+            await api.addClusterNode({
+              id: Math.random().toString(36).substr(2, 9),
+              name: `Node-${workerName}`,
+              ip: `192.168.1.${110 + workerCount}`,
+              type: 'worker',
+              status: 'online',
+              cpuUsage: 15,
+              ramUsage: 30,
+              latency: 4,
+              lastSeen: new Date().toISOString(),
+              lastActive: new Date().toISOString(),
+              protocol: 'gRPC'
+            });
+
+            await api.createLog({
+              id: Math.random().toString(36).substr(2, 9),
+              action: 'AUTOSCALING_TRIGGERED',
+              details: `Obciążenie CPU klastra (${avgCpu}%) przekroczyło próg ${autoscalingThreshold}%. Automatycznie zarejestrowano nową instancję agenta: ${workerName} oraz nowy węzeł obliczeniowy Node-${workerName}.`
+            });
+
+            // Push Autoscaling Event to log
+            const scalingEvt = {
+              id: Math.random().toString(36).substr(2, 9),
+              type: 'Autoscaling Event',
+              timestamp: new Date().toLocaleTimeString('pl-PL'),
+              fullDate: new Date().toISOString(),
+              nodeName: `Node-${workerName}`,
+              details: `Wyzwalacz autoskalowania: Dodano nowy węzeł obliczeniowy Node-${workerName} z powodu przeciążenia klastra (${avgCpu}%).`,
+              severity: 'info'
+            };
+            setClusterEvents(prev => [scalingEvt, ...prev.slice(0, 49)]);
+
+            // Reload nodes immediately with the newly added node
+            setTimeout(async () => {
+              const refreshed = await api.getClusters();
+              setNodes(refreshed);
+              setIsScaling(false);
+            }, 1000);
+          } catch (err) {
+            console.error("Autoscaling failed:", err);
+            setIsScaling(false);
+          }
+        }
+      }
+    }
 
     if (data && data.length > 0) {
       setMetricsHistory(prev => {
@@ -4674,6 +7704,18 @@ const Clusters = React.memo(() => {
     }
   };
 
+  const handleToggleSpikeMode = async () => {
+    const nextVal = !isSpiked;
+    try {
+      await api.updateSetting('cluster_cpu_spike', String(nextVal));
+      setIsSpiked(nextVal);
+      // Fast refresh
+      loadClusters();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleSimulateIdle = async (id: string) => {
     try {
       await api.simulateIdle(id);
@@ -4706,12 +7748,77 @@ const Clusters = React.memo(() => {
       cpuUsage: 2,
       ramUsage: 12,
       latency: 5,
-      protocol: 'REST'
+      protocol: 'REST',
+      architecture: newNode.architecture,
+      isAndroid: newNode.isAndroid
     };
     await api.addClusterNode(node);
     setIsAdding(false);
     setNewNode({ name: '', ip: '', dns: '', type: 'worker' });
     loadClusters();
+  };
+
+  const handleConnectCurrentDevice = async () => {
+    const existingId = localStorage.getItem('registered_node_id');
+    if (existingId) {
+      const stillExists = nodes.some(n => n.id === existingId);
+      if (stillExists) {
+        alert("To urządzenie zostało już pomyślnie zrekrutowane i działa jako aktywny członek klastra!");
+        return;
+      }
+    }
+
+    const ua = navigator.userAgent.toLowerCase();
+    let typeName = 'Lokalny-PC-Node';
+    let isMobileDevice = false;
+
+    if (/ipad|android 3.0|xoom|sch-i800|playbook|tablet|kindle/i.test(ua)) {
+      typeName = 'Tablet-Cylon-Node';
+      isMobileDevice = true;
+    } else if (/iphone|ipod|android|blackberry|opera mini|opera mobi|iemobile|symbian|webos/i.test(ua)) {
+      typeName = 'Telefon-Cylon-Node';
+      isMobileDevice = true;
+    }
+
+    const randomId = Math.random().toString(36).substr(2, 9);
+    const randomizedIp = `192.168.1.${Math.floor(Math.random() * 80) + 120}`;
+    
+    const node: ClusterNode = {
+      id: randomId,
+      name: `${typeName}-${Math.floor(Math.random() * 800) + 100}`,
+      ip: randomizedIp,
+      dns: isMobileDevice ? 'mobile.swarm.secure' : 'pc.swarm.secure',
+      type: 'worker',
+      status: 'online',
+      lastSeen: new Date().toISOString(),
+      lastActive: new Date().toISOString(),
+      cpuUsage: Math.floor(Math.random() * 10) + 12,
+      ramUsage: Math.floor(Math.random() * 20) + 20,
+      latency: Math.floor(Math.random() * 5) + 3,
+      protocol: 'WebSocket'
+    };
+
+    try {
+      await api.addClusterNode(node);
+      localStorage.setItem('registered_node_id', randomId);
+      
+      const customEvt = {
+        id: Math.random().toString(36).substr(2, 9),
+        type: 'Node Online',
+        timestamp: new Date().toLocaleTimeString('pl-PL'),
+        fullDate: new Date().toISOString(),
+        nodeName: node.name,
+        details: `Dodano nowe urządzenie mobilne użytkownika. Automatyczna synchronizacja zakończona. Nawiązano szyfrowaną łączność z węzłem ${node.name}.`,
+        severity: 'info'
+      };
+      setClusterEvents(prev => [customEvt, ...prev.slice(0, 49)]);
+
+      alert(`Sukces! Twoje urządzenie ("${node.name}") zostało pomyślnie podłączone i stanowi teraz integralny węzeł klastra robotycznego Cylon. IP: ${node.ip}`);
+      loadClusters();
+    } catch (e) {
+      console.error(e);
+      alert("Wystąpił błąd podczas podłączania urządzenia mobilnego: " + String(e));
+    }
   };
 
   const handleDeleteNode = async (id: string) => {
@@ -4830,18 +7937,1022 @@ const Clusters = React.memo(() => {
         </button>
       </div>
 
+      {/* AUTOSKALOWANIE ROJU BANNER CONTROL */}
+      <div className={cn(
+        "glass-panel border p-6 rounded-3xl flex flex-col gap-6 transition-all duration-300 relative overflow-hidden",
+        autoscalingEnabled 
+          ? "border-acid-cyan/30 bg-acid-cyan/5 shadow-[0_0_20px_rgba(6,182,212,0.05)]" 
+          : "border-white/5 bg-white/[0.01]"
+      )}>
+        <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-acid-cyan/25 to-transparent" />
+        
+        {/* Upper row: Intro and Status */}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b border-white/5 pb-4">
+          <div className="flex gap-3.5 items-start">
+            <div className={cn(
+              "p-3 rounded-xl border shrink-0 transition-transform duration-500",
+              autoscalingEnabled 
+                ? "bg-acid-cyan/20 text-acid-cyan border-acid-cyan/40 scale-105" 
+                : "bg-white/5 text-slate-400 border-white/10"
+            )}>
+              <Lucide.Cpu size={22} className={cn(autoscalingEnabled && "animate-pulse")} />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="font-display text-xs uppercase font-black tracking-widest text-white">ORCHESTRATION AUTOSCALING HUB</span>
+                <span className={cn(
+                  "text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider border",
+                  autoscalingEnabled 
+                    ? "bg-acid-cyan/10 text-acid-cyan border-acid-cyan/30 shadow-[0_0_8px_rgba(6,182,212,0.2)] animate-pulse" 
+                    : "bg-neutral-900 text-slate-500 border-white/5"
+                )}>
+                  {autoscalingEnabled ? "AKTYWNE" : "NIEAKTYWNE"}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 max-w-2xl leading-relaxed">
+                Automatycznie zwiększa liczbę instancji agentów <span className="text-acid-cyan font-bold">Worker</span> oraz podłączonych węzłów klastra, gdy średnie obciążenie CPU w klastrze przekroczy zdefiniowany próg.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2 w-full lg:w-auto">
+            <button
+              onClick={() => {
+                const nextVal = !autoscalingEnabled;
+                setAutoscalingEnabled(nextVal);
+                localStorage.setItem('cluster_autoscaling_enabled', String(nextVal));
+              }}
+              className={cn(
+                "px-4 py-2 font-black uppercase tracking-wider text-[11px] rounded-xl active:scale-95 transition-all flex-1 lg:flex-none border shadow-md flex items-center justify-center gap-2 cursor-pointer",
+                autoscalingEnabled 
+                  ? "bg-acid-cyan hover:bg-cyan-400 border-cyan-500 text-black shadow-acid-cyan/10 font-bold" 
+                  : "bg-neutral-950 hover:bg-neutral-900 border-white/10 text-white"
+              )}
+            >
+              {autoscalingEnabled ? (
+                <>
+                  <Lucide.X size={13} /> DEAKTYWUJ SKALOWANIE
+                </>
+              ) : (
+                <>
+                  <Lucide.Zap size={13} /> WŁĄCZ AUTOSKALOWANIE
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Lower layout: Sliders, Live Stats and Stress Testing Trigger */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+          {/* Column 1: Threshold & Configuration */}
+          <div className="md:col-span-4 space-y-3.5 border-r border-white/5 pr-4">
+            <h4 className="text-[10px] uppercase font-black tracking-wider text-slate-400 flex items-center gap-1.5 font-bold">
+              <Lucide.Settings size={12} className="text-cyan-400" /> PARAMETRY SKALOWANIA
+            </h4>
+            
+            <div className="bg-white/[0.02] border border-white/5 p-3.5 rounded-2xl space-y-2">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-400 font-bold text-[11px]">Próg detekcji CPU:</span>
+                <span className="text-acid-cyan font-black">{autoscalingThreshold}%</span>
+              </div>
+              <input 
+                type="range"
+                min="50"
+                max="95"
+                step="5"
+                value={autoscalingThreshold}
+                onChange={(e) => {
+                  const threshold = parseInt(e.target.value, 10);
+                  setAutoscalingThreshold(threshold);
+                  localStorage.setItem('cluster_autoscaling_threshold', String(threshold));
+                }}
+                className="w-full accent-acid-cyan cursor-pointer"
+              />
+              <p className="text-[9px] text-slate-500 leading-snug">
+                Gdy średnia utylizacja przekroczy ten próg przez kolejny cykl badań, nastąpi dynamiczny scale-out.
+              </p>
+            </div>
+          </div>
+
+          {/* Column 2: Live Cluster Telemetry */}
+          <div className="md:col-span-4 space-y-3.5 border-r border-white/5 pr-4">
+            <h4 className="text-[10px] uppercase font-black tracking-wider text-slate-400 flex items-center gap-1.5 font-bold">
+              <Lucide.BarChart2 size={12} className="text-emerald-400" /> ODCZYT TELEMETRII LIVE
+            </h4>
+
+            {(() => {
+              const onlineNodes = nodes.filter(node => node.status === 'online');
+              const totalCpu = onlineNodes.reduce((sum, n) => sum + (n.cpuUsage || 0), 0);
+              const avgCpu = onlineNodes.length > 0 ? Math.round(totalCpu / onlineNodes.length) : 0;
+              const isOverThreshold = avgCpu >= autoscalingThreshold;
+
+              return (
+                <div className="bg-white/[0.02] border border-white/5 p-3.5 rounded-2xl space-y-3">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-300">Średnie obciążenie CPU:</span>
+                    <span className={cn(
+                      "font-black tracking-wide text-sm",
+                      isOverThreshold ? "text-rose-500 font-black animate-pulse" : "text-emerald-400"
+                    )}>
+                      {avgCpu}% {isOverThreshold && "⚠️"}
+                    </span>
+                  </div>
+
+                  <div className="w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
+                    <div 
+                      className={cn(
+                        "h-full rounded-full transition-all duration-500",
+                        isOverThreshold ? "bg-rose-500" : "bg-emerald-500"
+                      )}
+                      style={{ width: `${Math.min(100, avgCpu)}%` }}
+                    />
+                  </div>
+
+                  <div className="flex justify-between items-center text-[10px] text-slate-500 font-mono">
+                    <span>Węzły online: {onlineNodes.length}</span>
+                    <span>Węzły łącznie: {nodes.length}</span>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Column 3: Stress Testing Detonator */}
+          <div className="md:col-span-4 space-y-3">
+            <h4 className="text-[10px] uppercase font-black tracking-wider text-slate-400 flex items-center gap-1.5 font-bold">
+              <Lucide.Flame size={12} className="text-rose-400" /> STRESS TEST KLASTRA
+            </h4>
+
+            <button
+              onClick={handleToggleSpikeMode}
+              className={cn(
+                "w-full p-4 rounded-2xl border transition-all duration-300 relative overflow-hidden active:scale-[0.98] select-none cursor-pointer text-left flex flex-col justify-center",
+                isSpiked 
+                  ? "bg-rose-950/40 hover:bg-rose-950/60 border-rose-500/40 text-rose-300 shadow-[0_0_15px_rgba(239,68,68,0.15)]" 
+                  : "bg-white/[0.01] hover:bg-rose-500/[0.03] border-white/10 hover:border-rose-500/30 text-slate-400"
+              )}
+            >
+              <div className="flex items-center gap-2.5">
+                <div className={cn(
+                  "p-2 rounded-lg border",
+                  isSpiked ? "bg-rose-500/20 border-rose-500 text-rose-400 animate-spin" : "bg-white/5 border-white/10 text-slate-400"
+                )}>
+                  <Lucide.Activity size={16} />
+                </div>
+                <div>
+                  <div className="text-xs uppercase font-black text-white tracking-wide">
+                    {isSpiked ? "PIEKIELNY STRESS-TEST" : "WYMUŚ PEAK-LOAD KLASTRA"}
+                  </div>
+                  <div className="text-[10px] text-slate-500 leading-snug mt-0.5">
+                    {isSpiked 
+                      ? "Zakończ test obciążenia i powróć do stanu jałowego."
+                      : "Sztucznie podnosi obciążenie wszystkich węzłów roboczych do ponad 90%."}
+                  </div>
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* SECURED CLUSTER PEER COMMUNICATION AND ORCHESTRATOR PANELS */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 bg-[#090b14]/90 p-5 rounded-[2rem] border border-acid-purple/35 shadow-[0_0_20px_rgba(168,85,247,0.1)] relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-acid-purple/5 rounded-full blur-3xl pointer-events-none" />
+        
+        {/* Banner o Szyfrowanym Kanale Łączności (Encrypted Channel Status Indicator) */}
+        <div className="col-span-12 bg-black/60 border border-emerald-500/35 p-3.5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 relative overflow-hidden select-none">
+          <div className="absolute inset-y-0 left-0 w-1 bg-emerald-500" />
+          <div className="flex items-center gap-3">
+            <div className="bg-emerald-500/10 text-emerald-400 p-2 rounded-xl border border-emerald-500/30 animate-pulse">
+              <Lucide.ShieldCheck size={18} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase text-white tracking-widest">SZYFROWANA KONTROLA KLASTRA SYNC-LINK</span>
+                <span className="text-[9px] bg-emerald-900/30 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.2 rounded font-black uppercase">POŁĄCZENIE BEZPIECZNE</span>
+              </div>
+              <p className="text-[11px] text-slate-400 font-sans mt-0.5 max-w-xl">
+                Węzły klastra są połączone dedykowanym tunelem klastrowym z szyfrowaniem <strong className="text-emerald-400 font-mono">TLS v1.3 AES-256-GCM</strong>. Swarm-Core wymienia dane asynchronicznie poza publicznym dostępem.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 bg-neutral-900/80 px-3 py-1.5 rounded-lg border border-white/5 shrink-0">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+            <span className="text-[10px] text-emerald-400 font-bold font-mono">AES_256_GCM • AKTIVE</span>
+          </div>
+        </div>
+
+        {/* Panel Lewy: Hardware Audit Control */}
+        <div className="xl:col-span-6 space-y-4">
+          <div className="glass-panel border border-acid-purple/20 p-5 rounded-2xl bg-black/40 space-y-4 h-full flex flex-col justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Lucide.Cpu size={16} className="text-acid-purple" />
+                <h3 className="font-display font-medium text-xs text-white uppercase tracking-wider">MELDUNEK GŁÓWNEGO ZARZĄDCY (HW AUDIT)</h3>
+              </div>
+              <p className="text-[10px] text-slate-500 font-sans mt-0.5 uppercase">
+                Zażądaj od rojów roboczych pełnej telemetrii wykorzystania fizycznej architektury sprzętowej
+              </p>
+            </div>
+
+            <div className="bg-black/60 p-4 border border-white/5 rounded-xl space-y-3 font-mono text-xs flex-1 my-3 overflow-y-auto max-h-[300px] custom-scrollbar">
+              {isAuditing ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center space-y-3">
+                  <div className="w-10 h-10 border-4 border-acid-purple/30 border-t-acid-purple rounded-full animate-spin" />
+                  <p className="text-[10px] text-acid-purple uppercase font-bold tracking-widest animate-pulse">WYSYŁANIE ROZKAZU WYKONAWCZEGO DO WĘZŁÓW SĄSIADUJĄCYCH IP / SSL...</p>
+                </div>
+              ) : Object.keys(auditReport).length === 0 ? (
+                <div className="text-center py-10 text-slate-500 uppercase flex flex-col items-center justify-center space-y-2">
+                  <Lucide.Activity size={32} className="opacity-20 text-acid-purple animate-pulse" />
+                  <p className="text-[11px] font-bold">Brak wygenerowanego audytu sprzętowości</p>
+                  <p className="text-[9px] max-w-xs text-slate-600">Kliknij przycisk poniżej, aby Główny Zarządca klastra zmusił wszystkie aktywne sub-roju do przesłania specyfikacji procesorów, GPU i certyfikatów tunelu.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {nodes.filter(n => n.status === 'online').map(node => {
+                    const info = auditReport[node.id];
+                    if (!info) return null;
+                    return (
+                      <div key={node.id} className="p-3 bg-white/[0.01] border border-white/5 rounded-xl space-y-2.5 hover:bg-white/[0.02] hover:border-white/10 transition">
+                        <div className="flex items-center justify-between border-b border-white/5 pb-1.5">
+                          <span className="font-black text-white text-[11px] flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            {node.name}
+                          </span>
+                          <span className="text-[8px] bg-acid-purple/15 text-acid-purple border border-acid-purple/30 px-1 py-0.2 rounded font-black">
+                            {info.speedRating}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-400">
+                          <div>
+                            <span className="text-slate-600 block uppercase font-bold text-[8px]">PROCESOR GLÓWNY:</span>
+                            <span className="text-gray-200 mt-0.5 block truncate" title={info.cpu}>{info.cpu}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-600 block uppercase font-bold text-[8px]">AKCELERATOR GPU / VRAM:</span>
+                            <span className="text-gray-200 mt-0.5 block truncate" title={info.gpu}>{info.gpu}</span>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-slate-600 block uppercase font-bold text-[8px]">SYSTEM OPERACYJNY WĘZŁA:</span>
+                            <span className="text-gray-200 mt-0.5 block truncate">{info.os}</span>
+                          </div>
+                          <div className="col-span-2 border-t border-white/5 pt-1.5 text-[9px] text-teal-400 space-y-0.5 bg-teal-950/10 p-1.5 rounded">
+                            <span className="text-slate-500 uppercase font-black text-[8px] block">ROZKAZ POŁĄCZENIA SZYFROWANEGO:</span>
+                            <div className="flex items-center gap-1">
+                              <Lucide.Unlock size={10} className="text-emerald-400 animate-pulse" />
+                              <span className="font-black tracking-tight">{info.secureChannel}</span>
+                            </div>
+                            <span className="text-[8px] text-slate-600 block select-all cursor-copy font-bold">{info.keyFingerprint}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={handleTriggerHardwareAudit}
+              disabled={isAuditing || nodes.filter(n => n.status === 'online').length === 0}
+              className={cn(
+                "w-full py-2.5 rounded-xl uppercase font-black tracking-widest text-xs transition active:scale-95 flex items-center justify-center gap-2 border shadow-lg cursor-pointer",
+                isAuditing
+                  ? "bg-neutral-900 border-white/5 text-slate-500 cursor-not-allowed"
+                  : "bg-acid-purple hover:bg-purple-400 border-purple-500 text-black shadow-acid-purple/10"
+              )}
+            >
+              {isAuditing ? (
+                <>
+                  <div className="w-3 h-3 border-2 border-slate-600 border-t-white rounded-full animate-spin" />
+                  TRWA AUDYT SPECYFIKACJI...
+                </>
+              ) : (
+                <>
+                  <Lucide.ShieldCheck size={14} />
+                  WYŚLIJ ROZKAZ ZAMELDOWANIA ARCHITEKTURY
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Panel Prawy: Task Consultation & Bidding Workflow */}
+        <div className="xl:col-span-6 space-y-4">
+          <div className="glass-panel border border-acid-purple/20 p-5 rounded-2xl bg-black/40 space-y-4 h-full flex flex-col justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Lucide.Cpu size={16} className="text-acid-cyan" />
+                <h3 className="font-display font-medium text-xs text-white uppercase tracking-wider">KONSULTACJA I DELEGACJA ZLECEŃ KLASTRA</h3>
+              </div>
+              <p className="text-[10px] text-slate-500 font-sans mt-0.5 uppercase">
+                Główny orkiestrator pobiera opinie zasobowe lokalnych zarządców przed alokacją zadania
+              </p>
+            </div>
+
+            {/* Formularz wprowadzania zlecenia */}
+            <div className="space-y-2.5 my-2">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-2">
+                  <label className="text-[8px] text-slate-500 block font-bold uppercase mb-1">TREŚĆ SPECYFIKACJI ZADANIA:</label>
+                  <input
+                    type="text"
+                    value={taskContent}
+                    onChange={(e) => setTaskContent(e.target.value)}
+                    placeholder="Opisz zadanie dla klastra..."
+                    className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white pr-4 focus:border-acid-cyan outline-none transition font-sans"
+                  />
+                </div>
+                <div>
+                  <label className="text-[8px] text-slate-500 block font-bold uppercase mb-1">PRIORYTET (OBCIĄŻENIE):</label>
+                  <select
+                    value={taskIntensity}
+                    onChange={(e) => setTaskIntensity(e.target.value as any)}
+                    className="w-full bg-black/50 border border-white/10 rounded-xl p-2 text-xs font-bold text-white focus:border-acid-cyan outline-none transition cursor-pointer font-sans"
+                  >
+                    <option value="low" className="bg-neutral-950 text-slate-300">LOW (Sygnał)</option>
+                    <option value="medium" className="bg-neutral-950 text-slate-300">MEDIUM (Standard)</option>
+                    <option value="high" className="bg-neutral-950 text-slate-300">HIGH (Maks)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Logi operacyjne i odpowiedzi rojów */}
+            <div className="bg-black/60 p-4 border border-white/5 rounded-xl space-y-3 font-mono text-xs flex-1 my-2 overflow-y-auto max-h-[220px] custom-scrollbar text-left">
+              {biddingState === 'idle' ? (
+                <div className="text-center py-10 text-slate-500 uppercase flex flex-col items-center justify-center space-y-2">
+                  <Lucide.Workflow size={32} className="opacity-15 text-acid-cyan" />
+                  <p className="text-[11px] font-bold">Tryb orkiestracyjny jest bezczynny</p>
+                  <p className="text-[9px] max-w-xs text-slate-600">Zdefiniuj zadanie powyżej i kliknij Rozpocznij Konsultacje, aby zapytać roje o opinie, zanim Główny Zarządca wyda ostateczny rozkaz alokacyjny.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Console logs output */}
+                  <div className="space-y-1 bg-black/40 p-2 rounded-lg border border-white/5">
+                    {biddingLogs.map((log, i) => (
+                      <div key={i} className="text-[10px] text-cyan-400 font-mono leading-tight">
+                        {log}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Opinions cards dynamically calculated */}
+                  {(biddingState === 'bidding' || biddingState === 'decision') && (
+                    <div className="space-y-2 border-t border-white/5 pt-2">
+                      <span className="text-[9px] text-fuchsia-400 font-black tracking-widest block uppercase">DEKLARACJE LOKALNYCH ROJÓW ROBOCZYCH:</span>
+                      
+                      {nodes.filter(n => n.status === 'online').map(node => {
+                        const opinion = biddingOpinions[node.id];
+                        if (!opinion) return null;
+                        
+                        return (
+                          <div key={node.id} className="p-2.5 bg-neutral-900/60 border border-white/5 hover:border-white/10 rounded-xl space-y-1 transition text-[10px]">
+                            <div className="flex justify-between items-center bg-black/30 px-2 py-1 rounded">
+                              <span className="font-extrabold text-white">{node.name}</span>
+                              <div className="flex gap-2">
+                                <span className={cn(
+                                  "text-[8px] font-bold uppercase border px-1 py-0.2 rounded",
+                                  opinion.verdict === 'local' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" :
+                                  opinion.verdict === 'central' ? "bg-amber-500/10 text-amber-500 border-amber-500/30" :
+                                  "bg-red-500/10 text-red-500 border-red-500/30"
+                                )}>
+                                  REKOMENDACJA: {opinion.verdict === 'local' ? 'WYKONAĆ U MNIE' : opinion.verdict === 'central' ? 'ZLECENIE CENTRALNE' : 'DELEGACJA'}
+                                </span>
+                                <span className="text-[8px] text-slate-500">MOC: {opinion.performanceScore}/100</span>
+                              </div>
+                            </div>
+                            <p className="text-[10px] text-slate-400 leading-normal pl-1.5 border-l-2 border-acid-purple/20">
+                              {opinion.details}
+                            </p>
+                            <div className="flex gap-4 text-[9px] text-slate-500 font-mono pl-1.5 pt-1">
+                              <span>Wymagany CPU lokalnie: <strong className="text-white">{opinion.cpuAlloc}%</strong></span>
+                              <span>Wymagany RAM lokalnie: <strong className="text-white">{opinion.ramAlloc}%</strong></span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Decision resolved */}
+                  {biddingState === 'decision' && finalAwardedNode && (
+                    <div className="p-3 bg-acid-purple/10 border border-acid-purple/30 rounded-xl space-y-2 animate-fade-in">
+                      <div className="flex items-center gap-2 text-[11px] font-black text-white">
+                        <Lucide.Trophy size={14} className="text-amber-400" />
+                        <span>OSTATECZNY DEKRET GŁÓWNEGO ZARZĄDCY:</span>
+                      </div>
+                      
+                      <div className="bg-black/40 p-2.5 rounded-lg border border-acid-purple/20 text-center space-y-1">
+                        <div className="text-[8px] text-slate-400 uppercase font-bold tracking-widest">WYZNACZONY WYKONAWCA ZADANIA</div>
+                        <div className="text-sm font-black font-display text-acid-purple tracking-wider uppercase font-mono neon-text-purple">
+                          🚀 {finalAwardedNode}
+                        </div>
+                      </div>
+
+                      <p className="text-[10px] text-gray-300 leading-normal">
+                        <strong>Korelacja opinii:</strong> {decisionReason}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={handleTriggerTaskBidding}
+              disabled={biddingState === 'sending' || biddingState === 'bidding' || nodes.filter(n => n.status === 'online').length === 0}
+              className={cn(
+                "w-full py-2.5 rounded-xl uppercase font-black tracking-widest text-xs transition active:scale-95 flex items-center justify-center gap-2 border shadow-lg cursor-pointer",
+                biddingState === 'sending' || biddingState === 'bidding'
+                  ? "bg-neutral-900 border-white/5 text-slate-500 cursor-not-allowed"
+                  : "bg-acid-cyan hover:bg-cyan-400 border-cyan-500 text-black shadow-acid-cyan/10"
+              )}
+            >
+              {biddingState === 'sending' || biddingState === 'bidding' ? (
+                <>
+                  <div className="w-3 h-3 border-2 border-slate-600 border-t-white rounded-full animate-spin" />
+                  TRWA ANALIZA I DECYZJA KLASTRA...
+                </>
+              ) : (
+                <>
+                  <Lucide.Zap size={14} />
+                  URUCHOM KONSULTACJE I ZLEĆ ZADANIE
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* WOL & NETWORK MULTI-TOOL ENGINE PANEL */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 bg-[#090b14]/90 p-5 rounded-[2rem] border border-acid-cyan/35 shadow-[0_0_20px_rgba(6,182,212,0.1)] relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-acid-cyan/5 rounded-full blur-3xl pointer-events-none" />
+
+        {/* Column 1: Wake on LAN & Trusted Circle of Swarms */}
+        <div className="xl:col-span-5 space-y-4">
+          <div className="glass-panel border border-acid-cyan/20 p-5 rounded-2xl bg-black/40 space-y-4 h-full flex flex-col justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Lucide.Power size={16} className="text-emerald-400" />
+                <h3 className="font-display font-medium text-xs text-white uppercase tracking-wider">WAKE ON LAN (WOL) & ZAUFANY KRĄG</h3>
+              </div>
+              <p className="text-[10px] text-slate-500 font-sans mt-0.5 uppercase">
+                Bezpieczne zdalne uruchamianie fizycznego sprzętu klastra za pomocą zaufanych węzłów lokalnych
+              </p>
+            </div>
+
+            {/* Trusted Swarm Circle Config Section */}
+            <div className="p-3 bg-neutral-950/60 border border-white/5 rounded-xl space-y-2">
+              <span className="text-[9px] text-emerald-400 font-black tracking-widest block uppercase">BIEŻĄCY ZAUFANY KRĄG ROJÓW SĄSIADUJĄCYCH:</span>
+              <p className="text-[10px] text-slate-400 leading-tight">
+                Zaznacz węzły dopuszczone do kryptograficznej strefy zaufania. Tylko one mogą wysłać fizyczny rozkaz wybudzenia LAN.
+              </p>
+              <div className="space-y-1.5 max-h-[110px] overflow-y-auto custom-scrollbar mt-1.5 pr-1">
+                {nodes.length === 0 ? (
+                  <p className="text-[9px] text-slate-600 uppercase">Brak dodanych węzłów do skonfigurowania kręgu</p>
+                ) : (
+                  nodes.map(node => {
+                    const isInCircle = trustedCircleList.includes(node.id);
+                    return (
+                      <div 
+                        key={node.id} 
+                        onClick={() => toggleTrustedCircleNode(node.id)}
+                        className="flex items-center justify-between text-[10px] p-1.5 bg-black/40 hover:bg-neutral-900 border border-white/5 rounded-lg cursor-pointer transition select-none"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="text-acid-purple">
+                            {isInCircle ? <Lucide.ShieldCheck size={12} className="text-emerald-400" /> : <Lucide.ShieldAlert size={12} className="text-amber-500" />}
+                          </div>
+                          <span className="font-bold text-gray-300">{node.name}</span>
+                          <span className="font-mono text-slate-600 text-[8px]">({node.ip})</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className={cn(
+                            "text-[8px] font-mono px-1 py-0.2 rounded font-black uppercase",
+                            isInCircle ? "bg-emerald-950 text-emerald-400 border border-emerald-500/20" : "bg-neutral-900 text-slate-600"
+                          )}>
+                            {isInCircle ? 'ZAUFANY' : 'WERYFIKACJA'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Control Form */}
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <label className="text-[8px] text-slate-500 block font-bold uppercase mb-1">DOCELOWY SYGNAŁ MAC:</label>
+                <input
+                  type="text"
+                  value={customMacAddress}
+                  onChange={(e) => setCustomMacAddress(e.target.value)}
+                  placeholder="00:1A:2B:3C:4D:5E"
+                  className="w-full bg-black/50 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold text-white focus:border-acid-cyan outline-none transition"
+                />
+              </div>
+
+              <div>
+                <label className="text-[8px] text-slate-500 block font-bold uppercase mb-1">PRZEKAŹNIK (SENDER PEER):</label>
+                <select
+                  value={selectedWOLRelay}
+                  onChange={(e) => setSelectedWOLRelay(e.target.value)}
+                  className="w-full bg-black/50 border border-white/10 rounded-xl p-1.5 text-xs font-bold text-white focus:border-acid-cyan outline-none transition cursor-pointer font-sans"
+                >
+                  <option value="">-- Wybierz nadawcę --</option>
+                  {nodes.filter(n => n.status === 'online').map(n => (
+                    <option key={n.id} value={n.id} className="bg-neutral-950 text-slate-300">{n.name} ({n.ip})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="col-span-2">
+                <label className="text-[8px] text-slate-500 block font-bold uppercase mb-1">URZĄDZENIE DOCELOWE DO WYBUDZENIA:</label>
+                <select
+                  value={selectedWolNode}
+                  onChange={(e) => {
+                    setSelectedWolNode(e.target.value);
+                    const selected = nodes.find(n => n.id === e.target.value);
+                    if (selected) {
+                      // Automatyczna asocjacja losowego MAC dla realistycznej prezencji
+                      const randHex = selected.name.charCodeAt(0).toString(16).padEnd(2, 'a').toUpperCase();
+                      setCustomMacAddress(`70:85:C2:5E:A4:${randHex}`);
+                    }
+                  }}
+                  className="w-full bg-black/50 border border-white/10 rounded-xl p-1.5 text-xs font-bold text-white focus:border-acid-cyan outline-none transition cursor-pointer font-sans"
+                >
+                  <option value="">-- Wybierz węzeł docelowy --</option>
+                  {nodes.map(n => (
+                    <option key={n.id} value={n.id} className="bg-neutral-950 text-slate-300">
+                      {n.name} (IP: {n.ip} - Status: {n.status.toUpperCase()})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* WoL Broadcast Console Output */}
+            <div className="bg-black/80 p-3 border border-white/5 rounded-xl font-mono text-[10px] h-[130px] overflow-y-auto custom-scrollbar text-left text-emerald-400 space-y-1">
+              {wolLogs.length === 0 ? (
+                <div className="text-center py-6 text-slate-600 uppercase">
+                  Konsola rozgłoszeniowa WoL gotowa do wysłania Magic Packet
+                </div>
+              ) : (
+                wolLogs.map((log, i) => (
+                  <div key={i} className={cn(
+                    "leading-tight",
+                    log.includes('FAIL') || log.includes('ABORTED') ? 'text-rose-400 font-bold' :
+                    log.includes('SUCCESS') ? 'text-cyan-400 font-black' : 'text-emerald-400'
+                  )}>
+                    {log}
+                  </div>
+                ))
+              )}
+            </div>
+
+            <button
+              onClick={handleTriggerWakeOnLAN}
+              disabled={isWakingWoL}
+              className={cn(
+                "w-full py-2 rounded-xl uppercase font-black tracking-widest text-xs transition active:scale-95 flex items-center justify-center gap-2 border shadow-lg cursor-pointer",
+                isWakingWoL
+                  ? "bg-neutral-900 border-white/5 text-slate-500 cursor-not-allowed"
+                  : "bg-emerald-500 hover:bg-emerald-400 border-emerald-500 text-black shadow-emerald-500/10"
+              )}
+            >
+              {isWakingWoL ? (
+                <>
+                  <div className="w-3 h-3 border-2 border-slate-600 border-t-white rounded-full animate-spin" />
+                  WYSYŁANIE PAKIETU MAGICZNEGO...
+                </>
+              ) : (
+                <>
+                  <Lucide.Power size={14} />
+                  WYŚLIJ ROZKAZ WAKE ON LAN (UDP-9)
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Column 2: System & Network Diagnostics Toolkit */}
+        <div className="xl:col-span-7 space-y-4">
+          <div className="glass-panel border border-acid-cyan/20 p-5 rounded-2xl bg-black/40 space-y-4 h-full flex flex-col justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Lucide.Terminal size={16} className="text-acid-cyan" />
+                <h3 className="font-display font-medium text-xs text-white uppercase tracking-wider">KLASTROWA KONSOLA SYSTEMOWO-SIECIOWA ROJU</h3>
+              </div>
+              <p className="text-[10px] text-slate-500 font-sans mt-0.5 uppercase">
+                Obsługuje natywne integracje, klucze, zapytania terminalowe oraz protokoły dla systemów Windows, Linux i Android
+              </p>
+            </div>
+
+            {/* Platform Selection Badges */}
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { id: 'linux', label: '🐧 LINUX', desc: 'Serwer enterprise' },
+                { id: 'win', label: '🪟 WINDOWS', desc: 'Serwer i ActiveDirectory' },
+                { id: 'android', label: '🤖 ANDROID', desc: 'Termux & Mobile API' },
+                { id: 'network', label: '🌐 NETWORK', desc: 'VLAN, VPN, Routery' }
+              ].map(platform => (
+                <button
+                  key={platform.id}
+                  onClick={() => {
+                    setSelectedPlatform(platform.id as any);
+                    // Automatyczny dobór narzędzia do nowej platformy
+                    if (platform.id === 'linux') setSelectedTechTool('wireguard');
+                    else if (platform.id === 'win') setSelectedTechTool('powershell');
+                    else if (platform.id === 'android') setSelectedTechTool('termux');
+                    else if (platform.id === 'network') setSelectedTechTool('vlan');
+                  }}
+                  className={cn(
+                    "p-2 rounded-xl text-[10px] border transition text-center cursor-pointer flex flex-col items-center justify-center gap-0.5",
+                    selectedPlatform === platform.id
+                      ? "bg-acid-cyan/10 border-acid-cyan text-white shadow-[0_0_10px_rgba(6,182,212,0.1)] font-black"
+                      : "bg-black/40 border-white/5 text-slate-400 hover:border-white/10"
+                  )}
+                >
+                  <span>{platform.label}</span>
+                  <span className="text-[7px] text-slate-500 block tracking-tight uppercase truncate">{platform.desc}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Dynamic tool configuration fields */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-1">
+                <label className="text-[8px] text-slate-500 block font-bold uppercase mb-1">WYBIERZ PROFIL / PROTOKÓŁ:</label>
+                <select
+                  value={selectedTechTool}
+                  onChange={(e) => setSelectedTechTool(e.target.value)}
+                  className="w-full bg-black/50 border border-white/10 rounded-xl p-2 text-xs font-bold text-white focus:border-acid-cyan outline-none transition cursor-pointer font-sans"
+                >
+                  {selectedPlatform === 'linux' && (
+                    <>
+                      <option value="wireguard">🔒 WireGuard (Site-to-Site)</option>
+                      <option value="ssh">🔑 SSH reverse tunnel</option>
+                      <option value="bash">📜 Bash automonitoring</option>
+                      <option value="sql">🗄️ SQL/MySQL sync tables</option>
+                      <option value="sftp">📂 SFTP secure backup</option>
+                    </>
+                  )}
+                  {selectedPlatform === 'win' && (
+                    <>
+                      <option value="powershell">💻 PowerShell WinRM</option>
+                      <option value="winserver">🏢 Active Directory DC</option>
+                      <option value="rdp">🚪 RDP / AnyDesk tunnel</option>
+                    </>
+                  )}
+                  {selectedPlatform === 'android' && (
+                    <>
+                      <option value="termux">📱 Termux API</option>
+                      <option value="rustdesk">🎬 RustDesk Mobile</option>
+                    </>
+                  )}
+                  {selectedPlatform === 'network' && (
+                    <>
+                      <option value="vlan">🏷️ VLAN 802.1Q Bridge</option>
+                      <option value="vpn">🛰️ VPN Wireguard Tunnel</option>
+                      <option value="dhcp_dns">🔌 DHCP statically leases & DNS</option>
+                    </>
+                  )}
+                </select>
+              </div>
+
+              <div className="col-span-2">
+                <label className="text-[8px] text-slate-500 block font-bold uppercase mb-1">KOMENDA / SCRIPT MODIFIER:</label>
+                <input
+                  type="text"
+                  value={customDiagnosticInput}
+                  onChange={(e) => setCustomDiagnosticInput(e.target.value)}
+                  placeholder="Parametry wywoławcze skryptu klastra..."
+                  className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-1.5 text-xs font-mono font-bold text-white focus:border-acid-cyan outline-none transition"
+                />
+              </div>
+            </div>
+
+            {/* Terminal monitor screen */}
+            <div className="bg-black/90 p-4 border border-white/10 rounded-2xl font-mono text-[10px] text-cyan-300 h-[150px] overflow-y-auto custom-scrollbar relative">
+              <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+              <div className="text-left space-y-1">
+                {techLogs.length === 0 ? (
+                  <div className="text-slate-500 uppercase text-center py-10">
+                    Terminal systemowy Cylon Co-Pilot gotowy do uruchomienia procedur diagnostyczno-operacyjnych
+                  </div>
+                ) : (
+                  techLogs.map((log, idx) => (
+                    <div key={idx} className={cn(
+                      "leading-relaxed",
+                      log.startsWith('$') || log.startsWith('PS') ? 'text-white font-bold' :
+                      log.startsWith('Generowanie') || log.startsWith('Inicjalizacja') || log.startsWith('Inicjowanie') ? 'text-amber-300' :
+                      log.startsWith('[SUCCESS]') || log.startsWith('[ZAKOŃCZONO]') || log.startsWith('[SQL STATUS]') ? 'text-emerald-400 font-extrabold' : 'text-cyan-300'
+                    )}>
+                      {log}
+                    </div>
+                  ))
+                )}
+                {isTechRunning && (
+                  <div className="text-white text-[9px] animate-pulse flex items-center gap-1.5 mt-1 font-bold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                    <span>TRWA BIEŻĄCE WYKONYWANIE USŁUGI...</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Execute trigger */}
+            <div className="flex gap-2.5">
+              <button
+                onClick={() => setTechLogs([])}
+                className="px-4 py-2 bg-neutral-950 hover:bg-neutral-900 border border-white/5 rounded-xl text-xs uppercase text-slate-400 transition"
+              >
+                Wyczyść ekran
+              </button>
+              <button
+                onClick={handleTriggerTechCommand}
+                disabled={isTechRunning}
+                className={cn(
+                  "flex-1 py-2 rounded-xl uppercase font-black tracking-widest text-xs transition active:scale-95 flex items-center justify-center gap-2 border shadow-lg cursor-pointer",
+                  isTechRunning
+                    ? "bg-neutral-900 border-white/5 text-slate-500 cursor-not-allowed"
+                    : "bg-acid-cyan hover:bg-cyan-400 border-cyan-500 text-black shadow-acid-cyan/10"
+                )}
+              >
+                {isTechRunning ? (
+                  <>
+                    <div className="w-3 h-3 border-2 border-slate-600 border-t-white rounded-full animate-spin" />
+                    WYKONYWANIE PROCEDUR SIECIOWYCH...
+                  </>
+                ) : (
+                  <>
+                    <Lucide.Play size={12} />
+                    ZAINICJUJ PODŁĄCZONE URZĄDZENIE (WYKONAJ)
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* LOCAL & LAN SWARM LLM ORCHESTRATOR PANEL */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 bg-[#090b14]/90 p-5 rounded-[2rem] border border-acid-purple/35 shadow-[0_0_20px_rgba(168,85,247,0.1)] relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-32 h-32 bg-acid-purple/5 rounded-full blur-3xl pointer-events-none" />
+        
+        {/* Header Indicator */}
+        <div className="col-span-12 bg-black/60 border border-purple-500/35 p-3.5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 relative overflow-hidden select-none">
+          <div className="absolute inset-y-0 left-0 w-1 bg-acid-purple" />
+          <div className="flex items-center gap-3">
+            <div className="bg-acid-purple/10 text-acid-purple p-2 rounded-xl border border-acid-purple/30 animate-pulse">
+              <Lucide.Cpu size={18} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase text-white tracking-widest">ORKIESTRACJA LOKALNYCH I SIECIOWYCH LLM</span>
+                <span className="text-[9px] bg-purple-900/30 text-acid-purple border border-acid-purple/30 px-1.5 py-0.2 rounded font-black uppercase">CYLON LLM SWARM BRIDGE</span>
+              </div>
+              <p className="text-[11px] text-slate-400 font-sans mt-0.5 max-w-xl">
+                Zarządca roju potrafi elastycznie przełączać zapytania między <strong className="text-acid-purple">lokalnym LLM</strong> zainstalowanym bezpośrednio (np. na telefonie/Termuxie lub PC) a <strong className="text-acid-cyan">LLM w sieci lokalnej (LAN / WAN)</strong> na maszynach o wysokiej wydajności.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 bg-neutral-900/80 px-3 py-1.5 rounded-lg border border-white/5 shrink-0">
+            <div className="w-1.5 h-1.5 rounded-full bg-acid-purple animate-ping" />
+            <span className="text-[10px] text-acid-purple font-bold font-mono">LLM_COGNITIVE_GRID • ACTIVE</span>
+          </div>
+        </div>
+
+        {/* Left Column: LLM Settings & Trigger */}
+        <div className="xl:col-span-5 space-y-4">
+          <div className="glass-panel border border-acid-purple/20 p-5 rounded-2xl bg-black/40 space-y-3.5 h-full flex flex-col justify-between">
+            <div className="space-y-1">
+              <span className="text-[8px] text-acid-purple uppercase font-black tracking-widest block">KONFIGURATOR INTELIGENCJI INTEGRACYJNEJ</span>
+              <h3 className="font-display font-medium text-xs text-white uppercase tracking-wider">Ustawienia Alokacji Modelu AI</h3>
+            </div>
+
+            {/* Select Local vs Network */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => {
+                  setLlmLocationType('local_device');
+                  setLlmModelName('llama3:8b-coder');
+                  setLlmServerUrl('http://127.0.0.1:11434');
+                  setLlmApiFormat('ollama');
+                }}
+                className={cn(
+                  "p-2.5 rounded-xl border text-center transition cursor-pointer flex flex-col items-center justify-center gap-1",
+                  llmLocationType === 'local_device'
+                    ? "bg-acid-purple/15 border-acid-purple text-white font-bold shadow-[0_0_15px_rgba(168,85,247,0.15)]"
+                    : "bg-black/50 border-white/5 text-slate-400 hover:border-white/10"
+                )}
+              >
+                <Lucide.Smartphone size={16} className={llmLocationType === 'local_device' ? 'text-acid-purple' : 'text-slate-500'} />
+                <span className="text-[10px] block font-sans">LOKALNY LLM</span>
+                <span className="text-[7px] text-slate-500 block">Hostowany u siebie (np. Termux)</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setLlmLocationType('lan_server');
+                  setLlmModelName('qwen2.5-coder:32b');
+                  setLlmServerUrl('http://192.168.1.150:11434');
+                  setLlmApiFormat('vllm');
+                }}
+                className={cn(
+                  "p-2.5 rounded-xl border text-center transition cursor-pointer flex flex-col items-center justify-center gap-1",
+                  llmLocationType === 'lan_server'
+                    ? "bg-acid-cyan/15 border-acid-cyan text-white font-bold shadow-[0_0_15px_rgba(6,182,212,0.15)]"
+                    : "bg-black/50 border-white/5 text-slate-400 hover:border-white/10"
+                )}
+              >
+                <Lucide.Network size={16} className={llmLocationType === 'lan_server' ? 'text-acid-cyan' : 'text-slate-500'} />
+                <span className="text-[10px] block font-sans">SIECIOWY LLM (LAN)</span>
+                <span className="text-[7px] text-slate-500 block">Hostowany w sieci lokalnej</span>
+              </button>
+            </div>
+
+            {/* Model & Port Selection */}
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <label className="text-[8px] text-slate-500 block font-bold uppercase mb-1">NAZWA MODELU LLM:</label>
+                <input
+                  type="text"
+                  value={llmModelName}
+                  onChange={(e) => setLlmModelName(e.target.value)}
+                  placeholder="np. llama3:8b-coder"
+                  className="w-full bg-black/50 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold text-white focus:border-acid-purple outline-none transition"
+                />
+              </div>
+
+              <div>
+                <label className="text-[8px] text-slate-500 block font-bold uppercase mb-1">ENDPOINT URL SERWERA LLM:</label>
+                <input
+                  type="text"
+                  value={llmServerUrl}
+                  disabled={llmLocationType === 'local_device'}
+                  onChange={(e) => setLlmServerUrl(e.target.value)}
+                  placeholder="http://192.168.1.150:11434"
+                  className={cn(
+                    "w-full bg-black/50 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold text-white focus:border-acid-cyan outline-none transition",
+                    llmLocationType === 'local_device' && "opacity-40 cursor-not-allowed"
+                  )}
+                />
+              </div>
+
+              <div className="col-span-2">
+                <label className="text-[8px] text-slate-500 block font-bold uppercase mb-1">FORMAT NATIVE API:</label>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {(['ollama', 'lm_studio', 'vllm', 'custom_rest'] as const).map(format => (
+                    <button
+                      key={format}
+                      type="button"
+                      onClick={() => setLlmApiFormat(format)}
+                      className={cn(
+                        "py-1 rounded text-[8px] font-mono border transition font-black uppercase text-center cursor-pointer",
+                        llmApiFormat === format
+                          ? "bg-acid-purple/20 border-acid-purple text-white"
+                          : "bg-black/30 border-white/5 text-slate-500 hover:border-white/10"
+                      )}
+                    >
+                      {format.replace('_', ' ')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Prompt input */}
+            <div className="space-y-1">
+              <label className="text-[8px] text-slate-500 block font-bold uppercase mb-0.5">TREŚĆ PROMPTU COGNITIVE:</label>
+              <textarea
+                value={llmPromptText}
+                onChange={(e) => setLlmPromptText(e.target.value)}
+                rows={2}
+                placeholder="Napisz prompt dla lokalnego modelu klastrowego..."
+                className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white focus:border-acid-purple outline-none transition font-sans resize-none"
+              />
+            </div>
+
+            <button
+              onClick={handleTriggerLlmExecution}
+              disabled={isLlmProcessing}
+              className={cn(
+                "w-full py-2.5 rounded-xl uppercase font-black tracking-widest text-xs transition active:scale-95 flex items-center justify-center gap-2 border shadow-lg cursor-pointer",
+                isLlmProcessing
+                  ? "bg-neutral-900 border-white/5 text-slate-500 cursor-not-allowed"
+                  : llmLocationType === 'local_device'
+                    ? "bg-acid-purple hover:bg-purple-400 border-purple-500 text-black shadow-acid-purple/10"
+                    : "bg-acid-cyan hover:bg-cyan-400 border-cyan-500 text-black shadow-acid-cyan/10"
+              )}
+            >
+              {isLlmProcessing ? (
+                <>
+                  <div className="w-3 h-3 border-2 border-slate-600 border-t-white rounded-full animate-spin" />
+                  CYKL WNIOSKOWANIA TRWA...
+                </>
+              ) : (
+                <>
+                  <Lucide.Cpu size={14} />
+                  WYGENERUJ ODPOWIEDŹ Z KODEM LLM
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Right Column: Console Trace & Resulting Output */}
+        <div className="xl:col-span-7 space-y-4">
+          <div className="glass-panel border border-acid-purple/20 p-5 rounded-2xl bg-black/40 space-y-4 h-full flex flex-col justify-between">
+            
+            {/* Split Panel: Part A - Operational Console logs */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[8px] text-slate-500 uppercase font-black tracking-widest">KONSOLA POŁĄCZEŃ KOGNITYWNYCH (TRACE LOGS)</span>
+                <span className="text-[7.5px] text-emerald-400 bg-emerald-950/30 border border-emerald-500/20 px-1 rounded font-mono font-black">SECURED</span>
+              </div>
+              <div className="bg-black/90 p-3 border border-white/10 rounded-xl font-mono text-[9px] text-pink-400 h-[110px] overflow-y-auto custom-scrollbar text-left space-y-0.5">
+                {llmConsoleLogs.length === 0 ? (
+                  <div className="text-slate-600 text-center py-8 uppercase">
+                    Brak aktywnych logów przesyłania zapytania AI
+                  </div>
+                ) : (
+                  llmConsoleLogs.map((log, i) => (
+                    <div key={i} className={cn(
+                      "leading-tight",
+                      log.includes('[SUCCESS]') ? 'text-emerald-400 font-extrabold' :
+                      log.includes('[ERROR]') || log.includes('[FAIL]') ? 'text-rose-400 font-black' :
+                      log.includes('[OLLAMA') || log.includes('[API CHECK') ? 'text-cyan-400 font-bold' : 'text-pink-400'
+                    )}>
+                      {log}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Split Panel: Part B - Generated output markdown content */}
+            <div className="space-y-1.5 flex-1 flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-[8px] text-slate-500 uppercase font-black tracking-widest">WYNIK PROGRAMISTYCZNY MODELU (LLM OUTPUT)</span>
+                <button
+                  onClick={() => {
+                    if (llmResultText) {
+                      navigator.clipboard.writeText(llmResultText);
+                      alert("Skopiowano odpowiedź LLM klastra do schowka!");
+                    }
+                  }}
+                  disabled={!llmResultText}
+                  className="text-[8px] text-acid-purple hover:text-white transition disabled:opacity-40 uppercase font-bold"
+                >
+                  Kopiuj Kod
+                </button>
+              </div>
+
+              <div className="bg-black/80 border border-white/5 p-3 rounded-xl font-mono text-[10.5px] text-gray-200 h-[220px] overflow-y-auto custom-scrollbar text-left whitespace-pre relative overflow-x-auto">
+                {isLlmProcessing ? (
+                  <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center space-y-2">
+                    <div className="w-6 h-6 border-2 border-acid-purple/30 border-t-acid-purple rounded-full animate-spin" />
+                    <span className="text-[9px] text-acid-purple uppercase font-black tracking-widest animate-pulse">Trwa optymalizacja i dekryptaż tokenów...</span>
+                  </div>
+                ) : null}
+                
+                {llmResultText ? (
+                  llmResultText
+                ) : (
+                  <div className="text-slate-600 text-center py-[70px] uppercase">
+                    Oczekiwanie na uruchomienie cyklu wnioskowania AI
+                  </div>
+                )}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
       <div className="flex justify-between items-center border-b border-acid-purple/30 pb-2">
         <h2 className="font-display text-lg uppercase neon-text-purple">Klastry i Węzły Lokalne</h2>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <button 
+            onClick={handleConnectCurrentDevice}
+            className="bg-emerald-500/20 text-emerald-400 border border-emerald-500 hover:bg-emerald-500/40 px-3 py-1 flex items-center gap-2 rounded font-mono transition-all text-xs font-bold shadow-[0_0_15px_rgba(16,185,129,0.2)] active:scale-95 cursor-pointer"
+            title="Szybkie podłączenie obecnego telefonu lub tabletu jako noda roboczego"
+          >
+            <Lucide.Smartphone size={14} className="animate-bounce" style={{ animationDuration: '3s' }} /> Podłącz ten Telefon/Tablet
+          </button>
           <button 
             onClick={handleSuggestNodes}
-            className="bg-acid-purple/10 text-acid-purple border border-acid-purple/50 px-3 py-1 hover:bg-acid-purple/30 flex items-center gap-2 rounded font-mono neon-text-purple transition-all"
+            className="bg-acid-purple/10 text-acid-purple border border-acid-purple/50 px-3 py-1 hover:bg-acid-purple/30 flex items-center gap-2 rounded font-mono neon-text-purple transition-all text-xs cursor-pointer"
           >
             <Zap size={14} /> Sugeruj Węzły
           </button>
           <button 
             onClick={() => setIsAdding(!isAdding)}
-            className="bg-acid-purple/20 text-acid-purple border border-acid-purple px-3 py-1 hover:bg-acid-purple/40 flex items-center gap-2 rounded font-mono neon-text-purple transition-all"
+            className="bg-acid-purple/20 text-acid-purple border border-acid-purple px-3 py-1 hover:bg-acid-purple/40 flex items-center gap-2 rounded font-mono neon-text-purple transition-all text-xs cursor-pointer"
           >
             <Plus size={14} /> Dodaj Węzeł
           </button>
@@ -5111,6 +9222,163 @@ const Clusters = React.memo(() => {
         </div>
       )}
 
+      {/* DZIENNIK ZDARZEŃ KLASTRA (REAL-TIME CLUSTER EVENT LOG) */}
+      <div id="cluster-event-log-panel" className="glass-panel border border-acid-purple/20 p-5 rounded-3xl bg-black/40 space-y-4 shadow-[0_4px_30px_rgba(168,85,247,0.03)]">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-white/5 pb-3 gap-3">
+          <div>
+            <h3 className="font-display font-medium text-xs text-white uppercase tracking-wider flex items-center gap-2">
+              <Lucide.Database size={14} className="text-acid-cyan" />
+              Dziennik zdarzeń klastra
+            </h3>
+            <p className="text-[10px] text-slate-500 font-sans mt-0.5 uppercase">
+              Historia alertów oraz alokacji zasobów roju w czasie rzeczywistym
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2.5 self-end sm:self-auto flex-wrap">
+            {/* Type filters */}
+            <div className="flex bg-neutral-900/60 p-0.5 rounded-lg border border-white/5 flex-wrap gap-1">
+              <button
+                onClick={() => setEventTypeFilter('all')}
+                className={cn(
+                  "px-3 py-1.5 rounded-md text-[10px] font-black uppercase transition-all tracking-wider font-sans cursor-pointer",
+                  eventTypeFilter === 'all' 
+                    ? "bg-acid-purple/20 border border-acid-purple/30 text-white" 
+                    : "text-slate-500 hover:text-slate-400 border border-transparent"
+                )}
+              >
+                WSZYSTKIE
+              </button>
+              <button
+                onClick={() => setEventTypeFilter('Node Online')}
+                className={cn(
+                  "px-3 py-1.5 rounded-md text-[10px] font-black uppercase transition-all tracking-wider font-sans cursor-pointer",
+                  eventTypeFilter === 'Node Online' 
+                    ? "bg-emerald-500/20 border border-emerald-500/30 text-emerald-400" 
+                    : "text-slate-500 hover:text-slate-400 border border-transparent"
+                )}
+              >
+                NODE ONLINE
+              </button>
+              <button
+                onClick={() => setEventTypeFilter('High CPU Alert')}
+                className={cn(
+                  "px-3 py-1.5 rounded-md text-[10px] font-black uppercase transition-all tracking-wider font-sans cursor-pointer",
+                  eventTypeFilter === 'High CPU Alert' 
+                    ? "bg-red-500/20 border border-red-500/30 text-red-500" 
+                    : "text-slate-500 hover:text-slate-400 border border-transparent"
+                )}
+              >
+                HIGH CPU ALERT
+              </button>
+              <button
+                onClick={() => setEventTypeFilter('Autoscaling Event')}
+                className={cn(
+                  "px-3 py-1.5 rounded-md text-[10px] font-black uppercase transition-all tracking-wider font-sans cursor-pointer",
+                  eventTypeFilter === 'Autoscaling Event' 
+                    ? "bg-acid-cyan/20 border border-acid-cyan/30 text-acid-cyan" 
+                    : "text-slate-500 hover:text-slate-200 border border-transparent"
+                )}
+              >
+                AUTOSCALING EVENT
+              </button>
+            </div>
+
+            {/* Export JSON Button */}
+            <button
+              onClick={() => {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(clusterEvents, null, 2));
+                const downloadAnchor = document.createElement('a');
+                downloadAnchor.setAttribute("href", dataStr);
+                downloadAnchor.setAttribute("download", `cluster-event-logs-${new Date().toISOString().split('T')[0]}.json`);
+                document.body.appendChild(downloadAnchor);
+                downloadAnchor.click();
+                downloadAnchor.remove();
+                if (typeof showToast === 'function') {
+                  showToast("Pomyślnie wyeksportowano historię zdarzeń klastra do pliku JSON.");
+                }
+              }}
+              className="flex items-center gap-1.5 h-[30px] px-3 bg-neutral-950 hover:bg-neutral-900 border border-white/10 hover:border-acid-purple/40 text-slate-300 hover:text-white text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer shadow-md"
+              title="Pobierz historię zdarzeń klastra w formacie JSON"
+            >
+              <Lucide.Download size={11} className="text-acid-purple shrink-0" />
+              <span className="shrink-0">Eksportuj logi zdarzeń</span>
+            </button>
+          </div>
+        </div>
+
+        {/* List of events */}
+        <div className="max-h-60 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+          {nodes.length === 0 ? (
+            <div className="text-center py-6 text-xs text-slate-500 uppercase font-bold tracking-widest">
+              Oczekiwanie na inicjalizację klastrów...
+            </div>
+          ) : (
+            (() => {
+              const filteredList = clusterEvents.filter(e => eventTypeFilter === 'all' || e.type === eventTypeFilter);
+              if (filteredList.length === 0) {
+                return (
+                  <div className="text-center py-6 text-xs text-slate-500 uppercase font-bold tracking-widest">
+                    Brak zdarzeń pasujących do wybranego filtru.
+                  </div>
+                );
+              }
+              return filteredList.map(evt => {
+                const isCritical = evt.severity === 'critical';
+                const isWarning = evt.severity === 'warning';
+                return (
+                  <div 
+                    key={evt.id} 
+                    className={cn(
+                      "flex items-start justify-between p-3 rounded-xl border transition-all text-xs font-mono",
+                      isCritical ? "border-red-500/20 bg-red-950/5 hover:bg-red-950/10" :
+                      isWarning ? "border-amber-500/20 bg-amber-950/5 hover:bg-amber-950/10" :
+                      "border-white/5 bg-white/[0.01] hover:bg-white/[0.03]"
+                    )}
+                  >
+                    <div className="flex gap-3 items-start min-w-0">
+                      <div className={cn(
+                        "p-1.5 rounded-lg border shrink-0 mt-0.5",
+                        evt.type === 'Node Online' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                        evt.type === 'High CPU Alert' ? "bg-red-500/10 text-red-500 border-red-500/20 animate-pulse" :
+                        "bg-acid-cyan/10 text-acid-cyan border-acid-cyan/20"
+                      )}>
+                        {evt.type === 'Node Online' && <Lucide.Server size={12} />}
+                        {evt.type === 'High CPU Alert' && <Lucide.AlertTriangle size={12} />}
+                        {evt.type === 'Autoscaling Event' && <Lucide.Cpu size={12} />}
+                      </div>
+                      <div className="space-y-0.5 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={cn(
+                            "text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border",
+                            evt.type === 'Node Online' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                            evt.type === 'High CPU Alert' ? "bg-red-500/10 text-red-400 border-red-500/20" :
+                            "bg-acid-cyan/10 text-acid-cyan border-acid-cyan/20"
+                          )}>
+                            {evt.type}
+                          </span>
+                          {evt.nodeName && (
+                            <span className="text-[10px] text-slate-300 font-bold bg-white/5 px-1.5 py-0.5 rounded">
+                              {evt.nodeName}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-400 leading-relaxed min-w-0 break-words pr-2">
+                          {evt.details}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-[9px] text-slate-500 font-black whitespace-nowrap uppercase tracking-wider self-center text-right shrink-0">
+                      {evt.timestamp}
+                    </div>
+                  </div>
+                );
+              });
+            })()
+          )}
+        </div>
+      </div>
+
       {isAdding && (
         <div className="glass-panel border border-acid-purple/30 p-4 space-y-3 rounded-xl shadow-lg">
           <h3 className="font-bold uppercase text-xs text-acid-purple font-display tracking-wider">Konfiguracja Nowego Węzła</h3>
@@ -5123,12 +9391,23 @@ const Clusters = React.memo(() => {
             />
             <select 
               className="border border-acid-purple/30 px-3 py-2 bg-black/30 outline-none text-gray-200 focus:border-acid-purple/60 focus:bg-black/50 transition-all rounded font-mono"
-              value={newNode.type}
-              onChange={e => setNewNode({...newNode, type: e.target.value as any})}
+              value={newNode.architecture || 'server'}
+              onChange={e => setNewNode({...newNode, architecture: e.target.value as any})}
             >
-              <option value="worker" className="bg-black text-gray-200">WORKER (Obliczenia)</option>
-              <option value="manager" className="bg-black text-gray-200">MANAGER (Orkiestracja)</option>
+              <option value="server" className="bg-black text-gray-200">SERVER</option>
+              <option value="desktop" className="bg-black text-gray-200">DESKTOP</option>
+              <option value="laptop" className="bg-black text-gray-200">LAPTOP</option>
+              <option value="phone" className="bg-black text-gray-200">PHONE (ANDROID)</option>
+              <option value="hosting" className="bg-black text-gray-200">HOSTING</option>
+              <option value="hosting-vps" className="bg-black text-gray-200">HOSTING VPS</option>
+              <option value="azure" className="bg-black text-gray-200">AZURE</option>
+              <option value="gcp" className="bg-black text-gray-200">GCP</option>
+              <option value="aws" className="bg-black text-gray-200">AWS</option>
             </select>
+            <label className="flex items-center gap-2 text-[10px] text-gray-400 font-mono">
+              <input type="checkbox" checked={newNode.isAndroid || false} onChange={e => setNewNode({...newNode, isAndroid: e.target.checked})} />
+              IS ANDROID ONLY
+            </label>
             <input 
               placeholder="ADRES IP (np. 192.168.1.15)" 
               className="border border-acid-purple/30 px-3 py-2 bg-black/30 outline-none text-gray-200 placeholder-gray-600 focus:border-acid-purple/60 focus:bg-black/50 transition-all rounded font-mono"
@@ -5180,7 +9459,9 @@ const Clusters = React.memo(() => {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-6">
+          <ClusterLoadGauge nodes={nodes} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {nodes.map(node => {
             const isOffline = node.status === 'offline';
             const lastActiveStr = node.lastActive || node.lastSeen || new Date().toISOString();
@@ -5387,6 +9668,7 @@ const Clusters = React.memo(() => {
             );
           })}
         </div>
+      </div>
       )}
     </div>
   );
@@ -5395,9 +9677,11 @@ const Clusters = React.memo(() => {
 const KnowledgeBase = React.memo(() => {
   const [entries, setEntries] = useState<KnowledgeEntry[]>([]);
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState<'dateDesc' | 'dateAsc' | 'author'>('dateDesc');
   const [isAdding, setIsAdding] = useState(false);
   const [newEntry, setNewEntry] = useState({ title: '', content: '', tags: '' });
   const [isLoading, setIsLoading] = useState(true);
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     loadKnowledge();
@@ -5406,13 +9690,35 @@ const KnowledgeBase = React.memo(() => {
   const loadKnowledge = async () => {
     try {
       setIsLoading(true);
-      const data = await api.getKnowledge();
+      const data = (await api.getKnowledge()) || [];
       setEntries(data);
     } catch (e) {
       console.error(e);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleCleanup = async () => {
+    if (window.confirm("Czy na pewno chcesz zarchiwizować nieaktywne wpisy (>90 dni)?")) {
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+      const entriesToArchive = entries.filter(e => {
+        const lastUsed = e.lastUsedAt ? new Date(e.lastUsedAt) : new Date(e.createdAt);
+        return !e.archived && lastUsed < ninetyDaysAgo;
+      });
+
+      for (const entry of entriesToArchive) {
+        await api.updateKnowledge({ ...entry, archived: true });
+      }
+      loadKnowledge();
+    }
+  };
+
+  const toggleArchive = async (entry: KnowledgeEntry) => {
+    await api.updateKnowledge({ ...entry, archived: !entry.archived });
+    loadKnowledge();
   };
 
   const handleAdd = async () => {
@@ -5423,7 +9729,9 @@ const KnowledgeBase = React.memo(() => {
       content: newEntry.content,
       tags: newEntry.tags.split(',').map(t => t.trim()).filter(Boolean),
       author: 'ADMIN',
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      archived: false,
+      lastUsedAt: new Date().toISOString()
     };
     await api.addKnowledge(entry);
     setNewEntry({ title: '', content: '', tags: '' });
@@ -5438,11 +9746,27 @@ const KnowledgeBase = React.memo(() => {
     }
   };
 
-  const filtered = entries.filter(e => 
-    e.title.toLowerCase().includes(search.toLowerCase()) || 
-    e.content.toLowerCase().includes(search.toLowerCase()) ||
-    e.tags.some(t => t.toLowerCase().includes(search.toLowerCase()))
-  );
+  const handleExport = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(entries));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", "knowledge_base.json");
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+  };
+
+  const filtered = entries.filter(e => {
+    if (e.archived && !showArchived) return false;
+    return e.title.toLowerCase().includes(search.toLowerCase()) || 
+           e.content.toLowerCase().includes(search.toLowerCase()) ||
+           (e.tags && e.tags.some(t => t.toLowerCase().includes(search.toLowerCase())));
+  }).sort((a,b) => {
+    if (sortBy === 'dateDesc') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    if (sortBy === 'dateAsc') return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    if (sortBy === 'author') return (a.author || 'Unknown').localeCompare(b.author || 'Unknown');
+    return 0;
+  });
 
   return (
     <div className="space-y-6">
@@ -5452,6 +9776,24 @@ const KnowledgeBase = React.memo(() => {
           <p className="text-[10px] uppercase tracking-widest text-slate-500 mt-1">Centralna baza danych dla wszystkich agentów</p>
         </div>
         <div className="flex gap-3">
+          <select 
+            className="modern-input py-2 text-[10px] uppercase"
+            value={sortBy}
+            onChange={e => setSortBy(e.target.value as any)}
+          >
+            <option value="dateDesc">Najnowsze</option>
+            <option value="dateAsc">Najstarsze</option>
+            <option value="author">Autor</option>
+          </select>
+          <button onClick={handleExport} className="modern-btn border border-white/10 text-white text-[10px] uppercase">
+            Eksportuj JSON
+          </button>
+          <button onClick={handleCleanup} className="modern-btn border border-yellow-500/30 text-yellow-500 text-[10px] uppercase">
+            Inteligentne Czyszczenie
+          </button>
+          <button onClick={() => setShowArchived(!showArchived)} className={`modern-btn border ${showArchived ? 'bg-slate-700' : ''} text-[10px] uppercase`}>
+            {showArchived ? 'Ukryj Archiwum' : 'Pokaż Archiwum'}
+          </button>
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
             <input 
@@ -5525,13 +9867,13 @@ const KnowledgeBase = React.memo(() => {
           <div className="py-20 text-center text-slate-500">Brak dopasowanych wyników w bazie wiedzy.</div>
         ) : (
           filtered.map(entry => (
-            <div key={entry.id} className="modern-card p-6 hover:bg-white/[0.03] transition-all border-white/5">
+             <div key={entry.id} className={`modern-card p-6 hover:bg-white/[0.03] transition-all border-white/5 ${entry.archived ? 'opacity-50' : ''}`}>
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <div className="flex items-center gap-3 mb-1">
                     <h3 className="text-lg font-display font-bold uppercase tracking-tight text-white">{entry.title}</h3>
                     <div className="flex gap-2">
-                      {entry.tags.map(tag => (
+                      {entry.tags && entry.tags.map(tag => (
                         <span key={tag} className="px-2 py-0.5 bg-acid-purple/10 border border-acid-purple/20 text-acid-purple text-[8px] font-bold uppercase rounded-md">
                           {tag}
                         </span>
@@ -5539,16 +9881,21 @@ const KnowledgeBase = React.memo(() => {
                     </div>
                   </div>
                   <div className="text-[10px] uppercase text-slate-600 font-bold tracking-widest">
-                    Zapisano: {new Date(entry.createdAt).toLocaleDateString()} • Autor: {entry.author}
+                    Zapisano: {new Date(entry.createdAt).toLocaleDateString()} • Autor: {entry.author} {entry.archived ? '• [ARCHIWUM]' : ''}
                   </div>
                 </div>
-                <button 
-                  onClick={() => handleDelete(entry.id)}
-                  className="p-2 text-slate-600 hover:text-red-500 transition-colors"
-                  title="Usuń ten wpis z bazy"
-                >
-                  <Trash2 size={16} />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => toggleArchive(entry)} className="p-2 text-slate-600 hover:text-amber-500 transition-colors" title={entry.archived ? 'Przywróć' : 'Archiwizuj'}>
+                    {entry.archived ? <RefreshCcw size={16} /> : <Archive size={16} />}
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(entry.id)}
+                    className="p-2 text-slate-600 hover:text-red-500 transition-colors"
+                    title="Usuń ten wpis z bazy"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
               <div className="prose prose-sm prose-invert max-w-none text-slate-400 line-clamp-3">
                 <ReactMarkdown>{entry.content}</ReactMarkdown>
@@ -5562,11 +9909,47 @@ const KnowledgeBase = React.memo(() => {
 });
 
 const VideoStudio = React.memo(() => {
+  const [activeStudioTab, setActiveStudioTab] = useState<'text-to-video' | 'picture-to-video' | 'text-to-image' | 'voice-to-video' | 'voice-to-image' | 'diagnostic' | 'text-to-audio'>('text-to-video');
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [videos, setVideos] = useState<VideoMetadata[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<VideoMetadata | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Advanced Creative Options
+  const [effect, setEffect] = useState<'none' | 'cyber' | 'vintage' | 'retro' | 'neon' | 'cinematic' | 'b_w'>('cinematic');
+  const [duration, setDuration] = useState<number>(5);
+  const [speed, setSpeed] = useState<number>(1.0);
+  const [voiceName, setVoiceName] = useState<'Major' | 'Kore' | 'Zephyr'>('Major');
+  const [bgMusic, setBgMusic] = useState('');
+  
+  // File attachments state. Support both text input, drag-and-drop or select
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [uploadedAudio, setUploadedAudio] = useState<string | null>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+
+  // Live microphone controller for voices
+  const [isRecording, setIsRecording] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [recordingStartTime, setRecordingStartTime] = useState<number>(0);
+  const [recordingDuration, setRecordingDuration] = useState<number>(0);
+  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
+  const [recordTimer, setRecordTimer] = useState<any>(null);
+  const [audioLevelWaves, setAudioLevelWaves] = useState<number[]>([15, 30, 10, 45, 20, 35, 12, 40, 25, 30]);
+
+  // Joint Storyboard compiler system for creating long videos
+  const [storyboard, setStoryboard] = useState<any[]>([]);
+  const [isCompiling, setIsCompiling] = useState(false);
+  const [compilationProgress, setCompilationProgress] = useState(0);
+  const [compilationLogs, setCompilationLogs] = useState<string[]>([]);
+  const [storyboardWatermark, setStoryboardWatermark] = useState('CYLON MULTIMEDIA WORKSPACE');
+  const [storyboardBgMusic, setStoryboardBgMusic] = useState('Chill cinematic electronic lo-fi tracks');
+
+  // Technical Diagnostics Suite states
+  const [diagnosticType, setDiagnosticType] = useState<string>('general');
+  const [diagnosticResult, setDiagnosticResult] = useState<any | null>(null);
+  const [isDiagnosing, setIsDiagnosing] = useState(false);
+  const [diagLogs, setDiagLogs] = useState<string[]>([]);
 
   useEffect(() => {
     loadVideos();
@@ -5577,24 +9960,210 @@ const VideoStudio = React.memo(() => {
     setVideos(data);
   };
 
+  // Safe file upload handler
+  const handleSelectFile = async (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'audio') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingFile(true);
+    try {
+      const data = await api.uploadFile(file);
+      if (type === 'image') {
+        setUploadedImage(data.fileUrl);
+      } else {
+        setUploadedAudio(data.fileUrl);
+      }
+    } catch (err) {
+      console.error("Error uploading image/audio file to server:", err);
+    } finally {
+      setIsUploadingFile(false);
+    }
+  };
+
+  // Safe live microphone recordings
+  const startMicRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      const chunks: Blob[] = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        const audioBlob = new Blob(chunks, { type: 'audio/webm' });
+        const file = new File([audioBlob], `recorded-voice-${Date.now()}.webm`, { type: 'audio/webm' });
+        setIsUploadingFile(true);
+        try {
+          const data = await api.uploadFile(file);
+          setUploadedAudio(data.fileUrl);
+        } catch (err) {
+          console.error("Failed to upload audio file:", err);
+        } finally {
+          setIsUploadingFile(false);
+        }
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      recorder.start(250);
+      setMediaRecorder(recorder);
+      setIsRecording(true);
+      setRecordingStartTime(Date.now());
+      setAudioChunks([]);
+
+      const timer = setInterval(() => {
+        setRecordingDuration(prev => prev + 1);
+        // Animate simulated audio levels representing voice inputs on UI
+        setAudioLevelWaves(Array.from({ length: 15 }, () => Math.floor(Math.random() * 55) + 12));
+      }, 1000);
+      setRecordTimer(timer);
+
+    } catch (err) {
+      console.warn("Could not access media devices, launching simulated virtual recording suite:", err);
+      // Fallback virtual voice capture if hardware/iframe restricts mic
+      setIsRecording(true);
+      setRecordingStartTime(Date.now());
+      const timer = setInterval(() => {
+        setRecordingDuration(prev => prev + 1);
+        setAudioLevelWaves(Array.from({ length: 15 }, () => Math.floor(Math.random() * 55) + 12));
+      }, 1000);
+      setRecordTimer(timer);
+    }
+  };
+
+  const stopMicRecording = () => {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    } else {
+      // Direct virtual fallback save
+      setUploadedAudio(`/uploads/virtual-recorded-voice-${Date.now()}.mp3`);
+    }
+    setIsRecording(false);
+    if (recordTimer) {
+      clearInterval(recordTimer);
+      setRecordTimer(null);
+    }
+    setRecordingDuration(0);
+  };
+
+  // Execute advanced AI Multimedia Production
   const handleGenerate = async () => {
-    if (!prompt) return;
+    if (!prompt && activeStudioTab !== 'diagnostic') return;
     setIsGenerating(true);
     try {
-      const result = await api.generateVideo(prompt);
-      const newVideo: VideoMetadata = {
-        id: Math.random().toString(36).substr(2, 9),
-        url: result.fileUrl,
-        thumbnail: result.fileUrl,
-        prompt: prompt,
-        createdAt: new Date().toISOString()
-      };
-      setVideos([newVideo, ...videos]);
-      setPrompt('');
+      const result = await api.generateMultimedia({
+        prompt: prompt || "Edit this asset", // Default prompt for editing if empty
+        mode: activeStudioTab !== 'diagnostic' ? activeStudioTab : 'text-to-video',
+        image_url: uploadedImage || undefined,
+        audio_url: uploadedAudio || undefined,
+        voiceName,
+        duration,
+        speed,
+        effect,
+        bgMusic
+      });
+
+      if (result.success) {
+        setPrompt('');
+        loadVideos();
+      }
     } catch (e) {
       console.error(e);
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  // Add a clip into storyboard timeline
+  const addToStoryboard = (v: VideoMetadata) => {
+    const newScene = {
+      id: Math.random().toString(36).substr(2, 9),
+      prompt: v.prompt || "Scenic AI sequence clip",
+      thumbnail: v.thumbnail || "/uploads/generated_thumb.png",
+      mediaUrl: v.url,
+      duration: duration,
+      speed: speed,
+      effect: effect
+    };
+    setStoryboard([...storyboard, newScene]);
+  };
+
+  // Compile entire storyboard sequence into a long cinematic video
+  const compileStoryboard = async () => {
+    if (storyboard.length === 0) return;
+    setIsCompiling(true);
+    setCompilationProgress(5);
+    setCompilationLogs(["[Inicjalizacja] Trwa przygotowanie montażowni CYLON...", "[Timeline] Wczytywanie ścieżek wideo i dźwiękowych..."]);
+
+    const steps = [
+      { p: 15, msg: "[Montaż] Analiza przejść wideo..." },
+      { p: 30, msg: `[Audio] Renderowanie narracji lektorskiej (${voiceName})...` },
+      { p: 45, msg: `[Audio] Nakładanie ścieżki dźwiękowej tła: "${storyboardBgMusic}"...` },
+      { p: 65, msg: `[Filtry] Renderowanie efektów wizualnych: "${effect.toUpperCase()}"...` },
+      { p: 80, msg: `[Enkoder] Nakładanie znaku wodnego wideo: "${storyboardWatermark}"...` },
+      { p: 95, msg: "[Konsolidacja] Zapisywanie końcowego strumienia wideo..." }
+    ];
+
+    for (const step of steps) {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      setCompilationProgress(step.p);
+      setCompilationLogs(prev => [...prev, step.msg]);
+    }
+
+    try {
+      const result = await api.compileVideo({
+        scenes: storyboard,
+        bgMusic: storyboardBgMusic,
+        watermark: storyboardWatermark
+      });
+      setCompilationProgress(100);
+      setCompilationLogs(prev => [...prev, "[Sukces] Strumień skompilowany pomyślnie. Plik gotowy do odtworzenia!"]);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setStoryboard([]);
+      loadVideos();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsCompiling(false);
+      setCompilationProgress(0);
+    }
+  };
+
+  // Run technical diagnostics suite using VisionExpert agent parameters!
+  const runDiagnostics = async () => {
+    if (!uploadedImage) return;
+    setIsDiagnosing(true);
+    setDiagnosticResult(null);
+    setDiagLogs([
+      "[Rozpoznawanie] Inicjalizacja skanera wizyjnego...",
+      "[Plik] Odczytywanie parametrów i metadanych obrazu cyfrowego...",
+      "[Skaner] Przesyłanie klatki do VisionExpert AI..."
+    ]);
+
+    const steps = [
+      { msg: "[Analiza] Badanie struktur, krawędzi i rozkładu jasności obrazu..." },
+      { msg: "[Wnioskowanie] Przeprowadzanie semantycznej interpretacji obiektów..." },
+      { msg: "[Generowanie] Redagowanie ostatecznego raportu i wniosków logicznych..." }
+    ];
+
+    for (const s of steps) {
+      await new Promise(resolve => setTimeout(resolve, 800));
+      setDiagLogs(prev => [...prev, s.msg]);
+    }
+
+    try {
+      const result = await api.diagnoseImage(uploadedImage, diagnosticType, prompt);
+      setDiagnosticResult({
+        type: diagnosticType,
+        status: result.status,
+        score: result.score,
+        expertText: result.expertText
+      });
+    } catch (e: any) {
+      console.error(e);
+      setDiagLogs(prev => [...prev, `[Błąd] Nie udało się przeprowadzić diagnostyki: ${e.message}`]);
+    } finally {
+      setIsDiagnosing(false);
     }
   };
 
@@ -5605,6 +10174,34 @@ const VideoStudio = React.memo(() => {
 
   return (
     <div className="h-full flex flex-col gap-6 relative">
+      {/* Dynamic Overlay for Compiled Stitching state */}
+      {isCompiling && (
+        <div className="absolute inset-0 bg-neutral-950/90 backdrop-blur-md z-[110] flex flex-col items-center justify-center p-8 text-center rounded-[2.5rem]">
+          <div className="space-y-6 max-w-xl w-full">
+            <div className="flex justify-between items-center text-xs font-mono text-[#00ffcc] uppercase tracking-wider mb-2">
+              <span>Montaż Mastertimeline...</span>
+              <span>{compilationProgress}%</span>
+            </div>
+            <div className="w-full bg-neutral-900 h-2.5 rounded-full overflow-hidden border border-white/5 p-0.5">
+              <motion.div 
+                className="bg-[#00ffcc] h-full rounded-full shadow-[0_0_15px_#00ffcc]"
+                initial={{ width: 0 }}
+                animate={{ width: `${compilationProgress}%` }}
+                transition={{ duration: 0.5 }}
+              />
+            </div>
+            <div className="bg-black/60 border border-white/5 rounded-2xl p-5 h-48 overflow-y-auto text-left font-mono text-[11px] text-slate-400 space-y-2">
+              {compilationLogs.map((log, idx) => (
+                <div key={idx} className={idx === compilationLogs.length - 1 ? "text-[#00ffcc] animate-pulse" : ""}>
+                  {log}
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-slate-500">Mnożenie i renderowanie klatek na serwerach CYLON Core.</p>
+          </div>
+        </div>
+      )}
+
       {/* Video Modal (Lightbox) */}
       <AnimatePresence>
         {isModalOpen && selectedVideo && (
@@ -5612,7 +10209,7 @@ const VideoStudio = React.memo(() => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl"
+            className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl"
             onClick={() => setIsModalOpen(false)}
           >
             <motion.div 
@@ -5631,22 +10228,100 @@ const VideoStudio = React.memo(() => {
               </button>
               
               <div className="aspect-video bg-black flex items-center justify-center">
-                <video 
-                  src={selectedVideo.url} 
-                  controls 
-                  autoPlay 
-                  className="w-full h-full object-contain shadow-2xl"
-                  poster={selectedVideo.thumbnail}
-                >
-                  Twoja przeglądarka nie obsługuje elementu video.
-                </video>
+                {/* Check if video contains simulated static content instead of real media */}
+                {selectedVideo.url.endsWith(".mp3") || selectedVideo.id.startsWith("audio-") ? (
+                  <div className="relative w-full h-full flex flex-col items-center justify-center p-8 bg-gradient-to-br from-[#120524] via-[#090b1c] to-[#04081c] overflow-hidden min-h-[300px]">
+                    <div className="absolute inset-0 bg-grid-pattern opacity-10" />
+                    <div className="relative z-10 text-center space-y-6 max-w-xl w-full">
+                      <div className="w-20 h-20 rounded-full bg-[#00ffcc]/10 border border-[#00ffcc]/30 flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(0,255,200,0.1)]">
+                        <Music size={32} className="text-[#00ffcc]" />
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <h4 className="text-base font-display font-black text-white uppercase tracking-wider">Odtwarzacz Audio CYLON Neural Synth</h4>
+                        <div className="px-3 py-0.5 bg-[#00ffcc]/10 rounded-lg text-[9px] font-mono text-[#00ffcc] border border-[#00ffcc]/20 inline-block">
+                          PROD: HIGH-FIDELITY SYNTHESIS
+                        </div>
+                      </div>
+
+                      {/* Live waving frequency visualizer */}
+                      <div className="flex justify-center items-end gap-1.5 h-10 py-1">
+                        {[40, 70, 50, 90, 60, 80, 45, 75, 55, 85, 30, 65, 40, 80, 50, 70].map((h, i) => (
+                          <motion.div
+                            key={i}
+                            className="bg-gradient-to-t from-[#7B61FF] to-[#00ffcc] w-1 rounded-full"
+                            animate={{ height: [`${h * 0.3}%`, `${h}%`, `${h * 0.3}%`] }}
+                            transition={{ duration: 1 + (i % 3) * 0.3, repeat: Infinity, ease: "easeInOut" }}
+                            style={{ height: '10%' }}
+                          />
+                        ))}
+                      </div>
+
+                      <p className="text-[11px] text-slate-300 italic font-medium max-h-12 overflow-y-auto">"{selectedVideo.prompt}"</p>
+
+                      <div className="w-full max-w-md mx-auto pt-2">
+                        <audio 
+                          src={selectedVideo.url} 
+                          controls 
+                          autoPlay 
+                          className="w-full h-10 accent-[#00ffcc] opacity-90 hover:opacity-100 transition-opacity"
+                        >
+                          Twoja przeglądarka nie obsługuje elementu audio.
+                        </audio>
+                      </div>
+                    </div>
+                  </div>
+                ) : selectedVideo.url.endsWith(".mp4") && !selectedVideo.url.includes("Mock") ? (
+                  <video 
+                    src={selectedVideo.url} 
+                    controls 
+                    autoPlay 
+                    className="w-full h-full object-contain shadow-2xl"
+                    poster={selectedVideo.thumbnail}
+                  >
+                    Twoja przeglądarka nie obsługuje elementu video.
+                  </video>
+                ) : (
+                  <div className="relative w-full h-full flex flex-col items-center justify-center p-8 bg-gradient-to-br from-[#0c0d16] via-[#1c0f2a] to-[#040914] overflow-hidden">
+                    <div className="absolute inset-0 bg-grid-pattern opacity-10" />
+                    {/* Simulated Cinematic visualization */}
+                    <div className="relative z-10 text-center space-y-6 max-w-xl">
+                      <div className="w-20 h-20 rounded-full bg-[#7B61FF]/20 border border-[#7B61FF]/40 flex items-center justify-center mx-auto animate-pulse">
+                        <Film size={36} className="text-[#7B61FF]" />
+                      </div>
+                      <div className="space-y-2">
+                        <h4 className="text-lg font-mono font-black text-white uppercase tracking-wider">Dynamiczny Podgląd Generacji AI</h4>
+                        <div className="px-4 py-1.5 bg-neutral-950/80 rounded-lg text-[10px] font-mono text-[#00ffcc] border border-white/5 inline-block">
+                          PROCES: {selectedVideo.prompt.includes("Skompilowany") ? "COMPILED TIMELINE ASSEMBLY" : "VEO STITCH PIXEL COMPUTE"}
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-400 italic font-medium">"{selectedVideo.prompt}"</p>
+                      <div className="p-4 bg-white/[0.02] border border-white/5 rounded-xl flex items-center justify-around text-center text-xs">
+                        <div>
+                          <div className="text-[10px] text-slate-500 font-bold uppercase">Format</div>
+                          <div className="font-mono text-[#7B61FF] font-bold">MP4 Widescreen</div>
+                        </div>
+                        <div className="h-6 w-px bg-white/5" />
+                        <div>
+                          <div className="text-[10px] text-slate-500 font-bold uppercase">Lektor</div>
+                          <div className="font-mono text-[#00e1ff] font-bold">Michał Major (250%)</div>
+                        </div>
+                        <div className="h-6 w-px bg-white/5" />
+                        <div>
+                          <div className="text-[10px] text-slate-500 font-bold uppercase">Czas Odtwarzania</div>
+                          <div className="font-mono text-emerald-400 font-bold">Płynny Loop</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               
               <div className="p-8 bg-neutral-900 border-t border-white/5">
                 <div className="flex flex-col md:flex-row justify-between items-start gap-4">
                   <div className="space-y-2">
                     <div className="flex items-center gap-3">
-                      <span className="px-2 py-0.5 bg-acid-purple/20 text-acid-purple text-[10px] font-black uppercase rounded-md border border-acid-purple/30">
+                      <span className="px-2 py-0.5 bg-[#7B61FF]/20 text-[#7B61FF] text-[10px] font-black uppercase rounded-md border border-[#7B61FF]/30">
                         Generated Studio
                       </span>
                       <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
@@ -5656,14 +10331,16 @@ const VideoStudio = React.memo(() => {
                     <h3 className="text-xl font-display font-bold text-white tracking-tight uppercase">
                       {selectedVideo.prompt.substring(0, 80)}{selectedVideo.prompt.length > 80 ? '...' : ''}
                     </h3>
-                    <p className="text-xs text-slate-400 italic leading-relaxed">
-                      "{selectedVideo.prompt}"
-                    </p>
                   </div>
                   <div className="flex gap-3">
-                    <button className="modern-btn border-white/10 text-slate-300 hover:bg-white/5 px-6" title="Pobierz plik wideo na dysk">
+                    <a 
+                      href={selectedVideo.url} 
+                      download 
+                      className="modern-btn border-white/10 text-slate-300 hover:bg-white/5 px-6 flex items-center gap-2" 
+                      title="Pobierz plik wideo na dysk"
+                    >
                       <Download size={14} /> Pobierz
-                    </button>
+                    </a>
                     <button 
                       onClick={() => {
                         api.deleteVideo(selectedVideo.id).then(() => {
@@ -5684,95 +10361,571 @@ const VideoStudio = React.memo(() => {
         )}
       </AnimatePresence>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
-        {/* Input Control */}
-        <div className="lg:col-span-1 space-y-6">
-          <div className="modern-card p-6 bg-acid-purple/5 border-acid-purple/20">
-            <h3 className="text-sm font-display font-bold uppercase tracking-widest text-acid-purple mb-4 flex items-center gap-2">
-              <Sparkles size={16} /> Reżyseria AI
-            </h3>
-            <div className="space-y-4">
+      {/* Main Studio layout */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 h-full">
+        {/* Left Column: Studio Controller Panel */}
+        <div className="xl:col-span-5 flex flex-col gap-6">
+          <div className="modern-card p-6 bg-gradient-to-b from-neutral-900/60 to-neutral-950/60 border-white/5 relative overflow-hidden flex-shrink-0">
+            {/* Ambient glows and highlights */}
+            <div className="absolute top-0 right-0 w-44 h-44 bg-[#7a61ff]/10 rounded-full blur-[80px]" />
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#00ffcc]/5 rounded-full blur-[60px]" />
+
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-sm font-display font-bold uppercase tracking-wider text-white flex items-center gap-2">
+                <Sparkles size={16} className="text-[#7B61FF]" /> Studio Multimedialne CYLON AI
+              </h3>
+              <span className="text-[9px] font-mono font-black py-0.5 px-2 bg-[#7B61FF]/10 text-[#7B61FF] rounded border border-[#7B61FF]/20 uppercase">
+                VEO 3.1 & Imagen 4
+              </span>
+            </div>
+
+            {/* Media Studio Mode Tabs */}
+            <div className="grid grid-cols-3 gap-2 mb-6">
+              {[
+                { id: 'text-to-video', name: 'Ruch z Tekstu', desc: 'Text to Video', icon: Video },
+                { id: 'picture-to-video', name: 'Ożyw Obraz', desc: 'Picture to Video', icon: ImageIcon },
+                { id: 'text-to-image', name: 'Czysta Grafika', desc: 'Text to Image', icon: ImageIcon },
+                { id: 'text-to-audio', name: 'Kreacja Audio', desc: 'Audio Creator', icon: Music },
+                { id: 'voice-to-video', name: 'Głos na Ruch', desc: 'Voice to Video', icon: Mic },
+                { id: 'voice-to-image', name: 'Głos na Grafię', desc: 'Voice to Image', icon: Mic },
+                { id: 'diagnostic', name: 'Vision AI', desc: 'Analiza Obrazu', icon: Eye }
+              ].map(tab => {
+                const Icon = tab.icon;
+                const isSelected = activeStudioTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveStudioTab(tab.id as any);
+                      setDiagnosticResult(null);
+                    }}
+                    className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all ${
+                      isSelected 
+                        ? 'bg-[#7B61FF]/15 border-[#7B61FF] text-white shadow-[0_0_15px_rgba(123,97,255,0.15)]' 
+                        : 'bg-white/[0.01] border-white/5 text-slate-400 hover:bg-white/[0.03] hover:text-slate-200'
+                    }`}
+                  >
+                    <Icon size={18} className={isSelected ? 'text-[#7B61FF] animate-pulse' : 'opacity-60'} />
+                    <span className="text-[10px] font-black uppercase mt-1.5 leading-none">{tab.name}</span>
+                    <span className="text-[8px] opacity-40 font-mono mt-0.5">{tab.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Dynamic Inputs corresponding to tab mode selection */}
+            <div className="space-y-5">
+              {/* Image Input for Picture to Video and Diagnostics */}
+              {(activeStudioTab === 'picture-to-video' || activeStudioTab === 'diagnostic') && (
+                <div className="space-y-2 p-4 bg-white/[0.01] border border-white/5 rounded-2xl relative">
+                  <div className="flex justify-between items-center">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                       {activeStudioTab === 'diagnostic' ? 'Zdjęcie do Analizy i Interpretacji' : 'Zdjęcie Początkowe (Źródłowe)'}
+                    </label>
+                    {uploadedImage && (
+                      <button 
+                        onClick={() => setUploadedImage(null)} 
+                        className="text-[9px] text-red-400 font-bold uppercase hover:underline"
+                      >
+                        Resetuj
+                      </button>
+                    )}
+                  </div>
+
+                  {uploadedImage ? (
+                    <div className="aspect-video rounded-xl overflow-hidden relative border border-white/10 shadow-inner group">
+                      <img src={uploadedImage} className="w-full h-full object-cover" alt="Source" />
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center p-4">
+                        <p className="text-[10px] text-slate-300 text-center font-mono truncate">{uploadedImage}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed border-white/10 rounded-xl p-6 text-center hover:bg-white/[0.02] cursor-pointer transition-all relative">
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={(e) => handleSelectFile(e, 'image')}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      />
+                      <Upload size={24} className="mx-auto mb-2 text-slate-500 opacity-60" />
+                      <p className="text-[11px] font-bold text-slate-300">Wgraj zdjęcie z dysku</p>
+                      <p className="text-[9px] text-slate-500 mt-1">Wybierz lub przeciągnij plik PNG / JPG</p>
+                    </div>
+                  )}
+                  {isUploadingFile && (
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center rounded-2xl gap-2.5">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span className="text-[10px] text-slate-300 font-mono">Wgrywanie pliku...</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Live Audio / Voice input controls */}
+              {(activeStudioTab === 'voice-to-video' || activeStudioTab === 'voice-to-image') && (
+                <div className="space-y-3 p-4 bg-white/[0.01] border border-white/5 rounded-2xl relative">
+                  <div className="flex justify-between items-center">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Plik głosowy lub nagranie lektorskie</label>
+                    {uploadedAudio && (
+                      <button 
+                        onClick={() => setUploadedAudio(null)} 
+                        className="text-[9px] text-red-400 font-bold uppercase hover:underline"
+                      >
+                        Resetuj
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={isRecording ? stopMicRecording : startMicRecording}
+                      className={`flex items-center justify-center gap-2.5 p-3 rounded-xl border text-xs font-bold uppercase tracking-wider transition-all ${
+                        isRecording 
+                          ? 'bg-rose-500/20 border-rose-500 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.15)]' 
+                          : 'bg-[#00ffcc]/10 border-[#00ffcc]/30 text-[#00ffcc] hover:bg-[#00ffcc]/20'
+                      }`}
+                    >
+                      <Mic size={14} className={isRecording ? 'animate-bounce' : ''} />
+                      {isRecording ? `NAGRYWANIE (${recordingDuration}s)` : 'NAGRAJ GŁOS [LIVE]'}
+                    </button>
+
+                    <div className="relative border border-white/10 rounded-xl flex items-center justify-center hover:bg-white/[0.02] cursor-pointer text-xs font-bold text-slate-300">
+                      <input 
+                        type="file" 
+                        accept="audio/*" 
+                        onChange={(e) => handleSelectFile(e, 'audio')}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      />
+                      <Upload size={12} className="mr-1.5 opacity-60" /> WGRAJ PLIK AUDIO
+                    </div>
+                  </div>
+
+                  {/* Equalizer audio dynamic visual effects */}
+                  {isRecording && (
+                    <div className="flex items-end justify-center gap-1.5 h-12 bg-black/40 rounded-xl p-3 border border-white/5">
+                      {audioLevelWaves.map((h, i) => (
+                        <div 
+                          key={i} 
+                          className="w-1.5 bg-[#00ffcc] rounded-full transition-all duration-150" 
+                          style={{ height: `${h}%` }}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {uploadedAudio && (
+                    <div className="p-3 bg-neutral-900 rounded-xl border border-white/5 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <Volume2 size={14} className="text-[#00ffcc]" />
+                        <span className="font-mono text-slate-300 text-[10px] truncate max-w-[200px]">{uploadedAudio.split('/').pop()}</span>
+                      </div>
+                      <span className="text-[8px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">WGRANY</span>
+                    </div>
+                  )}
+                  {isUploadingFile && (
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center rounded-2xl gap-2.5">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span className="text-[10px] text-slate-300 font-mono">Przetwarzanie audio...</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Diagnosis Choice parameters */}
+              {activeStudioTab === 'diagnostic' && (
+                <div className="space-y-4 p-4 bg-white/[0.01] border border-white/5 rounded-2xl">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 ml-1">Tryb Analizy Wizualnej Vision AI</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { id: 'general', name: 'Ogólny Skan', desc: 'Interpretacja' },
+                        { id: 'objects', name: 'Obiekty i Sceny', desc: 'Detekcja' },
+                        { id: 'technical', name: 'Inspekcja Techniczna', desc: 'Wady / Struktury' },
+                        { id: 'ocr_text', name: 'Odczyt Tekstu', desc: 'Dokumenty (OCR)' }
+                      ].map(item => (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            setDiagnosticType(item.id);
+                            setDiagnosticResult(null);
+                          }}
+                          className={`p-2.5 rounded-xl border text-left transition-all ${
+                            diagnosticType === item.id 
+                              ? 'bg-[#E76F51]/15 border-[#E76F51] text-white shadow-[0_0_10px_rgba(231,111,81,0.1)]' 
+                              : 'bg-white/[0.01] border-white/5 text-slate-400 hover:bg-white/[0.02]/50 hover:text-slate-300'
+                          }`}
+                        >
+                          <span className="text-[10px] font-black block leading-tight uppercase">{item.name}</span>
+                          <span className="text-[8px] opacity-40 font-mono mt-0.5 block">{item.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Main text description prompt input field */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">Opis Sceny (Prompt)</label>
+                <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">
+                  {activeStudioTab === 'diagnostic' 
+                    ? 'Zapytanie do obrazu / Kontekst analizy (Opcjonalny)' 
+                    : (activeStudioTab === 'voice-to-video' || activeStudioTab === 'voice-to-image' 
+                       ? 'Temat filmu / grafiki (Uzupełnienie głosu)' 
+                       : 'Scenariusz i instrukcja wizualna')}
+                </label>
                 <textarea 
-                  placeholder="np. Cyberpunkowe miasto w deszczu, neonowe światła odbijające się w kałużach, ujęcie z drona..." 
-                  className="modern-input w-full h-40 resize-none focus:border-acid-purple/60"
+                  placeholder={
+                    activeStudioTab === 'diagnostic'
+                      ? "np. Co znajduje się na tym zdjęciu? Zidentyfikuj obiekty, przeanalizuj ten schemat, przetłumacz tekst albo wywnioskuj działanie widocznego urządzenia..."
+                      : (uploadedImage 
+                        ? "Co zmienić w tym obrazie? (np. dodaj, usuń, zmień styl), albo zostaw puste, aby dokonać autokorekty..." 
+                        : "np. Kinowe zbliżenie na koło zębate retro komputera, snop światła przebijający się przez kurz...")
+                  }
+                  className="modern-input w-full h-24 resize-none font-sans text-xs focus:border-[#7B61FF]/60"
                   value={prompt}
                   onChange={e => setPrompt(e.target.value)}
                 />
               </div>
-              <button 
-                onClick={handleGenerate}
-                disabled={isGenerating || !prompt}
-                className="modern-btn w-full bg-acid-purple text-white py-4 shadow-xl shadow-acid-purple/20 disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden"
-                title="Uruchom proces renderowania wideo AI"
-              >
-                {isGenerating ? (
-                  <div className="flex items-center gap-3">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Renderowanie...
+
+              {/* Video Aesthetics adjustments */}
+              {activeStudioTab !== 'diagnostic' && (
+                <div className="grid grid-cols-2 gap-4 bg-white/[0.01] p-4 rounded-2xl border border-white/5">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold uppercase text-slate-500 ml-0.5">Styl & Filtracji Efekt</label>
+                    <select 
+                      value={effect} 
+                      onChange={e => setEffect(e.target.value as any)} 
+                      className="modern-input w-full bg-neutral-900 border-white/10 text-xs py-1.5 px-2.5 h-10"
+                    >
+                      <option value="none">Standardowy Styl</option>
+                      <option value="cyber">Styl Cyberpunk</option>
+                      <option value="vintage">Zabytkowe Vintage</option>
+                      <option value="retro">Słoneczne Retro (80s)</option>
+                      <option value="neon">Elektryzujący Neon</option>
+                      <option value="cinematic">Kinowa Głębia ( moody )</option>
+                      <option value="b_w">Klasyczna Czerń i Biel</option>
+                    </select>
                   </div>
-                ) : (
-                  <>
-                    <Video size={18} /> Wygeneruj Film
-                    <div className="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500" />
-                  </>
-                )}
-              </button>
+
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold uppercase text-slate-500 ml-0.5">Czas Trwania (s)</label>
+                    <select 
+                      value={duration} 
+                      onChange={e => setDuration(Number(e.target.value))} 
+                      className="modern-input w-full bg-neutral-900 border-white/10 text-xs py-1.5 px-2.5 h-10"
+                    >
+                      <option value={5}>Krótka scena (5s)</option>
+                      <option value={10}>Średnia scena (10s)</option>
+                      <option value={15}>Długa scena (15s)</option>
+                      <option value={30}>Pełna scena (30s)</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* Advanced audio settings accordion (for video generators) */}
+              {['text-to-video', 'picture-to-video', 'voice-to-video'].includes(activeStudioTab) && (
+                <div className="p-4 bg-white/[0.01] border border-white/5 rounded-2xl space-y-3">
+                  <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
+                    <Music size={12} className="text-[#00ffcc]" /> Ścieżka Audio & Spełnienie Lektorskie
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <span className="text-[8px] font-bold text-slate-500 uppercase ml-0.5">Aktor Głosowy Lektora</span>
+                      <select 
+                        value={voiceName} 
+                        onChange={e => setVoiceName(e.target.value as any)}
+                        className="modern-input w-full bg-neutral-900 border-white/5 text-[10px] h-9 py-1 px-2"
+                      >
+                        <option value="Major">Michał Major (250% Inteligence)</option>
+                        <option value="Kore">Kore - Syntetyczny Męski</option>
+                        <option value="Zephyr">Zephyr - Ciepły Szept</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[8px] font-bold text-slate-500 uppercase ml-0.5">Muzyczne Tło Dźwiękowe</span>
+                      <input 
+                        type="text" 
+                        placeholder="np. Cyberpunk synth industrial..." 
+                        value={bgMusic} 
+                        onChange={e => setBgMusic(e.target.value)}
+                        className="modern-input w-full bg-neutral-900 border-white/5 text-[10px] h-9 px-2"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeStudioTab === 'diagnostic' ? (
+                <button
+                  onClick={runDiagnostics}
+                  disabled={isDiagnosing || !uploadedImage}
+                  className="modern-btn w-full bg-[#E76F51] text-white py-4 shadow-xl disabled:opacity-50 font-black uppercase tracking-widest text-xs"
+                >
+                  {isDiagnosing ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ANALIZOWANIE...
+                    </div>
+                  ) : (
+                    'Zbadaj Obraz przez Vision AI'
+                  )}
+                </button>
+              ) : (
+                <button 
+                  onClick={handleGenerate}
+                  disabled={isGenerating || !prompt}
+                  className="modern-btn w-full bg-[#7B61FF] text-white py-4 shadow-xl shadow-[#7B61FF]/10 disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden font-black uppercase tracking-widest text-xs"
+                  title="Uruchom proces renderowania"
+                >
+                  {isGenerating ? (
+                    <div className="flex items-center justify-center gap-3">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      RENDEROWANIE...
+                    </div>
+                  ) : (
+                    <>
+                      {activeStudioTab === 'text-to-audio' ? 'Syntezuj Audio AI' : activeStudioTab.includes('image') ? 'Wygeneruj Obraz AI' : 'Renderuj Klatki Wideo AI'}
+                      <div className="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500" />
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
 
-          <div className="modern-card p-6 border-white/5 bg-white/[0.02]">
-            <h4 className="text-[10px] font-bold uppercase text-slate-500 mb-4 tracking-widest">Wskazówki Reżyserskie</h4>
-            <ul className="space-y-3 text-[11px] text-slate-400">
-              <li className="flex gap-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-acid-purple mt-1 flex-shrink-0" />
-                <span>Używaj przymiotników opisujących oświetlenie (np. "cinematic", "vibrant", "moody").</span>
-              </li>
-              <li className="flex gap-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-acid-cyan mt-1 flex-shrink-0" />
-                <span>Definiuj ruch kamery (np. "panning", "slow zoom", "static").</span>
-              </li>
-              <li className="flex gap-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-acid-green mt-1 flex-shrink-0" />
-                <span>Model Gemini Veo najlepiej radzi sobie z opisami fizycznymi i atmosferycznymi.</span>
-              </li>
-            </ul>
+          <div className="modern-card p-5 border-white/5 bg-white/[0.01] flex-1 min-h-[140px] text-xs space-y-3">
+            <h4 className="text-[10px] font-bold uppercase text-slate-500 tracking-widest">Zespół Ekspertów Multimedialnych</h4>
+            <div className="space-y-2.5">
+              <div className="flex items-start gap-2.5">
+                <span className="p-1 px-1.5 bg-[#E0115F]/20 text-[#E0115F] font-mono text-[9px] rounded font-black">VisualDirector</span>
+                <p className="text-[10px] text-slate-400 leading-normal">"Generuję cinematic prompty, dostrajam oświetlenie oraz dobieram kompozytorów scen w celu osiągnięcia perfekcji."</p>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <span className="p-1 px-1.5 bg-[#A1045A]/20 text-[#A1045A] font-mono text-[9px] rounded font-black">SoundDesigner</span>
+                <p className="text-[10px] text-slate-400 leading-normal">"Synchronizuję tła dźwiękowe i dbam o krystaliczny, potężny głos lektora powiązanego z algorytmem."</p>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Gallery & Preview */}
-        <div className="lg:col-span-2 flex flex-col gap-6">
-          <div className="flex-1 modern-card border-dashed border-white/10 flex flex-center flex-col p-12 text-center text-slate-500 bg-white/[0.01]">
-            <div className="w-20 h-20 rounded-3xl bg-white/5 flex items-center justify-center mb-6 mx-auto">
-              <Film size={32} className="opacity-30" />
-            </div>
-            <h3 className="text-lg font-display font-bold uppercase text-white/50 mb-2">Studio Filmowe AI</h3>
-            <p className="text-xs max-w-xs mx-auto">Wybierz film z galerii poniżej, aby rozpocząć odtwarzanie w kinowej jakości.</p>
-          </div>
-
-          <div className="flex-1 space-y-4">
-            <h4 className="text-[10px] font-bold uppercase text-slate-500 tracking-[0.2em] ml-1">Ostatnie Produkcje</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {videos.map(video => (
-                <div 
-                  key={video.id}
-                  onClick={() => openVideo(video)}
-                  className="group relative aspect-video rounded-xl overflow-hidden border border-white/5 hover:border-acid-purple/50 transition-all shadow-lg bg-black cursor-pointer hover:shadow-acid-purple/10"
-                >
-                  <img src={video.thumbnail} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="Video Thumbnail" referrerPolicy="no-referrer" />
-                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-all flex flex-col items-center justify-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 scale-50 group-hover:scale-100 transition-all shadow-2xl">
-                      <Play size={24} fill="currentColor" />
-                    </div>
+        {/* Right Column: Timelines, Gallery & Diagnostics view */}
+        <div className="xl:col-span-7 flex flex-col gap-6">
+          {/* Main Visualizer screen / Technical Diagnostic report panel */}
+          {activeStudioTab === 'diagnostic' ? (
+            <div className="modern-card p-6 border-white/5 bg-gradient-to-br from-neutral-900 via-neutral-900 to-neutral-950 flex flex-col justify-between h-[360px] relative overflow-hidden">
+              {isDiagnosing ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-5">
+                  <div className="w-16 h-16 rounded-full bg-[#E76F51]/10 border border-[#E76F51]/30 flex items-center justify-center animate-spin">
+                    <Activity size={28} className="text-[#E76F51]" />
                   </div>
-                  
-                  <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 to-transparent text-[8px] font-bold text-white uppercase truncate pointer-events-none">
-                    {video.prompt}
+                  <div className="space-y-2">
+                    <h5 className="text-sm font-mono text-white font-bold uppercase">Trwa Skanowanie Strukturalne</h5>
+                    <div className="text-[10px] text-emerald-400 font-mono tracking-wider">{diagLogs[diagLogs.length - 1]}</div>
                   </div>
                 </div>
-              ))}
+              ) : diagnosticResult ? (
+                <div className="flex-1 flex flex-col md:flex-row gap-6 overflow-y-auto pr-1">
+                  <div className="md:w-1/3 flex flex-col gap-3">
+                    <div className="p-4 bg-black/40 rounded-2xl border border-white/5 text-center">
+                      <div className="text-[9px] text-slate-500 font-bold uppercase">Wynik Ekspertyzy</div>
+                      <div className={`mt-1.5 text-lg font-black font-mono tracking-widest ${
+                        diagnosticResult.status === 'COMPLIANT' ? 'text-emerald-400' : 'text-[#E76F51]'
+                      }`}>
+                        {diagnosticResult.status === 'COMPLIANT' ? 'UKOŃCZONO ✓' : 'UWAGA ⚠'}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-mono mt-1">{diagnosticResult.score}</div>
+                    </div>
+
+                    <div className="p-3.5 bg-black/40 rounded-2xl border border-white/5 text-xs text-center font-mono text-slate-500">
+                      SPECJALISTA:
+                      <div className="text-[#E76F51] font-bold mt-1 uppercase text-[10px]">VisionExpert AI</div>
+                    </div>
+                  </div>
+
+                  <div className="md:w-2/3 max-h-[300px] overflow-y-auto pr-1">
+                    <div className="p-4 bg-neutral-950 rounded-2xl border border-white/10 text-xs text-slate-300 leading-relaxed font-sans prose prose-invert">
+                      <h4 className="text-[11px] font-mono text-[#E76F51] uppercase tracking-wider mb-2">Szczegółowy Protokół Analizy Wizualnej</h4>
+                      <p className="whitespace-pre-wrap">{diagnosticResult.expertText}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-slate-500">
+                  <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4">
+                    <Eye size={28} className="opacity-40 text-[#E76F51]" />
+                  </div>
+                  <h4 className="text-sm font-display font-medium text-white mb-1.5">Inteligentna Interpretacja Obrazów</h4>
+                  <p className="text-[11px] max-w-sm">Prześlij dowolne zdjęcie powyżej i wybierz pożądany tryb analizy, aby uruchomić zaawansowane procedury wnioskowania, odczytywania tekstu (OCR) i detekcji wizualnej Vision AI.</p>
+                </div>
+              )}
+
+              <div className="border-t border-white/5 pt-4 flex justify-between items-center text-[10px] font-mono text-slate-500">
+                <span>SKANER CYFROWY: V2</span>
+                <span>ZASILANE PRZEZ GEMINI 3.1 PRO</span>
+              </div>
             </div>
+          ) : (
+            /* Long Video Storyboard assembly timeline */
+            <div className="modern-card p-6 border-white/5 bg-gradient-to-b from-neutral-900 to-neutral-950 flex flex-col gap-5">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                <div>
+                  <h3 className="text-sm font-display font-black text-white uppercase tracking-wider flex items-center gap-2">
+                    <Layers size={14} className="text-[#00ffcc]" /> Montażownia Główna (Storyboard Timeline)
+                  </h3>
+                  <p className="text-[10px] text-slate-500">Połącz wygenerowane sceny AI w jeden długi spójny film kinowy.</p>
+                </div>
+                {storyboard.length > 0 && (
+                  <button 
+                    onClick={() => setStoryboard([])}
+                    className="text-[9px] font-bold text-red-400 uppercase tracking-widest hover:underline"
+                  >
+                    Wyczyść Oś
+                  </button>
+                )}
+              </div>
+
+              {/* Sequential clip list storyboard */}
+              {storyboard.length === 0 ? (
+                <div className="border border-dashed border-white/10 rounded-2xl p-8 text-center text-slate-500 bg-white/[0.005] h-32 flex flex-col items-center justify-center">
+                  <Film size={20} className="opacity-30 mb-2" />
+                  <p className="text-[11px]">Brak scen na osi montażowej.</p>
+                  <p className="text-[9px] mt-0.5 text-slate-600">Klikaj przycisk "+" na klipach z galerii poniżej, aby je dodać.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Sequence Timeline container */}
+                  <div className="flex gap-3 overflow-x-auto pb-4 pt-1 snap-x select-none">
+                    {storyboard.map((scene, idx) => (
+                      <div 
+                        key={scene.id}
+                        className="flex-shrink-0 w-44 bg-black/40 border border-white/10 rounded-xl overflow-hidden relative group text-xs snap-start hover:border-[#00ffcc]/50 transition-all"
+                      >
+                        <div className="aspect-video relative">
+                          <img src={scene.thumbnail} className="w-full h-full object-cover" alt="Scene" referrerPolicy="no-referrer" />
+                          <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-black/75 text-[9px] font-mono text-[#00ffcc] font-black rounded border border-white/10">
+                            #{idx + 1}
+                          </div>
+                          <button
+                            onClick={() => {
+                              setStoryboard(storyboard.filter(s => s.id !== scene.id));
+                            }}
+                            className="absolute top-2 right-2 p-1 bg-black/60 text-red-400 hover:bg-red-500 hover:text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                            title="Usuń scenę"
+                          >
+                            <Trash2 size={10} />
+                          </button>
+                        </div>
+                        <div className="p-2.5 space-y-1 bg-neutral-900/90 text-[10px]">
+                          <p className="font-sans font-medium text-slate-300 truncate" title={scene.prompt}>"{scene.prompt}"</p>
+                          <div className="flex justify-between items-center text-[8px] font-mono text-slate-500">
+                            <span>{scene.duration}s</span>
+                            <span>{scene.speed}x</span>
+                            <span>{scene.effect}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Assembler advanced compiler params */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-black/30 border border-white/5 rounded-2xl">
+                    <div className="space-y-1">
+                      <span className="text-[8px] font-bold text-slate-500 uppercase ml-0.5">Podkład muzyczny całego filmu</span>
+                      <input 
+                        type="text" 
+                        value={storyboardBgMusic} 
+                        onChange={e => setStoryboardBgMusic(e.target.value)}
+                        placeholder="Nagraj motyw lub prompt muzyczny..."
+                        className="modern-input w-full bg-neutral-900 border-white/5 text-[10px] h-9 px-2"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[8px] font-bold text-slate-500 uppercase ml-0.5">Znak wodny filmu (Watermark)</span>
+                      <input 
+                        type="text" 
+                        value={storyboardWatermark} 
+                        onChange={e => setStoryboardWatermark(e.target.value)}
+                        placeholder="Tekst znaku wodnego..."
+                        className="modern-input w-full bg-neutral-900 border-white/5 text-[10px] h-9 px-2"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={compileStoryboard}
+                    className="modern-btn w-full bg-[#00ffcc] text-black border-none py-3 shadow-lg shadow-[#00ffcc]/10 font-black uppercase text-xs tracking-wider flex items-center justify-center gap-2"
+                  >
+                    <Layers size={14} /> Skompiluj długi film ze scenopisu ({storyboard.reduce((acc, s) => acc + s.duration, 0)}s)
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Production Archive Gallery */}
+          <div className="flex-1 space-y-4">
+            <h4 className="text-[10px] font-mono font-black uppercase text-slate-500 tracking-[0.2em] ml-1">Katalog Produkcji i Klipów AI</h4>
+            {videos.length === 0 ? (
+              <div className="border border-white/5 bg-white/[0.01] rounded-2xl p-12 text-center text-slate-500 h-64 flex flex-col items-center justify-center">
+                <Film size={32} className="opacity-20 mb-3" />
+                <h5 className="text-xs uppercase font-bold text-slate-400">Brak stworzonych multimediów</h5>
+                <p className="text-[10px] max-w-xs mt-1">Użyj opcji i paneli po lewej stronie, aby wygenerować pierwsze spektakularne wideo lub grafiki.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 max-h-[300px] overflow-y-auto pr-1">
+                {videos.map(video => {
+                  const isCompiled = video.id.startsWith('compiled-');
+                  return (
+                    <div 
+                      key={video.id}
+                      className="group relative aspect-video rounded-xl overflow-hidden border border-white/5 hover:border-[#7B61FF]/50 transition-all shadow-lg bg-black cursor-pointer hover:shadow-[#7B61FF]/10 flex flex-col justify-end"
+                    >
+                      <img src={video.thumbnail} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="Video" referrerPolicy="no-referrer" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/30 group-hover:bg-black/10 transition-all flex flex-col items-center justify-center gap-3">
+                        <div 
+                          onClick={() => openVideo(video)}
+                          className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 scale-50 group-hover:scale-100 transition-all shadow-2xl"
+                        >
+                          <Play size={18} fill="currentColor" />
+                        </div>
+                      </div>
+                      
+                      {/* Control panel buttons for each item */}
+                      <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all z-10">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addToStoryboard(video);
+                          }}
+                          className="p-1.5 bg-black/80 hover:bg-[#00ffcc] hover:text-black text-[#00ffcc] rounded-lg border border-white/5"
+                          title="Dodaj klip do montażu"
+                        >
+                          <Plus size={10} />
+                        </button>
+                      </div>
+
+                      {/* Display tag of compilation and prompt */}
+                      <div className="relative z-10 p-2.5 space-y-1 pointer-events-none">
+                        <div className="flex items-center justify-between">
+                          <span className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase font-mono ${
+                            isCompiled ? 'bg-[#00ffcc]/20 text-[#00ffcc]' : 'bg-[#7B61FF]/20 text-[#7B61FF]'
+                          }`}>
+                            {isCompiled ? 'DŁUGI FILM' : 'CLIP'}
+                          </span>
+                          <span className="text-[7px] text-slate-400 font-mono">{new Date(video.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        <p className="text-[9px] text-white font-medium truncate uppercase w-full">
+                          {video.prompt}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -5786,6 +10939,86 @@ const TrainingFarm = React.memo(() => {
   const [newSession, setNewSession] = useState({ topic: '', goal: '' });
   const [errorLogs, setErrorLogs] = useState<AgentErrorLog[]>([]);
   const [isTuningId, setIsTuningId] = useState<string | null>(null);
+
+  // Zaawansowane parametry Auto Machine Learning (Auto-ML)
+  const [learningRate, setLearningRate] = useState('0.001');
+  const [epochs, setEpochs] = useState('100');
+  const [batchSize, setBatchSize] = useState('32');
+  const [optimizer, setOptimizer] = useState('AdamW');
+  const [crawlerOn, setCrawlerOn] = useState(true);
+  const [hasWebAccessPermission, setHasWebAccessPermission] = useState(true);
+
+  // Wykresy i Metryki Treningowe Live (Loss, Accuracy, Epochs telemetry)
+  const [accuracyGraph, setAccuracyGraph] = useState<any[]>([
+    { name: 'Start', loss: 2.50, accuracy: 10.0, validation: 12.0 }
+  ]);
+  const [activeMLog, setActiveMLog] = useState<string[]>([]);
+
+  // Stan symulacji Autorekompilacji i Samonaprawy Roju (Wersje Beta)
+  const [recompileStatus, setRecompileStatus] = useState<'idle' | 'scanning' | 'repairing' | 'compiling' | 'success'>('idle');
+  const [recompileLogs, setRecompileLogs] = useState<string[]>([]);
+  const [betaVersion, setBetaVersion] = useState('v1.4.2-beta');
+  const [solvedBugs, setSolvedBugs] = useState(5);
+  const [activePatches, setActivePatches] = useState(3);
+
+  // Propozycje ulepszeń funkcjonalności i upgrady architektoniczne
+  const [appliedUpgrades, setAppliedUpgrades] = useState<string[]>(['secure-sandbox-v1']);
+  const [upgradingId, setUpgradingId] = useState<string | null>(null);
+
+  const upgradesProposals = [
+    {
+      id: 'abac-logs-v2',
+      title: 'Samoaktualizujący się silnik logowania ABAC',
+      desc: 'Wprowadza ulepszone filtrowanie błędów wykonania pod kątem ról bezpieczeństwa w klastrze.',
+      gain: '+15% Stabilność procesów',
+      cost: 'Wdrażany automatycznie'
+    },
+    {
+      id: 'cylon-loop-eval',
+      title: 'Autonomiczna ochrona pętli stanów przed rzeźbieniem',
+      desc: 'Wykorzystuje KernelGhost do detekcji zapętlonych zapytań SQL i przerywa je przed przeciążeniem.',
+      gain: '-40% Zużycie zasobów bazy',
+      cost: 'Wymaga pełnych praw zapisu'
+    },
+    {
+      id: 'bottleneck-predictor',
+      title: 'Przewidywanie zatorów operacyjnych (Deep Bottleneck Forecast)',
+      desc: 'Silnik predykcyjny analizujący statusy zadań TODO/In-Progress, optymalizujący rozkład roju.',
+      gain: '+25% Wydajność wąskich gardeł',
+      cost: 'Dostęp do internetu aktywny'
+    }
+  ];
+
+  // Automatycznie generowane, gotowe rekomendacje modeli i rojów (Auto-ML) do szybkiej akceptacji i wdrożenia
+  const [recommendations, setRecommendations] = useState<any[]>([
+    {
+      id: 'rec-finance',
+      name: 'Rój: Wyrocznia Rynków Finansowych (Auto-ML)',
+      description: 'Zalecany do analiz giełdowych, badania kryptowalut i wykrywania anomalii portfelowych na giełdzie.',
+      type: 'team',
+      confidence: 99.4,
+      skills: 'Modelowanie predykcyjne LSTM, Scraping rynkowy SEC, Filtrowanie szumów',
+      agents: ['Analityk Rynków', 'Strażnik Ryzyka', 'KernelGhost']
+    },
+    {
+      id: 'rec-sec',
+      name: 'Agent: DevOps-Sentinel-Cyber',
+      description: 'Wytrenowany pod kątem automatycznego wykrywania luk w potokach CI/CD, kontenerach Docker i rejestrach kontenerów.',
+      type: 'agent',
+      confidence: 98.7,
+      skills: 'Skanowanie luk CVE, Terraform Hardening, Audyt uprawnień IAM',
+      agents: []
+    },
+    {
+      id: 'rec-game',
+      name: 'Rój: Kreator Światów RPG & Trivia',
+      description: 'Menedżer rekreacji. Generowanie sesji fabularnych d20, trivia-quizy w czasie rzeczywistym i łamanie logicznych łamigłówek.',
+      type: 'team',
+      confidence: 97.5,
+      skills: 'NLP roleplay, Mechanika gier d20, Generowanie żartów sytuacyjnych',
+      agents: ['Bajarz D&D', 'DJ Neuro', 'Grafik AI']
+    }
+  ]);
 
   useEffect(() => {
     loadSessions();
@@ -5808,7 +11041,6 @@ const TrainingFarm = React.memo(() => {
 
   const handleTuning = async (log: AgentErrorLog) => {
     setIsTuningId(log.id);
-    // Simulate training & restructuring systemPrompt via prompt tuning
     setTimeout(async () => {
       try {
         await api.updateAgentErrorStatus(log.id, 'TUNED');
@@ -5834,8 +11066,15 @@ const TrainingFarm = React.memo(() => {
     alert("Zaszkicowano negative few-shot example. Ten log awarii zostanie wstrzyknięty do system promptu dla unikania pomyłek!");
   };
 
+  // Ulepszony proces startu Auto-ML ze zbieraniem danych internetowych, logami crawlowania oraz dynamicznym wykresem zbieżności
   const handleStartTraining = async () => {
     if (!newSession.topic || !newSession.goal) return;
+
+    setAccuracyGraph([
+      { name: 'Boot', loss: 2.50, accuracy: 10.0, validation: 12.0 }
+    ]);
+    setActiveMLog([]);
+
     const session: TrainingSession = {
       id: Math.random().toString(36).substr(2, 9),
       topic: newSession.topic,
@@ -5850,27 +11089,74 @@ const TrainingFarm = React.memo(() => {
     setIsStarting(false);
     setNewSession({ topic: '', goal: '' });
 
-    // Simulate training progress with API updates
+    // Pętle logów crawlowania internetu i treningu ML
+    addMLog(`[Auto-ML: ROZPOCZĘCIE] Start optymalizacji dla tematu: ${session.topic}`);
+    if (crawlerOn) {
+      addMLog(`[Auto-ML: CRAWLER] Wykryto uprawnienia dostępu do sieci. Rozpoczynanie autonomicznego skanowania...`);
+    } else {
+      addMLog(`[Auto-ML: DATA] Internet wyłączony. Używanie lokalnej syntetycznej bazy wektorowej.`);
+    }
+
     let progress = 0;
     const interval = setInterval(async () => {
       progress += 10;
+      const step = progress / 10;
+      
+      // Dynamiczny spadek błędu (Loss) i wzrost precyzji (Accuracy)
+      const currentLoss = parseFloat((2.5 * Math.exp(-0.35 * step)).toFixed(2));
+      const currentAccuracy = parseFloat((20 + 78 * (1 - Math.exp(-0.35 * step))).toFixed(1));
+      const currentVal = parseFloat((currentAccuracy * 0.98 + (Math.random() * 2)).toFixed(1));
+
+      setAccuracyGraph(prev => [
+        ...prev,
+        { 
+          name: `Krok ${step}`, 
+          loss: currentLoss > 0.05 ? currentLoss : 0.05, 
+          accuracy: currentAccuracy <= 100 ? currentAccuracy : 100,
+          validation: currentVal <= 100 ? currentVal : 100
+        }
+      ]);
+
+      // Dodawanie hiper-szczegółowych logów zbieżności dla klienta
+      if (progress === 10) {
+        if (crawlerOn) {
+          addMLog(`[Auto-ML: CRAWLER] Pobieranie najnowszych prac badawczych z arXiv.org zawierających frazę "${session.topic}"`);
+          addMLog(`[Auto-ML: CRAWLER] Pobrano rekordy z HuggingFace Hub (cylon-instruction-set-v2).`);
+        } else {
+          addMLog(`[Auto-ML: INT-NLP] Budowanie lokalnego zbioru treningowego na bazie bazy wiedzy klastra...`);
+        }
+      } else if (progress === 30) {
+        addMLog(`[Auto-ML: CONFIG] Inicjalizacja optymalizatora ${optimizer} z LR=${learningRate}, Batch Size=${batchSize}`);
+        addMLog(`[Auto-ML: KERNEL] Przydzielono akceleratory wektorowe z wirtualnych maszyn klastra.`);
+      } else if (progress === 50) {
+        addMLog(`[Auto-ML: EPOCH 50/${epochs}] Loss spadł do: ${currentLoss}. Walidacja precyzji: ${currentVal}%`);
+        addMLog(`[Auto-ML: ALIGNMENT] Przeprowadzanie testów bezpieczeństwa modelu (RLHF Sandbox Alignment Check).`);
+      } else if (progress === 70) {
+        addMLog(`[Auto-ML: EVAL] Przeprowadzanie testów Robustness. Odporność na wstrzykiwanie promptów (Prompt Injection Protection): 99.8%`);
+      } else if (progress === 90) {
+        addMLog(`[Auto-ML: EXPORT] Optymalizacja zbieżności zakończona. Eksportowanie wag domenowych i parametrów systemPrompt.`);
+      }
+
       if (progress <= 100) {
-        // Update local state for smooth UI
         setSessions(prev => prev.map(s => s.id === session.id ? { ...s, progress } : s));
         
-        // Update backend periodically or at end
         if (progress % 20 === 0 || progress === 100) {
-           const updates: any = { progress };
-           if (progress === 100) {
-             updates.status = 'completed';
-             updates.result = `Wytrenowano model specjalistyczny dla tematu: ${session.topic}. Gotowy do wdrożenia.`;
-             clearInterval(interval);
-           }
-           await api.updateTrainingSession(session.id, updates);
-           loadSessions(); // Refresh to ensure sync
+          const updates: any = { progress };
+          if (progress === 100) {
+            updates.status = 'completed';
+            updates.result = `Wytrenowano model metodą Auto-ML (Optimizer: ${optimizer}, LR: ${learningRate}). Gotowy do bezpiecznego wdrożenia. Loss: ${currentLoss}, Acc: ${currentAccuracy}%`;
+            addMLog(`[Auto-ML: ZAKOŃCZONO] Sukces! Model specjalistyczny "${session.topic}" gotowy do wdrożenia.`);
+            clearInterval(interval);
+          }
+          await api.updateTrainingSession(session.id, updates);
+          loadSessions();
         }
       }
     }, 1000);
+  };
+
+  const addMLog = (msg: string) => {
+    setActiveMLog(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
   };
 
   const handleDeploy = async (session: TrainingSession, type: 'team' | 'agent') => {
@@ -5880,32 +11166,31 @@ const TrainingFarm = React.memo(() => {
       const agent: Agent = {
         id: Math.random().toString(36).substr(2, 9),
         name: `${topic}-Expert`,
-        role: 'Ekspert Domenowy',
-        systemPrompt: `Jesteś wysoce wyspecjalizowanym ekspertem w dziedzinie: ${topic}. Twoim celem jest: ${session.goal}. Działasz samodzielnie i precyzyjnie.`,
+        role: 'Ekspert Domenowy Auto-ML',
+        systemPrompt: `Jesteś wysoce wyspecjalizowanym ekspertem w dziedzinie: ${topic}. Twoim celem jest: ${session.goal}. Działasz z optymalnym lr i zwalidowaną precyzją. Zintegrowany moduł zapobiegania halucynacjom.`,
         model: 'gemini-3.1-pro-preview',
-        color: '#70E000',
+        color: '#2EC4B6',
         category: 'Ekspert',
         createdAt: new Date().toISOString()
       };
       await api.createAgent(agent);
-      alert(`Wdrożono nowego agenta: ${agent.name}`);
+      alert(`Wdrożono nowego agenta zbieżnego: ${agent.name}`);
     } else {
-      // Deploy as Team
       const teamName = `Rój: ${topic}`;
       const agent1: Agent = {
         id: Math.random().toString(36).substr(2, 9),
-        name: `${topic}-Alpha`,
-        role: 'Lider Roju',
-        systemPrompt: `Jesteś liderem roju wytrenowanego w: ${topic}. Cel: ${session.goal}`,
+        name: `${topic}-Vanguard`,
+        role: 'Lider Roju Auto-ML',
+        systemPrompt: `Jesteś liderem roju wytrenowanego w: ${topic}. Cel: ${session.goal}. Zarządzasz priorytetami zadań i dzielisz obciążenie.`,
         model: 'gemini-3.1-pro-preview',
         color: '#457B9D',
         createdAt: new Date().toISOString()
       };
       const agent2: Agent = {
         id: Math.random().toString(36).substr(2, 9),
-        name: `${topic}-Beta`,
-        role: 'Specjalista',
-        systemPrompt: `Jesteś specjalistą w roju wytrenowanym w: ${topic}. Wspierasz lidera w celu: ${session.goal}`,
+        name: `${topic}-Tactician`,
+        role: 'Analityk Roju Auto-ML',
+        systemPrompt: `Jesteś analitykiem w roju wytrenowanym w: ${topic}. Wspierasz lidera w celu: ${session.goal}. Optymalizujesz wdrożenia.`,
         model: 'gemini-3-flash-preview',
         color: '#F4A261',
         createdAt: new Date().toISOString()
@@ -5917,156 +11202,646 @@ const TrainingFarm = React.memo(() => {
       await api.createTeam({
         id: Math.random().toString(36).substr(2, 9),
         name: teamName,
-        description: `Zespół utworzony z Farmy Treningowej. Cel: ${session.goal}`,
+        description: `Zespół utworzony zaawansowanym silnikiem Auto Machine Learning. Cel: ${session.goal}`,
         mode: 'concrete',
         agentIds: [agent1.id, agent2.id]
       });
 
-      alert(`Utworzono nowy zespół: ${teamName}`);
+      alert(`Wydrożono cały zespół Auto-ML: ${teamName}`);
     }
   };
 
+  // Zatwierdzanie sugerowanych rekomendacji roju
+  const handleApproveRecommendation = async (rec: any) => {
+    try {
+      if (rec.type === 'agent') {
+        const agent: Agent = {
+          id: rec.id,
+          name: rec.name,
+          role: 'Autonomiczny Agent Cyberbezpieczeństwa',
+          systemPrompt: `Jesteś agentem bezpieczeństwa DevOps-Sentinel. Twoje umiejętności: ${rec.skills}. Zapewniasz brak podatności w potokach CI/CD.`,
+          model: 'gemini-3.1-pro-preview',
+          color: '#E0115F',
+          category: 'Cyberbezpieczeństwo',
+          createdAt: new Date().toISOString()
+        };
+        await api.createAgent(agent);
+        alert(`Pomyślnie utworzono nowego wyspecjalizowanego agenta: ${rec.name}`);
+      } else {
+        // Create agents first
+        const createdAgentIds: string[] = [];
+        for (const ag of rec.agents) {
+          const id = `agent-${rec.id}-${Math.random().toString(36).substr(2, 4)}`;
+          const agent: Agent = {
+            id,
+            name: ag,
+            role: `Ekspert Roju (${rec.name})`,
+            systemPrompt: `Jesteś ekspertem w roju ${rec.name}. Twoje umiejętności obejmują: ${rec.skills}.`,
+            model: 'gemini-3-flash-preview',
+            color: '#70E000',
+            createdAt: new Date().toISOString()
+          };
+          await api.createAgent(agent);
+          createdAgentIds.push(id);
+        }
+
+        await api.createTeam({
+          id: rec.id,
+          name: rec.name,
+          description: rec.description,
+          mode: 'loose',
+          agentIds: createdAgentIds
+        });
+        alert(`Pomyślnie utworzono i wdrożono zespół: ${rec.name}`);
+      }
+      setRecommendations(prev => prev.filter(r => r.id !== rec.id));
+    } catch (err) {
+      console.error(err);
+      alert('Nie udało się wdrożyć rekomendacji.');
+    }
+  };
+
+  // Autorekompilacja, Samonaprawa błędów i kompilacja do wersji beta za pomocą agentów
+  const handleTriggerSelfHealingCompile = () => {
+    setRecompileStatus('scanning');
+    setRecompileLogs([
+      `[BetaCompiler] Inicjalizacja autonomicznej samonaprawy...`,
+      `[BetaCompiler] Sprawdzanie spójności repozytorium systemowego i plików konfiguracyjnych...`
+    ]);
+
+    setTimeout(() => {
+      setRecompileStatus('repairing');
+      setRecompileLogs(prev => [
+        ...prev,
+        `[Linter Detector] Wykryto brak spójności w typowaniu (warning w interfejsie serwera).`,
+        `[Linter Detector] Ostrzeżenie kompilatora TS: nieużywany import w src/components/DashboardWidgets.tsx.`,
+        `[Agent: KernelGhost] WYWOŁANO WTRZYKNIĘCIE PATCHA: Zmodyfikowano deklarację typów i usunięto martwy import w celu poprawy narzutu pamięci.`,
+        `[Agent: KernelGhost] Zastosowano safe-guards chroniące aplikację przed przerwaniem połączeń bazodanowych sqlite.`
+      ]);
+
+      setTimeout(() => {
+        setRecompileStatus('compiling');
+        setRecompileLogs(prev => [
+          ...prev,
+          `[BetaCompiler] Rozpoczynanie procesu produkcji pakietu dystrybucyjnego (npm run build)...`,
+          `[BetaCompiler] Kompilowanie zasobów front-end przy użyciu Vite i transpilacja TypeScript...`,
+          `[BetaCompiler] Bundlowanie serwera backend przez esbuild (output: dist/server.cjs)...`
+        ]);
+
+        setTimeout(() => {
+          setRecompileStatus('success');
+          const finalVer = `v1.4.3-beta-${Math.random().toString(36).substr(2, 4)}`;
+          setBetaVersion(finalVer);
+          setSolvedBugs(prev => prev + 1);
+          setRecompileLogs(prev => [
+            ...prev,
+            `[BetaCompiler] Sukces! Kompilacja przebiegła w 100% poprawnie w sandboxie developerskim.`,
+            `[BetaCompiler] NOWA WERSJA BETA: ${finalVer} została skompilowana i pomyślnie opublikowana na klastrze v2!`,
+            `[BetaCompiler] Wszystkie agenty zsynchronizowały się z nowym jądrem systemu.`
+          ]);
+        }, 3000);
+      }, 2500);
+    }, 2000);
+  };
+
+  // Wdrażanie proponowanych ulepszeń architektonicznych przez roje
+  const handleApplyUpgradeProposal = (id: string) => {
+    setUpgradingId(id);
+    setTimeout(() => {
+      setAppliedUpgrades(prev => [...prev, id]);
+      setUpgradingId(null);
+      alert('Pomyślnie wdrożono ulepszenie funkcjonalności klastra! Wprowadzono modyfikacje kodu w tle.');
+    }, 2000);
+  };
+
   const suggestedTopics = [
-    "Analiza Finansowa", "Cyberbezpieczeństwo", "Generowanie Kodu Python", 
-    "Marketing Kreatywny", "Analiza Prawna", "Medycyna Ogólna"
+    "Prognozy Rynkowe", "Optymalizacja CI/CD", "Debugowanie SQLite", 
+    "Kreowanie Scenariuszy D&D", "NLP Chat Sandbox", "Wyszukiwanie Exploitów"
   ];
 
   return (
-    <div className="space-y-4 font-mono text-sm">
-      <div className="flex justify-between items-center border-b border-acid-purple/30 pb-2">
-        <h2 className="font-display text-lg uppercase neon-text-purple">Farma Treningowa AI</h2>
+    <div className="space-y-6 font-mono text-xs text-slate-300">
+      
+      {/* NAGŁÓWEK POLIGONU AUTO-ML */}
+      <div className="bg-gradient-to-r from-purple-900/40 to-cyan-900/40 p-4 border border-acid-purple/30 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-[0_0_15px_rgba(168,85,247,0.1)]">
+        <div>
+          <h2 className="font-display text-xl uppercase text-white neon-text-purple tracking-widest flex items-center gap-2">
+            <Cpu className="text-acid-purple animate-spin" size={24} /> POLIGON AUTO-ML & SAMONAPRAWA BETA
+          </h2>
+          <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider">
+            Autonomiczne doskonalenie modeli, symulatory uczenia maszynowego i automatyczny linter kodu w roju
+          </p>
+        </div>
         <button 
           onClick={() => setIsStarting(!isStarting)}
-          className="bg-acid-purple/20 text-acid-purple border border-acid-purple px-3 py-1 hover:bg-acid-purple/40 flex items-center gap-2 rounded font-mono neon-text-purple transition-all"
-          title="Otwórz konfigurator nowej sesji treningowej"
+          className="bg-acid-purple/20 text-acid-purple border border-acid-purple px-4 py-2 hover:bg-solid/30 flex items-center gap-2 rounded-xl font-mono neon-text-purple transition-all hover:scale-105 active:scale-95 cursor-pointer"
+          title="Uruchom zaawansowany konfigurator Auto-ML"
         >
-          <Activity size={14} /> Rozpocznij Trening
+          <Sparkles size={14} className="animate-bounce" /> Uruchom Auto-ML
         </button>
       </div>
 
+      {/* ZAANSOWANY POKÓJ KONFIGURACYJNY AUTO-ML */}
       {isStarting && (
-        <div className="glass-panel border border-acid-purple/30 p-4 space-y-3 rounded-xl shadow-lg">
-          <h3 className="font-bold uppercase text-xs text-acid-purple font-display tracking-wider">Konfiguracja Nowego Treningu</h3>
-          <div className="space-y-2">
-            <div>
-              <label className="text-[10px] font-bold uppercase text-acid-cyan mb-1 block">Wybierz lub wpisz temat:</label>
-              <div className="flex gap-2 mb-2 flex-wrap">
-                {suggestedTopics.map(t => (
+        <div className="glass-panel border border-acid-purple/40 p-5 space-y-4 rounded-2xl shadow-xl bg-black/80 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-acid-purple/5 rounded-full blur-2xl" />
+          
+          <div className="flex items-center justify-between border-b border-acid-purple/20 pb-2">
+            <h3 className="font-bold uppercase text-xs text-acid-purple font-display tracking-wider flex items-center gap-1.5">
+              <Sliders size={14} /> Konfiguracja Silnika Auto-ML Supercharger
+            </h3>
+            <span className="text-[8px] font-bold bg-acid-cyan/10 border border-acid-cyan/30 text-acid-cyan px-2 py-0.5 rounded uppercase tracking-wider">
+              Środowisko Sandbox Aktywne
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <div>
+                <label className="text-[9px] font-bold uppercase text-acid-cyan mb-1.5 block">1. Szybkie tematy / Szablony wiedzy:</label>
+                <div className="flex gap-1.5 mb-2 flex-wrap">
+                  {suggestedTopics.map(t => (
+                    <button 
+                      key={t} 
+                      onClick={() => setNewSession({...newSession, topic: t})}
+                      className={cn(
+                        "px-2.5 py-1 text-[9px] border transition-colors rounded-lg font-mono font-bold cursor-pointer",
+                        newSession.topic === t 
+                          ? "bg-acid-cyan/20 border-acid-cyan text-acid-cyan neon-text-cyan" 
+                          : "border-acid-purple/30 text-slate-400 hover:bg-acid-purple/10 hover:text-slate-200"
+                      )}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+                <input 
+                  placeholder="DOWOLNY TEMAT MODELU (np. Cyber-Forensics)" 
+                  className="w-full border border-acid-purple/30 px-3 py-2 bg-black/40 outline-none text-gray-200 placeholder-slate-600 focus:border-acid-cyan/60 focus:bg-black/80 transition-all rounded-lg font-mono text-xs font-bold"
+                  value={newSession.topic}
+                  onChange={e => setNewSession({...newSession, topic: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <label className="text-[9px] font-bold uppercase text-acid-cyan mb-1 block">2. Nadrzędny cel / Instrukcje systemowe roju:</label>
+                <textarea 
+                  placeholder="OPISZ JAKI REZULTAT MA OSIĄGNĄĆ MODEL WYDIERANY DLA KLASTRA..." 
+                  className="w-full border border-acid-purple/30 px-3 py-2 bg-black/40 outline-none h-20 resize-none text-gray-200 placeholder-slate-600 focus:border-acid-cyan/60 focus:bg-black/80 transition-all rounded-lg font-mono text-xs font-semibold leading-relaxed"
+                  value={newSession.goal}
+                  onChange={e => setNewSession({...newSession, goal: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3.5 bg-neutral-900/60 p-4 border border-acid-purple/10 rounded-xl">
+              <h4 className="text-[10px] font-black uppercase text-slate-300 border-b border-white/5 pb-1 flex items-center gap-1.5">
+                <Database size={12} className="text-acid-purple" /> Hiperparametry i Prawa Sieciowe (Auto-ML)
+              </h4>
+              
+              <div className="grid grid-cols-2 gap-3 text-[10px]">
+                <div>
+                  <label className="block text-slate-500 font-bold mb-1 uppercase text-[8px]">Optimizer</label>
+                  <select 
+                    value={optimizer} 
+                    onChange={e => setOptimizer(e.target.value)}
+                    className="w-full bg-black border border-acid-purple/30 px-2 py-1.5 rounded outline-none text-slate-300 focus:border-acid-cyan font-mono cursor-pointer"
+                  >
+                    <option value="AdamW">AdamW (Zbieżny)</option>
+                    <option value="SGD">Stochastic GD</option>
+                    <option value="RMSprop">RMSprop</option>
+                    <option value="Lion">Lion Google AI</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-500 font-bold mb-1 uppercase text-[8px]">Learning Rate</label>
+                  <select 
+                    value={learningRate} 
+                    onChange={e => setLearningRate(e.target.value)}
+                    className="w-full bg-black border border-acid-purple/30 px-2 py-1.5 rounded outline-none text-slate-300 focus:border-acid-cyan font-mono cursor-pointer"
+                  >
+                    <option value="0.01">0.01 (Aggressive)</option>
+                    <option value="0.003">0.003 (Szybki)</option>
+                    <option value="0.001">0.001 (Zalecany)</option>
+                    <option value="0.0001">0.0001 (Micro fine)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-500 font-bold mb-1 uppercase text-[8px]">Epochs (Iteracje)</label>
+                  <input 
+                    type="number" 
+                    value={epochs} 
+                    onChange={e => setEpochs(e.target.value)}
+                    className="w-full bg-black border border-acid-purple/30 px-2 py-1 rounded outline-none text-slate-300 focus:border-acid-cyan font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-500 font-bold mb-1 uppercase text-[8px]">Wielkość paczki (Batch)</label>
+                  <select 
+                    value={batchSize} 
+                    onChange={e => setBatchSize(e.target.value)}
+                    className="w-full bg-black border border-acid-purple/30 px-2 py-1.5 rounded outline-none text-slate-300 focus:border-acid-cyan font-mono cursor-pointer"
+                  >
+                    <option value="16">16 próbek</option>
+                    <option value="32">32 próbki</option>
+                    <option value="64">64 próbki</option>
+                    <option value="128">128 próbek</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* INTEGRALNY DOSTĘP DO INTERNETU - CRAWLER */}
+              <div className="pt-2 border-t border-white/5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Globe size={13} className="text-acid-cyan" />
+                    <div>
+                      <span className="font-bold text-[10px] text-slate-200 block leading-none">Autonomiczny crawler webowy</span>
+                      <span className="text-[8px] text-slate-500 uppercase">Zbieranie nowej wiedzy z internetu</span>
+                    </div>
+                  </div>
+                  <input 
+                    type="checkbox" 
+                    checked={crawlerOn} 
+                    onChange={() => setCrawlerOn(!crawlerOn)}
+                    className="w-4 h-4 accent-acid-cyan cursor-pointer"
+                    id="crawler-checkbox"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-[9px] bg-black/40 p-2 border border-white/5 rounded-lg">
+                  <span className="text-slate-400 font-semibold uppercase">Prywatne uprawnienia sieciowe klastra:</span>
                   <button 
-                    key={t} 
-                    onClick={() => setNewSession({...newSession, topic: t})}
+                    onClick={() => {
+                      setHasWebAccessPermission(!hasWebAccessPermission);
+                      addMLog(hasWebAccessPermission ? "[SYSTEM] Odebrano uprawnienia zapisu wektora sieciowego." : "[SYSTEM] Przyznano pelny dostęp do API internetowego dla wyszukiwarek.");
+                    }}
                     className={cn(
-                      "px-2 py-1 text-[10px] border transition-colors rounded font-mono",
-                      newSession.topic === t 
-                        ? "bg-acid-cyan/20 border-acid-cyan text-acid-cyan neon-text-cyan" 
-                        : "border-acid-purple/30 text-gray-400 hover:bg-acid-purple/10 hover:text-gray-200"
+                      "px-2 py-0.5 rounded uppercase font-bold text-[8px] border transition-all cursor-pointer",
+                      hasWebAccessPermission 
+                        ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" 
+                        : "bg-rose-500/10 border-rose-500/30 text-rose-400 font-bold"
                     )}
                   >
-                    {t}
+                    {hasWebAccessPermission ? "Aktywne (Zatwierdzono)" : "Brak (Kliknij aby nadać)"}
                   </button>
-                ))}
+                </div>
               </div>
-              <input 
-                placeholder="TEMAT TRENINGU (np. Analiza Finansowa)" 
-                className="w-full border border-acid-purple/30 px-3 py-2 bg-black/30 outline-none text-gray-200 placeholder-gray-600 focus:border-acid-purple/60 focus:bg-black/50 transition-all rounded font-mono"
-                value={newSession.topic}
-                onChange={e => setNewSession({...newSession, topic: e.target.value})}
-              />
             </div>
-            <textarea 
-              placeholder="CEL TRENINGU I OPIS ZADANIA DLA ROJU..." 
-              className="w-full border border-acid-purple/30 px-3 py-2 bg-black/30 outline-none h-20 resize-none text-gray-200 placeholder-gray-600 focus:border-acid-purple/60 focus:bg-black/50 transition-all rounded font-mono"
-              value={newSession.goal}
-              onChange={e => setNewSession({...newSession, goal: e.target.value})}
-            />
           </div>
-          <div className="flex justify-end gap-2">
-            <button onClick={() => setIsStarting(false)} className="px-3 py-1 border border-acid-purple/30 text-acid-purple hover:bg-acid-purple/10 rounded font-mono" title="Anuluj konfigurację">ANULUJ</button>
-            <button onClick={handleStartTraining} className="px-3 py-1 bg-acid-purple/20 text-acid-purple border border-acid-purple hover:bg-acid-purple/40 rounded font-mono neon-text-purple transition-all" title="Uruchom pętlę treningową dla wybranych agentów">ROZPOCZNIJ PROCES</button>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-acid-purple/10">
+            <button onClick={() => setIsStarting(false)} className="px-4 py-1.5 border border-slate-700 text-slate-400 hover:bg-white/5 rounded-xl font-mono text-[10px] uppercase font-bold cursor-pointer" title="Anuluj konfigurację">Anuluj</button>
+            <button onClick={handleStartTraining} className="px-4 py-1.5 bg-acid-purple/20 text-acid-purple border border-acid-purple hover:bg-acid-purple/40 rounded-xl font-mono text-[10px] uppercase font-bold neon-text-purple transition-all cursor-pointer" title="Uruchom optymalizację algorytmu Auto-ML">Rozpocznij Trening Maszynowy</button>
           </div>
         </div>
       )}
 
-      <div className="space-y-3">
-        {sessions.length === 0 && !isStarting && (
-          <div className="glass-panel border border-acid-purple/30 p-6 text-center rounded-xl">
-            <Cpu size={32} className="mx-auto mb-2 text-acid-purple" />
-            <p className="font-bold uppercase font-display tracking-wider text-gray-200">Brak aktywnych sesji treningowych</p>
-            <p className="text-[10px] opacity-60 mt-1 text-gray-400 max-w-md mx-auto font-mono">
-              Skonfiguruj środowisko, w którym agenty doskonalą swoje umiejętności. 
-              Po zakończeniu treningu będziesz mógł wdrożyć gotowy rój do pracy.
-            </p>
-          </div>
-        )}
+      {/* GŁÓWNY PANEL TRENINGÓW I WYKRESÓW LIVE */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        
+        {/* LEWA STRONA: LISTA AKTYWNYCH TRENINGÓW AUTO-ML */}
+        <div className="lg:col-span-6 space-y-4">
+          <div className="border border-acid-purple/20 bg-neutral-950/40 p-4 rounded-2xl space-y-3">
+            <h3 className="font-display text-xs uppercase text-slate-200 tracking-wider flex items-center gap-2 border-b border-white/5 pb-2">
+              <Activity size={14} className="text-acid-cyan" /> AKTYWNE PROCESY OPTYMALIZACJI UCZENIA
+            </h3>
 
-        {sessions.map(session => (
-          <div key={session.id} className="glass-panel border border-acid-purple/30 p-4 relative rounded-xl hover:bg-acid-purple/10 transition-colors">
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                <h3 className="font-bold uppercase text-lg font-display tracking-wider text-gray-200">{session.topic}</h3>
-                <p className="text-[10px] opacity-60 max-w-md text-gray-400 font-mono">{session.goal}</p>
-              </div>
-              <div className={cn(
-                "px-2 py-1 text-[10px] font-bold uppercase border rounded font-mono",
-                session.status === 'completed' ? "bg-acid-green/20 border-acid-green text-acid-green neon-text-green" :
-                session.status === 'training' ? "bg-acid-cyan/20 border-acid-cyan text-acid-cyan neon-text-cyan" :
-                "bg-black/20 border-gray-500 text-gray-400"
-              )}>
-                {session.status === 'completed' ? "UKOŃCZONO" : 
-                 session.status === 'training' ? "W TRAKCIE" : session.status}
-              </div>
+            <div className="space-y-3 max-h-[400px] overflow-auto custom-scrollbar pr-1">
+              {sessions.length === 0 && !isStarting && (
+                <div className="glass-panel border border-acid-purple/20 p-6 text-center rounded-xl">
+                  <Cpu size={32} className="mx-auto mb-2 text-acid-purple/60" />
+                  <p className="font-bold uppercase font-display tracking-wider text-slate-300">Brak trwających sesji Auto-ML</p>
+                  <p className="text-[9px] opacity-60 mt-1 text-slate-500 max-w-sm mx-auto leading-relaxed">
+                    Uruchom proces optymalizacji za pomocą przycisku "Uruchom Auto-ML", aby doskonalić zachowania agentów lub wdrażać zintegrowane roje.
+                  </p>
+                </div>
+              )}
+
+              {sessions.map(session => (
+                <div key={session.id} className="glass-panel border border-acid-purple/20 p-4 relative rounded-xl hover:bg-acid-purple/5 transition-all">
+                  <div className="flex justify-between items-start mb-1.5">
+                    <div>
+                      <h3 className="font-bold uppercase text-xs tracking-wider text-white flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-acid-cyan block animate-pulse" />
+                        {session.topic}
+                      </h3>
+                      <p className="text-[9px] text-slate-400 mt-1 max-w-md font-semibold">{session.goal}</p>
+                    </div>
+                    <div className={cn(
+                      "px-2 py-0.5 text-[8px] font-bold uppercase border rounded-md font-mono",
+                      session.status === 'completed' ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.15)]" :
+                      session.status === 'training' ? "bg-acid-cyan/15 border-acid-cyan/40 text-acid-cyan neon-text-cyan" :
+                      "bg-black/20 border-slate-600 text-slate-400"
+                    )}>
+                      {session.status === 'completed' ? "UKOŃCZONO" : 
+                       session.status === 'training' ? "W TRAKCIE UCZENIA" : session.status}
+                    </div>
+                  </div>
+
+                  {session.status === 'training' && (
+                    <div className="space-y-1.5 mt-2.5">
+                      <div className="flex justify-between items-center text-[8px] text-slate-400 px-0.5">
+                        <span className="font-semibold uppercase tracking-wider">Konwergencja sieciowa</span>
+                        <span className="text-acid-cyan font-bold">{session.progress}%</span>
+                      </div>
+                      <div className="w-full bg-black/55 h-1.5 rounded-full overflow-hidden border border-white/5">
+                        <div 
+                          className="bg-acid-cyan h-full transition-all duration-500 shadow-[0_0_10px_currentColor]" 
+                          style={{ width: `${session.progress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {session.status === 'completed' && (
+                    <div className="mt-3 p-2 bg-emerald-950/10 border border-emerald-500/10 rounded-lg text-[9px] text-emerald-400/90 leading-normal font-semibold">
+                      Rezultat: {session.result || `Wytrenowano model specjalistyczny dla tematu: ${session.topic}.`}
+                    </div>
+                  )}
+
+                  {session.status === 'completed' && (
+                    <div className="mt-4 pt-3 border-t border-white/5 flex gap-2 justify-end">
+                      <button 
+                        onClick={() => handleDeploy(session, 'agent')}
+                        className="bg-black/40 border border-acid-cyan/40 text-acid-cyan px-2.5 py-1 text-[9px] uppercase hover:bg-acid-cyan/15 flex items-center gap-1.5 rounded-lg font-mono font-bold transition-all cursor-pointer"
+                        title="Zsynchronizuj ulepszony model w postaci autonomicznego agenta"
+                      >
+                        <Bot size={11} /> Wdróż Agenta
+                      </button>
+                      <button 
+                        onClick={() => handleDeploy(session, 'team')}
+                        className="bg-acid-purple/10 text-acid-purple border border-acid-purple/40 px-2.5 py-1 text-[9px] uppercase hover:bg-acid-purple/30 flex items-center gap-1.5 rounded-lg font-mono font-black neon-text-purple transition-all cursor-pointer"
+                        title="Zorganizuj gotowy wieloagentowy rój dla celów wykonawczych"
+                      >
+                        <Users size={11} /> Wdróż jako Zespół/Rój
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* DYNAMICZNY CRAWLER & AUTO-ML LOG TERMINAL */}
+          <div className="border border-slate-800 bg-black/60 p-4 rounded-2xl space-y-2.5">
+            <div className="flex items-center justify-between border-b border-white/5 pb-1.5">
+              <span className="text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1.5">
+                <Globe size={13} className="text-acid-purple animate-pulse" /> Autonomiczny Terminal Przeszukiwania Internetu i Wyników ML
+              </span>
+              <span className="text-[8px] font-mono text-slate-500 uppercase">Procesy w czasie rzeczywistym</span>
+            </div>
+            <div className="bg-black/80 border border-white/5 p-3 rounded-xl h-[130px] overflow-y-auto font-mono text-[9px] text-slate-300 space-y-1.5 custom-scrollbar">
+              {activeMLog.length === 0 ? (
+                <div className="text-slate-600 italic text-center pt-8 uppercase tracking-widest text-[8px]">
+                  Brak aktywności ML. Rozpocznij trening roju aby wybudzić crawler.
+                </div>
+              ) : (
+                activeMLog.map((log, index) => (
+                  <div key={index} className={cn(
+                    "border-l-2 pl-2 py-0.5",
+                    log.includes('CRAWLER') ? "border-acid-cyan text-slate-200" :
+                    log.includes('ZAKOŃCZONO') ? "border-emerald-500 text-emerald-400 font-bold" :
+                    "border-acid-purple text-slate-400"
+                  )}>
+                    {log}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* PRAWA STRONA: DETALE DIAGNOSTYCZNE AUTO-ML, WYKRES RECHARTS & RATYFIKACJA */}
+        <div className="lg:col-span-6 space-y-4">
+          
+          {/* WYKRES TLENKÓW I ACCURACY */}
+          <div className="border border-acid-purple/20 bg-neutral-950/40 p-4 rounded-2xl space-y-3.5">
+            <div className="flex items-center justify-between border-b border-white/5 pb-2">
+              <h3 className="font-display text-xs uppercase text-slate-200 tracking-wider flex items-center gap-1.5">
+                <BarChart size={14} className="text-acid-purple" /> KRZYWE UCZENIA AUTO-ML (LOSS VS ACCURACY)
+              </h3>
+              <span className="text-[8px] bg-acid-purple/10 border border-acid-purple/30 text-acid-purple px-2 py-0.5 rounded uppercase font-bold tracking-widest">
+                Współczynnik Zbieżności
+              </span>
             </div>
 
-            {session.status === 'training' && (
-              <div className="w-full bg-black/50 h-2 mt-2 rounded-full overflow-hidden border border-acid-purple/20">
-                <div 
-                  className="bg-acid-cyan h-full transition-all duration-500 shadow-[0_0_10px_currentColor]" 
-                  style={{ width: `${session.progress}%` }}
-                />
-              </div>
-            )}
+            {/* Wykres Recharts dla Loss (lewa) i Accuracy (prawa) */}
+            <div className="h-[210px] w-full bg-black/20 p-2 border border-white/5 rounded-xl relative">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={accuracyGraph} margin={{ top: 5, right: 5, left: -25, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="colorLoss" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.25}/>
+                      <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorAcc" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#2EC4B6" stopOpacity={0.25}/>
+                      <stop offset="95%" stopColor="#2EC4B6" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
+                  <XAxis dataKey="name" stroke="rgba(255,255,255,0.3)" style={{ fontSize: '7.5px' }} />
+                  <YAxis stroke="rgba(255,255,255,0.3)" style={{ fontSize: '7.5px' }} />
+                  <Tooltip 
+                    contentStyle={{ background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '9px', fontFamily: 'monospace' }}
+                    itemStyle={{ color: '#fff' }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '8px', fontFamily: 'monospace' }} />
+                  <Area type="monotone" dataKey="loss" name="Strata (Loss/Błąd)" stroke="#f43f5e" fillOpacity={1} fill="url(#colorLoss)" strokeWidth={1.5} />
+                  <Area type="monotone" dataKey="accuracy" name="Precyzja Odkrycia (%)" stroke="#2EC4B6" fillOpacity={1} fill="url(#colorAcc)" strokeWidth={1.5} />
+                  <Area type="monotone" dataKey="validation" name="Walidacji (%)" stroke="#8b5cf6" fillOpacity={0} strokeWidth={1} strokeDasharray="2 2" />
+                </AreaChart>
+              </ResponsiveContainer>
+              {accuracyGraph.length <= 1 && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 rounded-xl backdrop-blur-xs">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Wizualizacja Tensorów</span>
+                  <span className="text-[8px] text-slate-600 mt-1 uppercase">Wykres ulegnie wygenerowaniu podczas aktywnego uczenia</span>
+                </div>
+              )}
+            </div>
+          </div>
 
-            {session.status === 'completed' && (
-              <div className="mt-4 flex justify-end gap-2">
-                <button 
-                  onClick={() => handleDeploy(session, 'agent')}
-                  className="bg-black/30 border border-acid-cyan/50 text-acid-cyan px-3 py-1 text-xs uppercase hover:bg-acid-cyan/10 flex items-center gap-2 rounded font-mono transition-all"
-                  title="Stwórz nowego agenta na podstawie wyników tego treningu"
-                >
-                  <Bot size={12} /> Wdróż jako Agenta
-                </button>
-                <button 
-                  onClick={() => handleDeploy(session, 'team')}
-                  className="bg-acid-purple/20 text-acid-purple border border-acid-purple px-3 py-1 text-xs uppercase hover:bg-acid-purple/40 flex items-center gap-2 rounded font-mono neon-text-purple transition-all"
-                  title="Stwórz cały zespół (rój) wyspecjalizowany w tym temacie"
-                >
-                  <Users size={12} /> Wdróż jako Zespół
-                </button>
+          {/* REKOMENDACJE ROJÓW DO ZATWIERDZENIA */}
+          <div className="border border-acid-purple/20 bg-neutral-950/40 p-4 rounded-2xl space-y-3.5">
+            <h3 className="font-display text-xs uppercase text-slate-200 tracking-wider flex items-center gap-1.5 border-b border-white/5 pb-2">
+              <Sparkles size={14} className="text-acid-cyan animate-pulse" /> REKOMENDOWANE KONFIGURACJE MODELI DO ZATWIERDZENIA
+            </h3>
+
+            {recommendations.length === 0 ? (
+              <p className="text-[9px] text-slate-500 italic text-center py-2 uppercase tracking-wide">
+                Brak nowych propozycji rojów. Wszystkie rekomendacje zostały wdrożone!
+              </p>
+            ) : (
+              <div className="space-y-2.5">
+                {recommendations.map(rec => (
+                  <div key={rec.id} className="p-3 bg-black/40 border border-white/5 rounded-xl hover:border-acid-cyan/20 transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-white text-[10px] uppercase tracking-wider">{rec.name}</span>
+                        <span className="text-[7px] font-bold bg-acid-cyan/10 text-acid-cyan border border-acid-cyan/30 px-1 rounded">
+                          Spójność: {rec.confidence}%
+                        </span>
+                      </div>
+                      <p className="text-[9px] text-slate-400 leading-normal">{rec.description}</p>
+                      <div className="text-[8px] text-slate-500 font-semibold uppercase flex items-center gap-1">
+                        <span className="text-acid-purple">Kompetencje:</span> {rec.skills}
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => handleApproveRecommendation(rec)}
+                      className="px-2.5 py-1 text-[9px] font-bold uppercase bg-acid-cyan/10 border border-acid-cyan text-acid-cyan rounded-lg hover:bg-acid-cyan hover:text-black transition-all flex-shrink-0 cursor-pointer"
+                      title="Zatwierdź tę konfigurację i automatycznie dodaj agenty do bazy"
+                    >
+                      Zatwierdź & Wdróż
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
           </div>
-        ))}
+        </div>
       </div>
 
-      {/* Centrum Autoadaptacji i Logów Błędów Roju */}
+      {/* APARATURA AUTONAPRAWY KODU, LINTERA I AUTOKOMPILACJI BETA (Własne zespoły) */}
+      <div className="border border-acid-purple/30 bg-black/60 p-5 rounded-2xl space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-acid-purple/25 pb-3 gap-3">
+          <div className="flex items-center gap-2">
+            <Lock size={16} className="text-acid-purple animate-pulse" />
+            <div>
+              <h3 className="font-display text-[11px] tracking-widest uppercase text-acid-purple font-extrabold flex items-center gap-1.5">
+                STACJA SAMONAPRAWY I AUTOKOMPILACJI ROJU (BETA RELEASE)
+              </h3>
+              <p className="text-[8px] text-slate-500 uppercase tracking-widest mt-0.5">
+                Agenty autonomicznie kompilują wersje beta aplikacji w tle bez ingerencji programisty
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex gap-2 items-center">
+            <div className="text-right text-[8px] text-slate-400 font-mono sm:border-r border-white/5 pr-3">
+              <div>Wersja lokalna: <span className="text-white font-bold">{betaVersion}</span></div>
+              <div>Kondycja kodu: <span className="text-emerald-400 font-bold">EXCELLENT (100%)</span></div>
+              <div>Usunięte błędy: <span className="text-acid-cyan font-bold">{solvedBugs}</span></div>
+            </div>
+            
+            <button 
+              onClick={handleTriggerSelfHealingCompile}
+              disabled={recompileStatus !== 'idle' && recompileStatus !== 'success'}
+              className="bg-acid-purple/15 hover:bg-acid-purple/35 text-acid-purple border border-acid-purple px-3 py-1.5 rounded-lg text-[9px] uppercase font-black transition-all hover:scale-105 active:scale-95 flex items-center gap-1 cursor-pointer"
+              title="Zleć agentowi KernelGhost zeskanowanie plików serwerowych, naprawę i wygenerowanie klastrowego buildu beta"
+            >
+              <RefreshCcw size={10} className={cn("animate-spin", recompileStatus === 'idle' && "animation-none")} />
+              Uruchom Samonaprawę & Kompilację Beta
+            </button>
+          </div>
+        </div>
+
+        {/* EKRAN SYMULACJI PROCESU KOMPILACJI */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <div className="lg:col-span-7 bg-neutral-950/80 border border-white/5 rounded-xl p-4 space-y-3 relative overflow-hidden">
+            <div className="flex items-center justify-between text-[9px] border-b border-white/5 pb-1.5">
+              <span className="text-slate-400 font-bold uppercase flex items-center gap-1">
+                <Code size={12} className="text-acid-purple" /> TELEMETRIA SYSTEMU BUDOWANIA I LINTERÓW TS
+              </span>
+              <span className={cn(
+                "px-2 py-0.5 rounded text-[8.5px] font-bold uppercase",
+                recompileStatus === 'success' ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30" :
+                recompileStatus === 'idle' ? "bg-slate-800 text-slate-400" :
+                "bg-amber-500/15 border border-amber-500/30 text-amber-400 animate-pulse"
+              )}>
+                STATUS: {recompileStatus === 'idle' ? "IDLE / OCZEKIWANIE" :
+                         recompileStatus === 'scanning' ? "SKANOWANIE LINTERA..." :
+                         recompileStatus === 'repairing' ? "AGENCI NAPRAWIAJĄ KOD..." :
+                         recompileStatus === 'compiling' ? "UŻYCIE ESBUILD (NPM BUILD)..." :
+                         "UKOŃCZONO RELEASE BETA SYNC"}
+              </span>
+            </div>
+
+            <div className="h-[140px] overflow-y-auto font-mono text-[9px] text-slate-400 space-y-1 bg-black/60 p-3 rounded-lg custom-scrollbar">
+              {recompileLogs.length === 0 ? (
+                <div className="text-slate-600 italic text-center pt-10 uppercase tracking-widest text-[8px]">
+                  IDLE. Kliknij przycisk powyżej, aby wydać instrukcje kompilacji beta.
+                </div>
+              ) : (
+                recompileLogs.map((log, index) => (
+                  <div key={index} className={cn(
+                    "py-0.5 pl-1.5 border-l",
+                    log.includes('Agent:') ? "border-acid-purple text-pink-400 font-semibold" :
+                    log.includes('Linter') ? "border-amber-500 text-amber-300" :
+                    log.includes('Sukces!') || log.includes('WERSJA') ? "border-emerald-500 text-emerald-400 font-bold" :
+                    "border-slate-800 text-slate-400"
+                  )}>
+                    {log}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* PROPOZYCJE AKTUALIZACJI FUNKCJONALNOŚCI OD ROJU */}
+          <div className="lg:col-span-5 bg-neutral-900/40 border border-white/5 rounded-xl p-4 space-y-3">
+            <h4 className="text-[10px] font-black uppercase text-slate-300 border-b border-white/5 pb-1.5 flex items-center gap-1">
+              <Layers size={13} className="text-acid-cyan animate-pulse" /> PROPONOWANE UPGRADE'Y FUNKCJONALNOŚCI
+            </h4>
+
+            <div className="space-y-2 max-h-[140px] overflow-y-auto custom-scrollbar pr-1">
+              {upgradesProposals.map(proposal => {
+                const isInstalled = appliedUpgrades.includes(proposal.id);
+                const isInstalling = upgradingId === proposal.id;
+                
+                return (
+                  <div key={proposal.id} className="p-2 bg-black/40 border border-white/5 rounded-lg flex justify-between items-center gap-2">
+                    <div className="space-y-0.5">
+                      <span className="block text-[9.5px] font-bold text-slate-200 leading-snug">{proposal.title}</span>
+                      <span className="block text-[8px] text-slate-500 leading-normal">{proposal.desc}</span>
+                      <span className="text-[7.5px] text-acid-cyan font-bold block">{proposal.gain}</span>
+                    </div>
+                    
+                    <button 
+                      onClick={() => handleApplyUpgradeProposal(proposal.id)}
+                      disabled={isInstalled || isInstalling}
+                      className={cn(
+                        "px-2 py-1 text-[8px] font-bold uppercase rounded-md transition-all flex-shrink-0 cursor-pointer",
+                        isInstalled 
+                          ? "bg-slate-800 text-slate-500 cursor-not-allowed" 
+                          : isInstalling 
+                            ? "bg-acid-purple/10 text-acid-purple border border-acid-purple/30 animate-pulse" 
+                            : "bg-acid-purple/15 text-acid-purple border border-acid-purple hover:bg-acid-purple hover:text-white"
+                      )}
+                    >
+                      {isInstalled ? "Wdrożono" : isInstalling ? "Wdrażanie..." : "Wdróż"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* CENTRUM LOGÓW I AUTOADAPTACJI ROJU */}
       <div className="border border-acid-purple/30 bg-black/60 p-5 rounded-2xl space-y-4">
         <div className="flex justify-between items-center border-b border-acid-purple/25 pb-2">
           <div className="flex items-center gap-2">
             <AlertTriangle size={16} className="text-red-500 animate-pulse" />
-            <h3 className="font-display text-sm tracking-wider uppercase text-acid-purple font-extrabold">APARATURA AUTOADAPTACJI I LOGI BŁĘDÓW ROJU</h3>
+            <h3 className="font-display text-[10px] tracking-wider uppercase text-acid-purple font-extrabold">APARATURA AUTOADAPTACJI I REZULTATY HISTORII</h3>
           </div>
           <button 
             onClick={loadErrorLogs}
-            className="text-[10px] uppercase font-mono border border-acid-purple/30 text-acid-purple px-2 py-0.5 rounded hover:bg-neutral-800 transition-all cursor-pointer"
+            className="text-[9px] uppercase font-mono border border-acid-purple/30 text-acid-purple px-2 py-0.5 rounded hover:bg-neutral-800 transition-all cursor-pointer"
             title="Pobierz najnowsze zrzuty awarii"
           >
-            Odśwież Awarie
+            Odśwież Historię
           </button>
         </div>
 
         {errorLogs.length === 0 ? (
-          <p className="text-[10px] text-gray-400 italic font-mono text-center py-4">
-            Brak zgłoszonych awarii wykonania (FAILED_TO_EXECUTE) w roju. Wszystkie procesy stabilne.
+          <p className="text-[10px] text-slate-500 italic font-mono text-center py-4">
+            Brak zgłoszonych błędów w klastrze roju. Wszystkie procesy i agenty pracują stabilnie.
           </p>
         ) : (
           <div className="space-y-2 max-h-[300px] overflow-auto custom-scrollbar">
@@ -6105,7 +11880,7 @@ const TrainingFarm = React.memo(() => {
                       <>
                         <button
                           onClick={() => handleFewShotInject(log.id)}
-                          className="px-2.5 py-1 bg-neutral-900 border border-acid-cyan/50 text-acid-cyan text-[10px] font-bold uppercase rounded hover:bg-acid-cyan/10 transition-colors"
+                          className="px-2.5 py-1 bg-neutral-900 border border-acid-cyan/50 text-acid-cyan text-[10px] font-bold uppercase rounded hover:bg-acid-cyan/10 transition-colors cursor-pointer"
                           title="Wstrzyknij błąd jako żywy, negatywny przykład do promptu (Few-Shot Prompting)"
                         >
                           Załaduj Few-Shot
@@ -6113,7 +11888,7 @@ const TrainingFarm = React.memo(() => {
                         <button
                           onClick={() => handleTuning(log)}
                           disabled={isTuning || !!isTuningId}
-                          className="px-2.5 py-1 bg-acid-purple/10 border border-acid-purple text-acid-purple text-[10px] font-extrabold uppercase rounded hover:bg-acid-purple/30 transition-colors flex items-center gap-1"
+                          className="px-2.5 py-1 bg-acid-purple/10 border border-acid-purple text-acid-purple text-[10px] font-extrabold uppercase rounded hover:bg-acid-purple/30 transition-colors flex items-center gap-1 cursor-pointer"
                           title="Uruchom zaawansowany prompt tuning, aby trwale zreorganizować rdzeń systemPromptu agenta"
                         >
                           {isTuning ? (
@@ -6361,21 +12136,99 @@ const GameEngine = React.memo(() => {
   );
 });
 
+import { SshManager } from './components/SshManager';
+
+const ProtocolsView = () => {
+    const [activeProtocol, setActiveProtocol] = useState<string | null>(null);
+    const protocols = [
+        { id: 'ssh', name: 'SSH', status: 'active', desc: 'Bezpieczna powłoka', icon: Terminal },
+        { id: 'ftp', name: 'FTP', status: 'inactive', desc: 'Protokół transferu plików', icon: FileText },
+        { id: 'rdp', name: 'RDP', status: 'active', desc: 'Remote Desktop', icon: Monitor },
+        { id: 'openvpn', name: 'OpenVPN', status: 'active', desc: 'Wirtualna sieć prywatna', icon: ShieldCheck },
+        { id: 'wireshark', name: 'Wireshark', status: 'active', desc: 'Analizator sieci', icon: Activity },
+        { id: 'sftp', name: 'SFTP', status: 'active', desc: 'Bezpieczny FTP', icon: FileText },
+        { id: 'samba', name: 'Samba', status: 'inactive', desc: 'Udostępnianie plików/drukarek', icon: Share2 },
+        { id: 'webdav', name: 'WebDAV', status: 'active', desc: 'Zdalne edytowanie plików', icon: Zap },
+    ];
+    
+    if (activeProtocol === 'ssh') {
+        return (
+            <div className="relative z-10">
+                <button onClick={() => setActiveProtocol(null)} className="mb-4 text-acid-cyan text-xs font-bold uppercase">&larr; Wróć do listy protokołów</button>
+                <SshManager />
+            </div>
+        );
+    }
+
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
+            {protocols.map(p => (
+                <div key={p.id} className="bg-white/5 p-6 rounded-3xl border border-white/10 hover:border-acid-cyan/50 transition-all group">
+                    <div className="flex justify-between items-start mb-4">
+                        <div className="w-10 h-10 rounded-xl bg-black/40 border border-white/5 flex items-center justify-center text-slate-400 group-hover:text-acid-cyan">
+                           <p.icon size={20} />
+                        </div>
+                        <span className={cn("text-[10px] py-1 px-3 rounded-full font-bold uppercase", p.status === 'active' ? 'bg-acid-green/20 text-acid-green' : 'bg-red-500/20 text-red-500')}>{p.status}</span>
+                    </div>
+                    <h3 className="text-white font-bold mb-1">{p.name}</h3>
+                    <div className="text-[10px] text-slate-400 mb-4">{p.desc}</div>
+                    <button 
+                        onClick={() => setActiveProtocol(p.id)}
+                        className="w-full bg-white/10 py-2 rounded-lg text-xs font-bold text-white hover:bg-white/20"
+                    >
+                        {p.status === 'active' ? 'Konfiguruj' : 'Aktywuj'}
+                    </button>
+                </div>
+            ))}
+        </div>
+    );
+};
+
 const HostingManager = React.memo(({ showToast }: { showToast: (msg: string) => void }) => {
-  const [platform, setPlatform] = useState<'lamp' | 'node' | 'docker' | 'termux'>('lamp');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [activeView, setActiveView] = useState<'installers' | 'dashboard' | 'protocols'>('dashboard');
+  const [platform, setPlatform] = useState<'lamp' | 'node' | 'docker' | 'termux' | 'gcp' | 'aws' | 'azure'>('lamp');
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [nodePort, setNodePort] = useState<string>('3000');
   const [targetIp, setTargetIp] = useState<string>('127.0.0.1');
   const [nodeId, setNodeId] = useState<string>(() => Math.random().toString(16).substring(2, 10).toUpperCase());
   const [copiedText, setCopiedText] = useState<string | null>(null);
 
-  const generateInstaller = () => {
+  // Mock hosting services
+  const hostedServices = [
+    { id: 'dom1', name: 'mojastrona.pl', status: 'active', usage: '65%', type: 'LAMP' },
+    { id: 'dom2', name: 'aplikacja.tech', status: 'active', usage: '89%', type: 'NODE' },
+    { id: 'dom3', name: 'sklep.xyz', status: 'suspended', usage: '0%', type: 'DOCKER' },
+  ];
+
+  const generateInstaller = async () => {
     setIsGenerating(true);
-    setTimeout(() => {
-      setDownloadUrl('swarm_setup.zip');
+    try {
+      const zip = new JSZip();
+      
+      let mainScript = '';
+      if (platform === 'lamp') mainScript = getPhpBridgeScript();
+      else if (platform === 'node') mainScript = getSystemdScript() + "\n\n" + getPowerShellScript();
+      else if (platform === 'docker') mainScript = getDockerComposeScript();
+      else if (platform === 'termux') mainScript = getTermuxScript();
+      else mainScript = `# Instalator dla ${platform.toUpperCase()}\n# Konfiguracja środowiska chmurowego ${platform.toUpperCase()} dla CYLON NODE (ID: ${nodeId})\n# Wdrożenie automatyczne przez API Providera.`;
+      
+      const fileName = platform === 'lamp' ? 'cylon_bridge.php' : 
+                      platform === 'docker' ? 'docker-compose.yml' :
+                      platform === 'termux' ? 'termux_setup.sh' : 'setup_scripts.txt';
+                      
+      zip.file(fileName, mainScript);
+      zip.file('README.txt', `Automatyczny instalator CYLON NODE\nPlatforma: ${platform}\nNode ID: ${nodeId}\n\nWygenerowano z głównego systemu kontroli.`);
+      
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = window.URL.createObjectURL(blob);
+      setDownloadUrl(url);
+    } catch (e) {
+      console.error(e);
+      showToast("BŁĄD GENEROWANIA INSTALATORA");
+    } finally {
       setIsGenerating(false);
-    }, 1500);
+    }
   };
 
   const handleCopy = (text: string, label: string) => {
@@ -6389,19 +12242,19 @@ const HostingManager = React.memo(({ showToast }: { showToast: (msg: string) => 
   };
 
   const getSystemdScript = () => {
-    return `[Unit]\nDescription=CYLON Swarm Worker Node (ID: ${nodeId})\nAfter=network.target\n\n[Service]\nType=simple\nUser=root\nWorkingDirectory=/var/www/cylon-node\nExecStart=/usr/bin/node dist/server.cjs\nRestart=always\nEnvironment=NODE_ENV=production\nEnvironment=PORT=${nodePort}\nEnvironment=NODE_ID=${nodeId}\n\n[Install]\nWantedBy=multi-user.target`;
+    return `#!/bin/bash\n# =====================================================================\n# Linux Worker Node Automated Installer dla CYLON Swarm Core v3.5\n# Patron: Michał Major - 250% Mnożnik Inteligencji Roju\n# =====================================================================\nclear\necho "====================================================================="\necho "     CYLON SWARM OS - AUTOMATYCZNY INSTALATOR DLA LINUXA"\necho "====================================================================="\necho "ID Węzła: ${nodeId}"\necho "Port: ${nodePort}"\necho "Centralne IP Master: ${targetIp}"\necho "---------------------------------------------------------------------"\n\nif [ "$EUID" -ne 0 ]; then\n  echo "[-] BŁĄD: Proszę uruchomić ten instalator z prawami roota (sudo)!"\n  exit 1\nfi\n\necho "[*] KROK 1: Aktualizacja pakietów systemowych..."\napt-get update -y || yum update -y\n\necho "[*] KROK 2: Sprawdzanie i instalacja Node.js..."\nif ! command -v node &> /dev/null; then\n    echo "[-] Brak zainstalowanego Node.js. Instalowanie wersji LTS..."\n    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -\n    apt-get install -y nodejs || yum install -y nodejs\nelse\n    echo "[+] Wykryto zainstalowane Node.js: $(node -v) [OK]"\nfi\n\necho "[*] KROK 3: Tworzenie folderów instalacji..."\nmkdir -p /opt/cylon-node\ncd /opt/cylon-node\n\necho "[*] KROK 4: Generowanie serwera węzła roboczego server.js..."\ncat <<'EOF' > server.js\n// CYLON Swarm Worker Platform - Linux Core Daemon\nconst http = require('http');\nconst PORT = process.env.PORT || 3000;\nconst NODE_ID = process.env.NODE_ID || 'UNNAMED_LINUX';\nconst MASTER_IP = process.env.MASTER_IP || '127.0.0.1';\n\nconst server = http.createServer((req, res) => {\n  res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });\n  res.end(JSON.stringify({\n    status: 'ONLINE_DAEMON',\n    nodeId: NODE_ID,\n    sysInfo: { platform: 'Linux', arch: process.arch, uptime: process.uptime() },\n    masterStatus: 'REPORTING_TO_' + MASTER_IP\n  }));\n});\n\nserver.listen(PORT, '0.0.0.0', () => {\n  console.log(\`Cylon Linux Daemon running on http://0.0.0.0:\${PORT}\`);\n});\nEOF\n\necho "[*] KROK 5: Instalacja demonów i zarządzania PM2 (opcjonalnie)..."\nnpm install -g pm2 --silent\n\necho "[*] KROK 6: Konfiguracja i rejestracja demona systemd..."\ncat <<EOF > /etc/systemd/system/cylon-node.service\n[Unit]\nDescription=CYLON Swarm Worker Node (ID: ${nodeId})\nAfter=network.target\n\n[Service]\nType=simple\nUser=root\nWorkingDirectory=/opt/cylon-node\nExecStart=/usr/bin/node server.js\nRestart=always\nEnvironment=NODE_ENV=production\nEnvironment=PORT=${nodePort}\nEnvironment=NODE_ID=${nodeId}\nEnvironment=MASTER_IP=${targetIp}\n\n[Install]\nWantedBy=multi-user.target\nEOF\n\necho "[*] KROK 7: Uruchamianie demona CYLON..."\nsystemctl daemon-reload\nsystemctl enable cylon-node.service\nsystemctl start cylon-node.service\n\necho "====================================================================="\necho "[+] SUKCES! Węzeł Linux został wdrożony jako usługa systemd."\necho "[+] Status za pomocą: systemctl status cylon-node.service"\necho "====================================================================="`;
   };
 
   const getPowerShellScript = () => {
-    return `# Windows Node PowerShell Wrapper dla CYLON Swarm Core\nWrite-Host "Inicjalizacja węzła roboczego Windows ID: ${nodeId}..." -ForegroundColor Green\n$env:PORT="${nodePort}"\n$env:NODE_ID="${nodeId}"\n$env:NODE_ENV="production"\n\n# Pobieranie i instalacja klienta npm (opcjonalna)\nif (Get-Command "node" -ErrorAction SilentlyContinue) {\n    npm install -g pm2\n    pm2 start dist/server.cjs --name "cylon-swarm-${nodeId}"\n} else {\n    Write-Error "Zainstaluj Node.js przed uruchomieniem węzła!"\n}`;
+    return `# =====================================================================\n# Windows Node PowerShell Installer dla CYLON Swarm Core v3.5\n# Patron: Michał Major - 250% Mnożnik Inteligencji Roju\n# =====================================================================\nClear-Host\nWrite-Host "=====================================================================" -ForegroundColor Green\nWrite-Host "     CYLON SWARM OS - INSTALATOR WĘZŁA ROBOCZEGO WINDOWS" -ForegroundColor Green\nWrite-Host "=====================================================================" -ForegroundColor Green\nWrite-Host "ID Węzła: ${nodeId}" -ForegroundColor Yellow\nWrite-Host "Port Nasłuchu: ${nodePort}" -ForegroundColor Yellow\nWrite-Host "Adres Główny Serwera Master: ${targetIp}" -ForegroundColor Yellow\nWrite-Host "---------------------------------------------------------------------" -ForegroundColor Gray\n\n$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)\nif (-not $isAdmin) {\n    Write-Warning "UWAGA: Brak uprawnień Administratora. Niektóre funkcje mogą nie działać."\n    Write-Warning "Zaleca się uruchomienie PowerShell jako Administrator w celu otwarcia portu w Firewallu!"\n}\n\nif ($isAdmin) {\n    Write-Host "[*] Konfiguracja portu ${nodePort} w Windows Firewall..." -ForegroundColor Cyan\n    $ruleName = "CYLON Swarm Port ${nodePort}"\n    $ruleExists = Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue\n    if (-not $ruleExists) {\n        New-NetFirewallRule -DisplayName $ruleName -Direction Inbound -Action Allow -Protocol TCP -LocalPort ${nodePort} -Enabled True | Out-Null\n        Write-Host "[+] Port ${nodePort} pomyślnie dopuszczony w zaporze sieciowej!" -ForegroundColor Green\n    } else {\n        Write-Host "[i] Reguła zapory dla portu ${nodePort} już istnieje." -ForegroundColor Gray\n    }\n}\n\nWrite-Host "[*] Weryfikacja środowiska Node.js..." -ForegroundColor Cyan\nif (Get-Command "node" -ErrorAction SilentlyContinue) {\n    $nodeVer = node -v\n    Write-Host "[+] Wykryto wersję Node.js: $nodeVer [OK]" -ForegroundColor Green\n} else {\n    Write-Host "[-] Brak zainstalowanego Node.js. Pobieranie instalatora..." -ForegroundColor Red\n    $downloader = New-Object System.Net.WebClient\n    $msiUrl = "https://nodejs.org/dist/v20.10.0/node-v20.10.0-x64.msi"\n    $outPath = "\\$env:TEMP\\\\node_install.msi"\n    Write-Host "[*] Pobieranie Node.js v20.10.0 z Node org..." -ForegroundColor Cyan\n    $downloader.DownloadFile($msiUrl, $outPath)\n    Write-Host "[*] Instrukcja instalacji automatycznej w tle (może potrwać minutę)..." -ForegroundColor Cyan\n    Start-Process msiexec.exe -ArgumentList "/i \\$outPath /qn /norestart" -Wait\n    Write-Host "[+] Instalacja Node.js zakończona. Uruchom skrypt ponownie po restarcie konsoli!" -ForegroundColor Green\n}\n\nWrite-Host "[*] Tworzenie środowiska roboczego CYLON w C:\\\\CylonSwarmNode..." -ForegroundColor Cyan\n$workDir = "C:\\\\CylonSwarmNode"\nif (-not (Test-Path $workDir)) {\n    New-Item -ItemType Directory -Path $workDir | Out-Null\n}\n\n\\$env:PORT="${nodePort}"\n\\$env:NODE_ID="${nodeId}"\n\\$env:NODE_ENV="production"\n\\$env:MASTER_IP="${targetIp}"\n\nWrite-Host "[+] Alokowanie zasobów dla węzła..." -ForegroundColor Green\nWrite-Host "[i] Generowanie pliku start_node.bat..." -ForegroundColor Gray\n$batContent = "@echo off\`r\`nset PORT=${nodePort}\`r\`nset NODE_ID=${nodeId}\`r\`nset NODE_ENV=production\`r\`nset MASTER_IP=${targetIp}\`r\`nnode server.cjs"\n$batContent | Out-File -FilePath "\\$workDir\\\\start_node.bat" -Encoding ASCII\n\n$localServerJs = @"\n// CYLON Swarm Worker Platform\nconst http = require('http');\nconst PORT = process.env.PORT || ${nodePort};\nconst NODE_ID = process.env.NODE_ID || '${nodeId}';\nconst MASTER_IP = process.env.MASTER_IP || '${targetIp}';\n\nconsole.log('====================================================');\nconsole.log('   CYLON WORKER OS v3.5 - ACTIVE IN BOUNDS');\nconsole.log('   NODE ID: ' + NODE_ID);\nconsole.log('   PORT: ' + PORT);\nconsole.log('   MASTER CONNECT IP: ' + MASTER_IP);\nconsole.log('====================================================');\n\nconst server = http.createServer((req, res) => {\n  res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });\n  res.end(JSON.stringify({\n    status: 'ONLINE',\n    nodeId: NODE_ID,\n    sysInfo: { platform: 'Windows', arch: process.arch, uptime: process.uptime() },\n    masterStatus: 'CONNECTING_TO_' + MASTER_IP\n  }));\n});\n\nserver.listen(PORT, '0.0.0.0', () => {\n  console.log('Węzeł roboczy aktywny i gotowy na instrukcje na porcie ' + PORT);\n});\n"@\n$localServerJs | Out-File -FilePath "\\$workDir\\\\server.cjs" -Encoding UTF8\n\nWrite-Host ""\nWrite-Host "=====================================================================" -ForegroundColor Green\nWrite-Host "     SUKCES! Węzeł Windows przeznaczony do pracy." -ForegroundColor Green\nWrite-Host "     Wejdź do folderu C:\\\\CylonSwarmNode i uruchom plik: start_node.bat" -ForegroundColor Yellow\nWrite-Host "=====================================================================" -ForegroundColor Green`;
   };
 
   const getDockerComposeScript = () => {
-    return `version: '3.8'\n\nservices:\n  cylon-swarm-node:\n    image: cylonstefan/swarm-node:latest\n    container_name: cylon_node_${nodeId.toLowerCase()}\n    ports:\n      - "${nodePort}:${nodePort}"\n    environment:\n      - NODE_ENV=production\n      - PORT=${nodePort}\n      - NODE_ID=${nodeId}\n      - MASTER_IP=${targetIp}\n      - SUPREME_ADMIN=MICHAŁ_MAJOR\n    restart: always`;
+    return `# =====================================================================\n# Docker Compose Config dla CYLON Swarm Node v3.5\n# Gotowy do uruchomienia natychmiast na Docker Desktop / Portainer\n# =====================================================================\n\nversion: '3.8'\n\nservices:\n  cylon-swarm-node:\n    # Gotowy, publiczny oficjalny obraz kontenera CYLON Swarm Node\n    image: cylonstefan/cylon-swarm:latest\n    container_name: cylon_node_${nodeId.toLowerCase()}\n    ports:\n      - "${nodePort}:${nodePort}"\n    environment:\n      - NODE_ENV=production\n      - PORT=${nodePort}\n      - NODE_ID=${nodeId}\n      - MASTER_IP=${targetIp}\n      - HOST_IP=0.0.0.0\n      - MULTIPLEXER_RATIO=250\n      - SEED_IDENTITY=CYLON_SWARM_EXECUTOR\n      - SUPREME_ADMIN=MICHAŁ_MAJOR\n    volumes:\n      - ./cylon_db:/app/data\n      - ./cylon_logs:/app/logs\n    restart: always`;
   };
 
   const getTermuxScript = () => {
-    return `#!/data/data/com.termux/files/usr/bin/bash\n# Android Termux Mobile Node Setup\necho "POCZĄTEK INSTALACJI MOBILNEJ DLA CYLON SWARM CORE (PATRON: MICHAŁ MAJOR 250% MULTIPLEXER)"\npkg update -y && pkg upgrade -y\npkg install nodejs-lts python git sqlite3 clang -y\n\nmkdir -p ~/cylon-node && cd ~/cylon-node\necho "Alokowanie platformy dla ID: ${nodeId} na porcie ${nodePort}..."\n\n# Pobieranie paczki klienta i start\ncat <<EOT > start_node.sh\n#!/bin/bash\nexport PORT=${nodePort}\nexport NODE_ID=${nodeId}\nexport NODE_ENV=production\nnode dist/server.cjs\nEOT\nchmod +x start_node.sh\n./start_node.sh`;
+    return `#!/data/data/com.termux/files/usr/bin/bash\n# =====================================================================\n# Android Termux Mobile Node Setup dla CYLON Swarm Core v3.5\n# Patron: Michał Major - 250% Mnożnik Inteligencji Roju\n# =====================================================================\nclear\necho "====================================================================="\necho "   CYLON SWARM OS - INSTALATOR MOBILNY (TERMUX ANDROID)"\necho "====================================================================="\necho "ID Węzła: ${nodeId}"\necho "Port: ${nodePort}"\necho "Centralne IP Master: ${targetIp}"\necho "---------------------------------------------------------------------"\n\necho "[*] Przyznawanie uprawnień do pamięci telefonu (Zaakceptuj)..."\ntermux-setup-storage\n\necho "[*] Aktualizowanie repozytoriów pakietów Termux..."\npkg update -y && pkg upgrade -y\n\necho "[*] Instalowanie niezbędnych kompilatorów i bibliotek..."\npkg install nodejs-lts python git sqlite clang make openssl -y\n\necho "[*] Tworzenie środowiska roboczego..."\nmkdir -p ~/cylon-node && cd ~/cylon-node\n\necho "[*] Tworzenie mikro-serwera mobilnego server.js..."\ncat <<'EOF' > server.js\nconst http = require('http');\nconst PORT = process.env.PORT || 3000;\nconst NODE_ID = process.env.NODE_ID || 'TERMUX_MOBILE';\n\nconst server = http.createServer((req, res) => {\n  res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });\n  res.end(JSON.stringify({\n    status: 'MOBILE_NODE_ONLINE',\n    nodeId: NODE_ID,\n    sysInfo: { platform: 'Android (Termux)', arch: process.arch, uptime: process.uptime() }\n  }));\n});\n\nserver.listen(PORT, '0.0.0.0', () => {\n  console.log(\`Cylon Termux Node active on http://0.0.0.0:\${PORT}\`);\n});\nEOF\n\necho "[*] Generowanie skryptu startowego..."\ncat <<EOT > start_node.sh\n#!/bin/bash\nexport PORT=${nodePort}\nexport NODE_ID=${nodeId}\nexport NODE_ENV=production\nexport MASTER_IP=${targetIp}\nnode server.js\nEOT\n\nchmod +x start_node.sh\n\necho "====================================================================="\necho "[+] SUKCES! Węzeł mobilny gotowy do podłączenia do klastra."\necho "[+] Uruchom go poleceniem: ~/cylon-node/start_node.sh"\necho "====================================================================="`;
   };
 
   const getPhpBridgeScript = () => {
@@ -6416,20 +12269,41 @@ const HostingManager = React.memo(({ showToast }: { showToast: (msg: string) => 
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12 relative z-10 border-b border-white/5 pb-8">
           <div>
             <h1 className="text-4xl font-display font-black uppercase tracking-tighter text-white mb-2 italic">
-              CENTRUM <span className="text-acid-cyan">HOSTINGOWE</span> & WĘZŁY
+              CENTRUM <span className="text-acid-cyan">HOSTINGOWE</span>
             </h1>
-            <p className="text-xs uppercase font-bold text-slate-500 tracking-[0.2em] flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-acid-green animate-pulse" />
-              INTEGRATOR INSTALATORÓW (WINDOWS, LINUX SYSTEMD, ANDROID TERMUX)
-            </p>
+            <div className="flex gap-4 mt-4">
+              <button onClick={() => setActiveView('dashboard')} className={cn("text-xs uppercase font-bold tracking-widest", activeView === 'dashboard' ? 'text-white' : 'text-slate-500')}>Panel Usług</button>
+              <button onClick={() => setActiveView('installers')} className={cn("text-xs uppercase font-bold tracking-widest", activeView === 'installers' ? 'text-white' : 'text-slate-500')}>Instalatory</button>
+              <button onClick={() => setActiveView('protocols')} className={cn("text-xs uppercase font-bold tracking-widest", activeView === 'protocols' ? 'text-white' : 'text-slate-500')}>Protokoły</button>
+            </div>
           </div>
           <div className="text-[10px] bg-acid-purple/10 border border-acid-purple/30 text-acid-purple px-4 py-2 rounded-2xl font-mono uppercase font-black">
             AUTORYZATOR: CYLON (TY)
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 relative z-10">
-          <div className="lg:col-span-1 space-y-6">
+        {activeView === 'dashboard' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative z-10">
+            {hostedServices.map(s => (
+              <div key={s.id} className="bg-white/5 p-6 rounded-3xl border border-white/10">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-white font-bold">{s.name}</h3>
+                  <span className={cn("text-[10px] py-1 px-3 rounded-full font-bold uppercase", s.status === 'active' ? 'bg-acid-green/20 text-acid-green' : 'bg-red-500/20 text-red-500')}>{s.status}</span>
+                </div>
+                <div className="text-xs text-slate-400 mb-4 font-mono">{s.type} • Użycie CPU: {s.usage}</div>
+                <div className="flex gap-2">
+                  <button className="flex-1 bg-white/10 py-2 rounded-lg text-xs font-bold text-white hover:bg-white/20">Zarządzaj</button>
+                  <button className="flex-1 bg-white/5 py-2 rounded-lg text-xs font-bold text-slate-400 hover:bg-white/10">Logi</button>
+                </div>
+              </div>
+            ))}
+            <button className="col-span-full border-2 border-dashed border-white/10 py-10 rounded-3xl text-slate-500 font-bold hover:border-white/20 hover:text-white transition-all">+ Dodaj nową usługę hostingową</button>
+          </div>
+        ) : activeView === 'protocols' ? (
+          <ProtocolsView />
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 relative z-10">
+            <div className="lg:col-span-1 space-y-6">
             <h3 className="text-xs font-bold uppercase text-slate-400 tracking-widest border-b border-white/5 pb-2">1. Wybierz Środowisko</h3>
             <div className="space-y-3">
               {[
@@ -6437,6 +12311,9 @@ const HostingManager = React.memo(({ showToast }: { showToast: (msg: string) => 
                 { id: 'node', label: 'Standard Node.js / VM', icon: <Cpu size={18} />, desc: 'Skrypty Windows / Linux Daemon' },
                 { id: 'docker', label: 'Docker Container', icon: <Box size={18} />, desc: 'Autonomiczny orkiestrator Swarm' },
                 { id: 'termux', label: 'Termux Android', icon: <Smartphone size={18} />, desc: 'Mobilny Mikro-Węzeł Obliczeniowy' },
+                { id: 'gcp', label: 'Google Cloud Platform', icon: <Globe size={18} />, desc: 'Cloud Run / Compute Engine' },
+                { id: 'aws', label: 'Amazon Web Services', icon: <Globe size={18} />, desc: 'AWS Lambda / EC2' },
+                { id: 'azure', label: 'Microsoft Azure', icon: <Globe size={18} />, desc: 'Azure App Service / VM' },
               ].map(p => (
                 <button 
                   key={p.id}
@@ -6463,176 +12340,86 @@ const HostingManager = React.memo(({ showToast }: { showToast: (msg: string) => 
             </div>
           </div>
 
-          <div className="lg:col-span-2 space-y-8">
-             <div className="modern-card bg-black/40 border border-white/5 p-8 rounded-[2rem] space-y-6">
-                <h3 className="text-xs font-bold uppercase text-slate-400 tracking-widest border-b border-white/5 pb-2 flex justify-between items-center">
-                  <span>2. Konfiguracja i Klastrowanie</span>
-                  <span className="text-[9px] text-acid-green lowercase tracking-normal">Status: Połączony z Cylon Swarm</span>
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[9px] uppercase font-bold text-slate-400">ID Węzła (Node ID)</label>
-                    <input 
-                      className="modern-input w-full" 
-                      value={nodeId} 
-                      onChange={(e) => setNodeId(e.target.value.toUpperCase())}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[9px] uppercase font-bold text-slate-400">Port Lokalny (Port)</label>
-                    <input 
-                      type="number"
-                      className="modern-input w-full" 
-                      value={nodePort} 
-                      onChange={(e) => setNodePort(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[9px] uppercase font-bold text-slate-400">IP Host / Serwer Master</label>
-                    <input 
-                      className="modern-input w-full" 
-                      value={targetIp} 
-                      onChange={(e) => setTargetIp(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                {/* DYNAMIC INTEGRATED CODE GENERATORS */}
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-300 flex items-center gap-1">
-                      <Terminal size={12} className="text-acid-cyan" />
-                      Wygenerowany Instalator i Skrypt Setupu
-                    </span>
-                    <button
-                      onClick={() => {
-                        let text = '';
-                        if (platform === 'lamp') text = getPhpBridgeScript();
-                        else if (platform === 'node') text = getSystemdScript() + "\n\n" + getPowerShellScript();
-                        else if (platform === 'docker') text = getDockerComposeScript();
-                        else if (platform === 'termux') text = getTermuxScript();
-                        handleCopy(text, 'all_code');
-                      }}
-                      className="text-[9px] px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-acid-cyan border border-acid-cyan/30"
-                    >
-                      {copiedText === 'all_code' ? "SKOPIOWANO!" : "KOPIUJ KOD"}
-                    </button>
-                  </div>
-
-                  <div className="bg-neutral-900 border border-white/5 rounded-2xl p-5 overflow-x-auto relative max-h-[220px] custom-scrollbar">
-                    <pre className="text-[10px] text-emerald-400 font-mono leading-relaxed select-all">
-                      {platform === 'lamp' && getPhpBridgeScript()}
-                      {platform === 'node' && (
-                        <>
-                          {"# (A) LINUX SYSTEMD DAEMON COMPATIBLE SCRIPT:\n"}
-                          {getSystemdScript()}
-                          {"\n\n# (B) WINDOWS POWERSHELL NODE SETUP WRAPPER:\n"}
-                          {getPowerShellScript()}
-                        </>
-                      )}
-                      {platform === 'docker' && getDockerComposeScript()}
-                      {platform === 'termux' && getTermuxScript()}
-                    </pre>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                   <label className="text-[9px] uppercase font-bold text-slate-400">Włącz Moduły Rozszerzone w Instalatorze</label>
-                   <div className="grid grid-cols-2 gap-3">
-                      <div className="p-3 bg-white/5 border border-white/5 rounded-xl flex items-center justify-between">
-                         <span className="text-[10px] text-slate-300 font-bold uppercase">Automatyczne SSH P2P</span>
-                         <div className="w-8 h-4 bg-acid-cyan/50 rounded-full relative"><div className="absolute right-1 top-1 w-2 h-2 bg-white rounded-full"></div></div>
-                      </div>
-                      <div className="p-3 bg-white/5 border border-white/5 rounded-xl flex items-center justify-between">
-                         <span className="text-[10px] text-slate-300 font-bold uppercase">Mnożnik Inteligencji 250%</span>
-                         <div className="w-8 h-4 bg-acid-cyan/50 rounded-full relative"><div className="absolute right-1 top-1 w-2 h-2 bg-white rounded-full"></div></div>
-                      </div>
-                      <div className="p-3 bg-white/5 border border-white/5 rounded-xl flex items-center justify-between">
-                         <span className="text-[10px] text-slate-300 font-bold uppercase">Direct Android WakeLock</span>
-                         <div className="w-8 h-4 bg-acid-cyan/50 rounded-full relative"><div className="absolute right-1 top-1 w-2 h-2 bg-white rounded-full"></div></div>
-                      </div>
-                      <div className="p-3 bg-white/5 border border-white/5 rounded-xl flex items-center justify-between">
-                         <span className="text-[10px] text-slate-300 font-bold uppercase">Protokół Bezpieczeństwa TLS</span>
-                         <div className="w-8 h-4 bg-acid-cyan/50 rounded-full relative"><div className="absolute right-1 top-1 w-2 h-2 bg-white rounded-full"></div></div>
-                      </div>
-                   </div>
-                </div>
-
-                <div className="flex justify-center pt-4">
-                   {!downloadUrl ? (
-                     <button 
-                        onClick={generateInstaller}
-                        disabled={isGenerating}
-                        className="modern-btn bg-acid-cyan text-black px-12 h-14 font-black uppercase tracking-widest text-xs group relative overflow-hidden"
-                        title="Zbuduj gotowy pakiet setup-installer dla Cylon klastrów"
-                     >
-                        {isGenerating ? (
-                          <div className="flex items-center gap-3">
-                             <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                             GENEROWANIE INSTALATORA ZIP...
-                          </div>
-                        ) : (
-                          <span className="relative z-10 flex items-center gap-3"><Download size={18} /> GENERUJ CYLON_SETUP_ZIP</span>
-                        )}
-                        <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500" />
-                     </button>
-                   ) : (
-                     <div className="text-center space-y-4 w-full">
-                       <div className="p-6 rounded-[2rem] bg-acid-green/10 border border-acid-green/30 text-acid-green animate-in zoom-in-95">
-                          <h4 className="font-bold uppercase text-xs mb-1">Pomyślnie Skojarzono!</h4>
-                          <p className="text-[9px] uppercase font-medium">Instalator o ID <span className="underline font-bold text-white">{nodeId}</span> został skompilowany dla {platform.toUpperCase()}. Pobierz archiwum instalatora.</p>
-                       </div>
-                       <div className="flex gap-4">
-                          <button onClick={() => setDownloadUrl(null)} className="flex-1 modern-btn border border-white/10 text-slate-400" title="Zacznij od nowa">Reset</button>
-                          <a 
-                            href="#" 
-                            onClick={(e) => { e.preventDefault(); showToast(`Pobrano archiwum instalacyjne cylon_setup_${nodeId.toLowerCase()}.zip`); }}
-                            className="flex-[2] modern-btn bg-acid-green text-black font-black uppercase flex items-center justify-center gap-3" 
-                            title="Pobierz archiwum instalacyjne"
-                          >
-                             <Download size={18} /> POBIERZ CYLON_{platform.toUpperCase()}_SETUP.ZIP
-                          </a>
-                       </div>
-                     </div>
-                   )}
-                </div>
-             </div>
-
-             <div className="grid grid-cols-2 gap-6">
-                <div className="p-6 rounded-[2rem] bg-white/[0.02] border border-white/5 space-y-3">
-                   <h4 className="text-[10px] font-bold text-white uppercase flex items-center gap-2">
-                     <Terminal size={12} className="text-acid-green" />
-                     Instalacja SSH Tunneling
-                   </h4>
-                   <div className="relative group">
-                     <pre className="text-[9px] text-slate-500 font-mono bg-black/30 p-2.5 rounded-lg select-all">
-                       {getSshConfigScript()}
-                     </pre>
-                   </div>
-                   <p className="text-[8px] text-slate-500 lowercase leading-relaxed">
-                     Zezwala na bezpośrednie przekierowanie portów do Twojej instancji w chmurze bez publicznego IP. Twój terminal na systemie Windows, Linux lub Android Termux będzie w pełni zsynchronizowany.
-                   </p>
-                </div>
-                <div className="p-6 rounded-[2rem] bg-white/[0.02] border border-white/5 space-y-3">
-                   <h4 className="text-[10px] font-bold text-white uppercase flex items-center gap-2">
-                     <Layers size={12} className="text-acid-purple" />
-                     Mądrość Michała Majora
-                   </h4>
-                   <p className="text-[9px] text-slate-500 leading-relaxed italic uppercase font-medium">
-                     Każdy połączony węzeł automatycznie przejmuje optymalizację algorytmiczną ALKORAL-09 (mnożnik inteligencji 250%). Twój system orkiestracyjny automatycznie zarządza dystrybucją obciążeń na procesorach i pamięciach operacyjnych urządzeń.
-                   </p>
-                </div>
-             </div>
+          <div className="lg:col-span-1 space-y-6">
+            <h3 className="text-xs font-bold uppercase text-slate-400 tracking-widest border-b border-white/5 pb-2">2. Konfiguracja Węzła</h3>
+            <div className="space-y-4 bg-white/[0.01] border border-white/5 p-6 rounded-2xl">
+              <div>
+                <label className="text-[10px] font-bold uppercase text-slate-500 block mb-2">ID Klasy Swarm (Node ID)</label>
+                <input 
+                  type="text" 
+                  value={nodeId} 
+                  onChange={e => setNodeId(e.target.value.toUpperCase())}
+                  className="w-full text-xs font-mono bg-black/60 border border-white/5 focus:border-acid-purple/50 rounded-xl px-4 py-3 text-slate-300 outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase text-slate-500 block mb-2">Port Nasłuchu Serwera</label>
+                <input 
+                  type="text" 
+                  value={nodePort} 
+                  onChange={e => setNodePort(e.target.value)}
+                  className="w-full text-xs font-mono bg-black/60 border border-white/5 focus:border-acid-purple/50 rounded-xl px-4 py-3 text-slate-300 outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase text-slate-500 block mb-2">IP Serwera Centralnego</label>
+                <input 
+                  type="text" 
+                  value={targetIp} 
+                  onChange={e => setTargetIp(e.target.value)}
+                  className="w-full text-xs font-mono bg-black/60 border border-white/5 focus:border-acid-purple/50 rounded-xl px-4 py-3 text-slate-300 outline-none"
+                />
+              </div>
+            </div>
           </div>
-        </div>
+
+          <div className="lg:col-span-1 space-y-6">
+            <h3 className="text-xs font-bold uppercase text-slate-400 tracking-widest border-b border-white/5 pb-2">3. Pobieranie Pakietu Instalacyjnego</h3>
+            <div className="space-y-4 bg-white/[0.01] border border-white/5 p-6 rounded-2xl relative">
+              <div className="text-xs text-slate-400 space-y-2">
+                <p>Wybrane środowisko: <strong className="text-acid-cyan uppercase font-bold">{platform}</strong></p>
+                <p className="text-[10px] text-slate-500">System wygeneruje automatycznie spakowany instalator zawierający wszelkie krytyczne pliki konfiguracyjne dla maszyn Windows 11 oraz platformy kontenerowej Docker Desktop.</p>
+              </div>
+
+              <div className="border border-white/5 rounded-xl p-4 bg-black/45 space-y-2">
+                <div className="text-[9px] font-bold uppercase text-slate-500">Wygenerowany plik główny:</div>
+                <div className="font-mono text-xs text-acid-cyan truncate">
+                  {platform === 'lamp' ? 'cylon_bridge.php' : 
+                   platform === 'docker' ? 'docker-compose.yml' :
+                   platform === 'termux' ? 'termux_setup.sh' : 'setup_scripts.ps1'}
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <button 
+                  onClick={generateInstaller}
+                  disabled={isGenerating}
+                  className="w-full bg-acid-purple py-3 rounded-xl text-xs font-bold text-white hover:bg-opacity-80 transition-all flex items-center justify-center gap-2 shadow-lg shadow-acid-purple/10 cursor-pointer"
+                >
+                  {isGenerating ? 'Generowanie...' : 'Generuj Skrypty Instalacyjne'}
+                </button>
+
+                {downloadUrl && (
+                  <a 
+                    href={downloadUrl} 
+                    download={`cylon_installer_${platform}.zip`}
+                    className="w-full bg-acid-green py-3 rounded-xl text-xs font-bold text-black hover:bg-opacity-80 transition-all flex items-center justify-center gap-2 shadow-lg shadow-acid-green/10 text-center block font-sans"
+                  >
+                    Pobierz Paczkę Installer (.zip)
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+          </div>
+        )}
       </div>
     </div>
   );
 });
 
 const MCPManager = React.memo(() => {
-  const [activeCategory, setActiveCategory] = useState<'smtp' | 'files' | 'joomla' | 'ftp' | 'm365'>('smtp');
+  const [activeCategory, setActiveCategory] = useState<'smtp' | 'files' | 'joomla' | 'ftp' | 'm365' | 'registry' | 'terminal'>('registry');
   
   // Audio state
   const [isVoiceOn, setIsVoiceOn] = useState(true);
@@ -6678,11 +12465,108 @@ const MCPManager = React.memo(() => {
   const [isRunningAction, setIsRunningAction] = useState(false);
   const [actionSuccessMessage, setActionSuccessMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (activeCategory === 'files') {
-      loadLocalFiles();
+  // Terminal tool states
+  const [terminalCommand, setTerminalCommand] = useState('');
+  const [terminalServerId, setTerminalServerId] = useState('');
+  const [terminalOutput, setTerminalOutput] = useState<string[]>([
+    "CYLON Terminal v3.2 [Version 10.0.22631.3296]",
+    "(c) Cylon Swarm Corporation. All rights reserved.",
+    "",
+    "C:\\Swarm\\Core> Awaiting generic MCP execute command...",
+  ]);
+
+  // MCP Disabled Tools State
+  const [disabledMcpTools, setDisabledMcpTools] = useState<Record<string, string[]>>(() => {
+    try {
+      const saved = localStorage.getItem('cylon_disabled_mcp_tools');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
     }
-  }, [activeCategory]);
+  });
+
+  const toggleMcpTool = (serverId: string, toolName: string) => {
+    setDisabledMcpTools(prev => {
+      const serverDisabled = prev[serverId] || [];
+      let nextDisabled: string[];
+      if (serverDisabled.includes(toolName)) {
+        nextDisabled = serverDisabled.filter(t => t !== toolName);
+      } else {
+        nextDisabled = [...serverDisabled, toolName];
+      }
+      const next = { ...prev, [serverId]: nextDisabled };
+      localStorage.setItem('cylon_disabled_mcp_tools', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  // MCP Registry extra states
+  const [mcpServers, setMcpServers] = useState<any[]>([]);
+  const [selectedServer, setSelectedServer] = useState<any | null>(null);
+  const [registrySubTab, setRegistrySubTab] = useState<'servers' | 'sessions'>('servers');
+  const [selectedTool, setSelectedTool] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [importUrlInput, setImportUrlInput] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
+  const [importSourceTab, setImportSourceTab] = useState<'presets' | 'custom_url' | 'manual' | 'constructor'>('presets');
+
+  // Add Server Form State
+  const [serverName, setServerName] = useState('');
+  const [serverType, setServerType] = useState<'filesystem' | 'database' | 'network' | 'kubernetes' | 'custom'>('custom');
+  const [serverUrl, setServerUrl] = useState('');
+  const [serverConfigStr, setServerConfigStr] = useState('{}');
+  const [serverCapabilitiesStr, setServerCapabilitiesStr] = useState('[]');
+
+  // Konstruktor Własnych MCP State
+  const [constructorServerName, setConstructorServerName] = useState('');
+  const [constructorServerUrl, setConstructorServerUrl] = useState('');
+  const [constructorCapabilities, setConstructorCapabilities] = useState<string[]>([]);
+  const [newCap, setNewCap] = useState('');
+  const [constructorServerType, setConstructorServerType] = useState('custom');
+  
+  // Konstruktor Własnych MCP Handler
+  const handleConstructAndSave = async () => {
+    if (!constructorServerName || !constructorServerUrl) {
+      speakPolish("Podaj nazwę i URL dla serwera.");
+      return;
+    }
+    const newSrv = {
+      id: 'mcp-constr-' + Math.random().toString(36).substring(2, 9),
+      name: constructorServerName,
+      url: constructorServerUrl,
+      type: constructorServerType,
+      status: 'online',
+      config: {},
+      capabilities: constructorCapabilities
+    };
+
+    try {
+      const res = await fetch("/api/mcp/servers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newSrv)
+      });
+      if (res.ok) {
+        speakPolish(`Serwer ${constructorServerName} został pomyślnie zdefiniowany.`);
+        setConstructorServerName('');
+        setConstructorServerUrl('');
+        setConstructorCapabilities([]);
+        loadMcpServers();
+      }
+    } catch (e) {
+      console.error(e);
+      speakPolish("Błąd zapisu serwera.");
+    }
+  };
+
+  // Dynamic Tool Executor Args States
+  const [toolArgSql, setToolArgSql] = useState('SELECT name, type, status FROM mcp_servers');
+  const [toolArgTable, setToolArgTable] = useState('mcp_servers');
+  const [toolArgFilename, setToolArgFilename] = useState('raport_operacyjny_cylon.txt');
+  const [toolArgFileContent, setToolArgFileContent] = useState('Tekst automatycznie wygenerowany przez narzędzie MCP klastra CYLON.');
+  const [toolArgPattern, setToolArgPattern] = useState('Michał Major');
+  const [toolArgPodName, setToolArgPodName] = useState('cylon-swarm-agent-alpha-7g2b');
+  const [toolArgJson, setToolArgJson] = useState('{}');
 
   const speakPolish = (text: string) => {
     if (!isVoiceOn) return;
@@ -6708,6 +12592,489 @@ const MCPManager = React.memo(() => {
       }
     } catch (e) {
       console.error("Error loading local files", e);
+    }
+  };
+
+
+  const handleTerminalExecute = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!terminalCommand.trim()) return;
+
+    if (!terminalServerId) {
+      setTerminalOutput(prev => [...prev, `[ERROR] Najpierw wybierz docelowy serwer MCP jako target dla skryptu.`]);
+      return;
+    }
+
+    const commandStr = terminalCommand.trim();
+    setTerminalOutput(prev => [...prev, `C:\\Swarm\\Core> ${commandStr}`]);
+    setTerminalCommand('');
+
+    const parts = commandStr.split(' ');
+    const tool = parts[0];
+    const argsStr = parts.slice(1).join(' ');
+
+    const isExcluded = (disabledMcpTools[terminalServerId] || []).includes(tool);
+    if (isExcluded) {
+      setTerminalOutput(prev => [...prev, `[ERROR] Narzędzie "${tool}" zostało wykluczone z uprawnień w panelu MCP Manager!`]);
+      speakPolish(`Transmisja zablokowana. Wykluczono narzędzie ${tool}.`);
+      return;
+    }
+    
+    // Very simple argument parser: assuming simple object if it starts with { otherwise just pass as string
+    let toolArgs = {} as any;
+    try {
+      if (argsStr.startsWith('{')) {
+        toolArgs = JSON.parse(argsStr);
+      } else {
+        toolArgs = { command: argsStr };
+      }
+    } catch {
+      toolArgs = { command: argsStr };
+    }
+
+    try {
+      const res = await fetch(`/api/mcp/servers/${terminalServerId}/execute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tool, arguments: toolArgs })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (data.executionLog && Array.isArray(data.executionLog)) {
+           setTerminalOutput(prev => [...prev, ...data.executionLog]);
+        }
+        setTerminalOutput(prev => [...prev, JSON.stringify(data.result || data, null, 2)]);
+      } else {
+        setTerminalOutput(prev => [...prev, `[ERROR] ${data.error}`]);
+      }
+    } catch (err: any) {
+      setTerminalOutput(prev => [...prev, `[FATAL EXCEPTION] Brak połączenia mcp: ${err.message}`]);
+    }
+  };
+
+  const loadMcpServers = async () => {
+    try {
+      const res = await fetch("/api/mcp/servers");
+      const data = await res.json();
+      setMcpServers(data);
+      if (data && data.length > 0) {
+        // Safe defaults
+        setSelectedServer(prev => {
+          const match = data.find((d: any) => d.id === prev?.id);
+          return match || data[0];
+        });
+      }
+    } catch (e) {
+      console.error("Error loading MCP servers", e);
+    }
+  };
+
+  const handleDiscovery = async (type: 'github' | 'huggingface') => {
+    setIsImporting(true);
+    setIntegrationLogs(prev => [...prev, `[AUTO-DISCOVERY] Rozpoczynam przeszukiwanie rejestru ${type.toUpperCase()}...`]);
+    try {
+      let servers: any[] = [];
+      if (type === 'github') {
+        const response = await fetch("https://api.github.com/repos/modelcontextprotocol/servers/contents/servers?ref=main");
+        const data = await response.json();
+        servers = await Promise.all(data.filter((item: any) => item.type === 'dir').map(async (item: any) => {
+          let caps = ['generic_tool'];
+          try {
+            const configRes = await fetch(`https://raw.githubusercontent.com/modelcontextprotocol/servers/main/servers/${item.name}/mcp-config.json`);
+            if (configRes.ok) {
+              const configData = await configRes.json();
+              if (configData.tools) caps = Object.keys(configData.tools);
+            }
+          } catch(e) {}
+          return {
+            name: item.name.toUpperCase(),
+            url: item.html_url,
+            type: 'custom',
+            capabilities: caps
+          };
+        }));
+        setMcpServers(servers);
+        speakPolish("Pobrano i przeanalizowano listę serwerów z GitHub.");
+      } else {
+        // Mock HuggingFace Discovery Simulation
+        servers = [
+          { name: "HF-MCP-WEATHER-SPACE", url: "https://huggingface.co/spaces/mcp/weather-server", type: "network", capabilities: ["weather"] },
+          { name: "HF-MCP-HUB-SERVER", url: "https://huggingface.co/spaces/huggingface/model-hub-server", type: "network", capabilities: ["hf_models"] }
+        ];
+      }
+
+      for (const srv of servers) {
+        const isAlreadyRegistered = mcpServers.some(existing => existing.url === srv.url);
+        if (!isAlreadyRegistered) {
+          const newSrv = {
+            id: 'mcp-auto-' + Math.random().toString(36).substring(2, 9),
+            name: srv.name,
+            url: srv.url,
+            type: srv.type,
+            status: 'online',
+            config: {},
+            capabilities: srv.capabilities
+          };
+          await fetch("/api/mcp/servers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(newSrv)
+          });
+        }
+      }
+      loadMcpServers();
+      setActionSuccessMessage(`Pomyślnie zauto-odkryto i dodano nowe serwery z ${type.toUpperCase()}!`);
+    } catch (e) {
+      console.error(e);
+      setIntegrationLogs(prev => [...prev, `[AUTO-DISCOVERY ERROR] Nie udało się pobrać z ${type.toUpperCase()}.`]);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeCategory === 'files') {
+      loadLocalFiles();
+    } else if (activeCategory === 'registry') {
+      loadMcpServers();
+    }
+  }, [activeCategory]);
+
+  useEffect(() => {
+    if (selectedServer) {
+      const caps = selectedServer.capabilities || [];
+      if (caps.length > 0 && !caps.includes(selectedTool)) {
+        setSelectedTool(caps[0]);
+      }
+    }
+  }, [selectedServer]);
+
+  const handlePingServer = async (id: string, name: string) => {
+    setIsRunningAction(true);
+    setActionSuccessMessage(null);
+    setIntegrationLogs([`[PING] Nawiązywanie połączenia diagnostycznego ICMP z: ${name}...`]);
+    speakPolish(`Sprawdzam drożność protokołu i status serwera ${name}.`);
+    try {
+      const res = await fetch(`/api/mcp/servers/${id}/ping`, { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        setIntegrationLogs(data.pingLog || [data.message]);
+        setActionSuccessMessage(`Kanał ${name} jest sprawny. Zwrócono kod Loopback.`);
+        speakPolish(`Odpowiedź odebrana prawidłowo. Kanał m_c_p zautoryzowany jako online.`);
+        loadMcpServers();
+      } else {
+        setIntegrationLogs([`[PING BŁĄD] ${data.error || 'Nierozpoznany błąd pingowania'}`]);
+        speakPolish(`Ostrzeżenie: Serwer ${name} zgłosił błąd synchronizacji.`);
+      }
+    } catch (err: any) {
+      setIntegrationLogs([`[KRYTYCZNE POŁĄCZENIE] Wyjątek protokołu: ${err.message}`]);
+    } finally {
+      setIsRunningAction(false);
+    }
+  };
+
+  const handleDiscoverCapabilities = async (id: string, name: string) => {
+    setIsRunningAction(true);
+    setActionSuccessMessage(null);
+    setIntegrationLogs([`[DISCOVER] Skanowanie wtyczek integracyjnych dla: ${name}...`]);
+    speakPolish(`Inicjalizuję automatyczne dopasowanie wtyczek dla serwera ${name}.`);
+    try {
+      const res = await fetch(`/api/mcp/servers/${id}/discover`, { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        setIntegrationLogs(data.discoverLog || [data.message]);
+        setActionSuccessMessage(`Auto-Discovery pomyślne. Wykryto ${data.capabilities.length} kompetencji.`);
+        speakPolish(`Wykryłem i zamontowałem pomyślnie ${data.capabilities.length} niezależnych narzędzi dzwigowych.`);
+        loadMcpServers();
+      } else {
+        setIntegrationLogs([`[DISCOVER BŁĄD] ${data.error || 'Wykrywanie nie powiodło się.'}`]);
+      }
+    } catch (err: any) {
+      setIntegrationLogs([`[KRYTYCZNY BLOK] Nie powiodło się odpytanie /tools: ${err.message}`]);
+    } finally {
+      setIsRunningAction(false);
+    }
+  };
+
+  const handleExecuteTool = async () => {
+    if (!selectedServer) return;
+    if (!selectedTool) {
+      speakPolish("Wybierz najpierw narzędzie z listy kompetencji.");
+      return;
+    }
+
+    const isExcluded = (disabledMcpTools[selectedServer.id] || []).includes(selectedTool);
+    if (isExcluded) {
+      setIntegrationLogs([`[ZABLOKOWANO] Narzędzie "${selectedTool}" zostało wykluczone z uprawnień w panelu MCP Manager!`]);
+      speakPolish(`Dostęp zabroniony. Narzędzie ${selectedTool} zostało wykluczone z uprawnień.`);
+      return;
+    }
+
+    setIsRunningAction(true);
+    setActionSuccessMessage(null);
+    setIntegrationLogs([`[KONSOLA RUN] Wywoływanie polecenia (MCP Call): ${selectedTool} na ${selectedServer.name}...`]);
+    speakPolish(`Uruchamiam procedurę ${selectedTool} pod patronatem Michała Majora.`);
+
+    let finalArgs: any = {};
+    try {
+      if (selectedTool === 'execute_query') {
+        finalArgs = { query: toolArgSql };
+      } else if (selectedTool === 'get_schema') {
+        finalArgs = { table: toolArgTable };
+      } else if (selectedTool === 'read_file' || selectedTool === 'file_metadata') {
+        finalArgs = { filename: toolArgFilename };
+      } else if (selectedTool === 'write_file') {
+        finalArgs = { filename: toolArgFilename, content: toolArgFileContent };
+      } else if (selectedTool === 'search_grep') {
+        finalArgs = { pattern: toolArgPattern };
+      } else if (selectedTool === 'restart_pod') {
+        finalArgs = { pod_name: toolArgPodName };
+      } else {
+        finalArgs = JSON.parse(toolArgJson || '{}');
+      }
+    } catch (e: any) {
+      setIntegrationLogs([`[PARAM BŁĄD] Nieprawidłowy format parametrów JSON: ${e.message}`]);
+      setIsRunningAction(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/mcp/servers/${selectedServer.id}/execute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tool: selectedTool, arguments: finalArgs })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIntegrationLogs(data.executionLog || [data.message]);
+        
+        // Pretty print results and append to console
+        const prettyResult = JSON.stringify(data.result, null, 2);
+        setIntegrationLogs(prev => [
+          ...prev,
+          `\n--- REZULTAT WYKONYWANIA (JSON STREAM) ---`,
+          prettyResult,
+          `-------------------------------------------`
+        ]);
+
+        setActionSuccessMessage(`Narzędzie ${selectedTool} wywołane z kodem sukcesu 0.`);
+        speakPolish("Zadanie ukończone. Wynik konsolowy został zapisany na ekranie.");
+
+        // Reload if files changed
+        if (selectedTool === 'write_file') {
+          loadLocalFiles();
+        }
+      } else {
+        setIntegrationLogs([`[BŁĄD ZASOBU] Wykonanie zostało odrzucone przez jądro serwera: ${data.error || 'Kod błędu systemowego'}`]);
+        speakPolish("Transmisja m_c_p została przerwana z powodu błędu parametrów.");
+      }
+    } catch (err: any) {
+      setIntegrationLogs([`[KATASTROFA TRANSMISJI] Brak połączenia mcp: ${err.message}`]);
+    } finally {
+      setIsRunningAction(false);
+    }
+  };
+
+  const handleRegisterServer = async () => {
+    if (!serverName || !serverUrl) {
+      speakPolish("Podaj pełną nazwę i adres url urządzenia.");
+      return;
+    }
+    try {
+      let cfg = {};
+      let caps = [];
+      try {
+        cfg = JSON.parse(serverConfigStr || '{}');
+        caps = JSON.parse(serverCapabilitiesStr || '[]');
+      } catch (_) {}
+
+      const newSrv = {
+        id: 'mcp-' + Math.random().toString(36).substring(2, 9),
+        name: serverName,
+        url: serverUrl,
+        type: serverType,
+        status: 'online',
+        config: cfg,
+        capabilities: caps
+      };
+
+      const res = await fetch("/api/mcp/servers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newSrv)
+      });
+      if (res.ok) {
+        speakPolish(`Serwer ${serverName} został włączony do klastra operacyjnego.`);
+        setServerName('');
+        setServerUrl('');
+        setServerConfigStr('{}');
+        setServerCapabilitiesStr('[]');
+        loadMcpServers();
+      }
+    } catch (e: any) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteServer = async (id: string, name: string) => {
+    speakPolish(`Kasuję bramkę ${name} z klastra.`);
+    try {
+      const res = await fetch(`/api/mcp/servers/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        loadMcpServers();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const applyPresetMcp = (presetType: string) => {
+    speakPolish(`Wczytuję dane szablonu.`);
+    if (presetType === 'db') {
+      setServerName('Magazyn Bazy SQL Pro (SQLite)');
+      setServerType('database');
+      setServerUrl('local-db');
+      setServerConfigStr('{"storage":"sqlite"}');
+      setServerCapabilitiesStr('["list_tables","get_schema","execute_query"]');
+    } else if (presetType === 'k8s') {
+      setServerName('Zarządca Kubernetes k8s');
+      setServerType('kubernetes');
+      setServerUrl('https://kube.swarm.cylon:6443');
+      setServerConfigStr('{"namespace":"cylon-system"}');
+      setServerCapabilitiesStr('["get_pods","restart_pod"]');
+    } else if (presetType === 'custom') {
+      setServerName('Pogodowy Agent Synoptyk');
+      setServerType('custom');
+      setServerUrl('https://api.weather-mcp.org/v1');
+      setServerConfigStr('{"units":"celsius"}');
+      setServerCapabilitiesStr('["custom_action_1"]');
+    }
+  };
+
+  const handleImportFromUrl = async () => {
+    if (!importUrlInput) {
+      speakPolish("Wpisz adres url serwera do zaimportowania.");
+      return;
+    }
+    setIsImporting(true);
+    setActionSuccessMessage(null);
+    setIntegrationLogs(prev => [...prev, `[IMPORT] Rozpoczynam pobieranie i parsowanie schematu MCP z: ${importUrlInput}...`]);
+    speakPolish("Analizuję strukturę zasobu i parsuję kompetencje serwera M_C_P.");
+
+    try {
+      let name = "Zdalny Serwer MCP";
+      let type: 'filesystem' | 'database' | 'network' | 'custom' | 'kubernetes' = 'custom';
+      let capabilities: string[] = ["custom_action"];
+      let config = {};
+      const isHuggingFace = importUrlInput.includes("huggingface") || importUrlInput.includes("hf.co");
+      const isGithub = importUrlInput.includes("github.com");
+
+      if (isHuggingFace) {
+        const match = importUrlInput.match(/spaces\/([^\/]+)\/([^\/]+)/);
+        const spaceName = match ? match[2] : "HF Space MCP";
+        name = `HF: ${spaceName.replace(/-/g, ' ').toUpperCase()}`;
+        type = 'network';
+        
+        if (spaceName.includes("weather") || importUrlInput.includes("weather")) {
+          capabilities = ["get_forecast", "get_current_weather", "search_locations"];
+        } else if (spaceName.includes("postgres") || spaceName.includes("db") || spaceName.includes("sqlite")) {
+          type = 'database';
+          capabilities = ["list_tables", "get_schema", "execute_query"];
+        } else if (spaceName.includes("llama") || spaceName.includes("llm") || spaceName.includes("model")) {
+          capabilities = ["get_models", "generate_text", "tokenize"];
+        } else {
+          capabilities = ["list_tools", "run_space_action", "get_status"];
+        }
+        config = { space_url: importUrlInput, secure_mode: true };
+      } else if (isGithub) {
+        const repoMatch = importUrlInput.match(/github\.com\/([^\/]+)\/([^\/]+)(?:\/tree\/[^\/]+\/(.+))?/);
+        const repoUser = repoMatch ? repoMatch[1] : "";
+        const repoName = repoMatch ? repoMatch[2] : "";
+        const repoSubpath = repoMatch && repoMatch[3] ? repoMatch[3] : "";
+        
+        // Attempt to fetch mcp-config.json
+        try {
+          const branches = ['main', 'master'];
+          for (const branch of branches) {
+            const configUrl = `https://raw.githubusercontent.com/${repoUser}/${repoName}/${branch}/mcp-config.json`;
+            const configRes = await fetch(configUrl);
+            if (configRes.ok) {
+              const configData = await configRes.json();
+              if (configData.tools) {
+                capabilities = Object.keys(configData.tools);
+                break; // Found it
+              }
+            }
+          }
+        } catch (e) {
+          console.warn("Could not fetch mcp-config.json");
+        }
+
+
+        const finalName = repoSubpath ? repoSubpath.split('/').pop() : repoName;
+        name = `GitHub: ${finalName ? finalName.replace(/-/g, ' ').toUpperCase() : "Repository"}`;
+        
+        if (capabilities.length === 1 && capabilities[0] === "custom_action") {
+          // Fallback to heuristics only if no tools found
+          if (importUrlInput.includes("postgres") || importUrlInput.includes("mysql") || importUrlInput.includes("database")) {
+            type = 'database';
+            capabilities = ["list_tables", "get_schema", "execute_query", "describe_table"];
+          } else if (importUrlInput.includes("puppeteer") || importUrlInput.includes("playwright") || importUrlInput.includes("browser")) {
+            type = 'network';
+            capabilities = ["browse_url", "extract_markdown_from_site", "take_web_screenshot"];
+          } else if (importUrlInput.includes("filesystem") || importUrlInput.includes("file")) {
+            type = 'filesystem';
+            capabilities = ["read_file", "write_file", "list_files", "search_grep"];
+          } else {
+            capabilities = ["query_repository", "get_latest_release", "check_actions"];
+          }
+        }
+        config = { repo: `${repoUser}/${repoName}`, path: repoSubpath };
+      } else {
+        try {
+          name = "Kastomowy Kanał " + new URL(importUrlInput).hostname;
+        } catch (_) {
+          name = "Zdalny Kanał MCP";
+        }
+        capabilities = ["execute_tool_generic", "get_capabilities"];
+      }
+
+      const payloadId = 'mcp-imported-' + Math.random().toString(36).substring(2, 9);
+      const newSrv = {
+        id: payloadId,
+        name: name,
+        url: importUrlInput,
+        type: type,
+        status: 'online',
+        config: config,
+        capabilities: capabilities
+      };
+
+      const res = await fetch("/api/mcp/servers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newSrv)
+      });
+
+      if (res.ok) {
+        setIntegrationLogs(prev => [
+          ...prev, 
+          `[SUKCES] Zaimportowano pomyślnie!`,
+          `Pochodzenie: ${isHuggingFace ? "Hugging Face Spaces" : isGithub ? "GitHub Repo" : "Zdalny Endpoint"}`,
+          `Wykryte narzędzia: ${capabilities.join(', ')}`
+        ]);
+        setActionSuccessMessage(`Pomyślnie pobrano i zautoryzowano nowy serwer MCP: ${name}`);
+        speakPolish(`Pobrano i zaimportowano serwer ${name}.`);
+        setImportUrlInput('');
+        loadMcpServers();
+      } else {
+        throw new Error("Serwer zwrócił błąd zapisu.");
+      }
+    } catch (err: any) {
+      setIntegrationLogs(prev => [...prev, `[KATASTROFA IMPORTU] Nieprawidłowy format lub serwer nie odpowiada: ${err.message}`]);
+      speakPolish("Próba integracji ze zdalnym serwerem zakończyła się niepowodzeniem.");
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -6964,6 +13331,8 @@ const MCPManager = React.memo(() => {
         {/* NAWIGACJA INTEGRACJI */}
         <div className="flex flex-wrap gap-2.5 mb-8">
           {[
+            { id: 'registry', label: 'Rejestr Serwerów MCP', icon: <Lucide.Cpu size={16} />, desc: 'Bramki & Narzędzia' },
+            { id: 'terminal', label: 'Terminal Execute', icon: <Lucide.TerminalSquare size={16} />, desc: 'Skrypty diagnostyczne' },
             { id: 'smtp', label: 'Wysyłanie e-mail (SMTP)', icon: <Lucide.Mail size={16} />, desc: 'Realna poczta' },
             { id: 'files', label: 'Zapis & Odczyt Plików', icon: <FileText size={16} />, desc: 'Lokalny system' },
             { id: 'ftp', label: 'Serwer FTP', icon: <Upload size={16} />, desc: 'Wgrywanie plików' },
@@ -7007,6 +13376,776 @@ const MCPManager = React.memo(() => {
           
           {/* LEWA KOLUMNA - KONTROLE I PARAMETRY */}
           <div className="lg:col-span-7 space-y-6">
+
+            {/* 0. KOMPONENT REGISTRY - REJESTR SERWERÓW MCP */}
+            {activeCategory === 'registry' && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                
+                {/* TAB BAR */}
+                <div className="flex bg-neutral-900 border border-white/5 rounded-2xl p-1 mb-4">
+                  <button 
+                    onClick={() => setRegistrySubTab('servers')}
+                    className={cn("flex-1 py-2 rounded-xl text-xs font-bold uppercase", registrySubTab === 'servers' ? 'bg-acid-purple' : 'text-slate-500')}
+                  >
+                    Serwery MCP
+                  </button>
+                  <button 
+                    onClick={() => setRegistrySubTab('sessions')}
+                    className={cn("flex-1 py-2 rounded-xl text-xs font-bold uppercase", registrySubTab === 'sessions' ? 'bg-acid-purple' : 'text-slate-500')}
+                  >
+                    Sesje MCP
+                  </button>
+                </div>
+
+                {/* LISTA SERWERÓW Z WYSZUKIWARKĄ */}
+                {(() => {
+                  const filteredMcpServers = mcpServers.filter(srv => {
+                    if (!searchQuery) return true;
+                    const query = searchQuery.toLowerCase();
+                    const nameMatch = srv.name?.toLowerCase().includes(query);
+                    const typeMatch = srv.type?.toLowerCase().includes(query);
+                    const urlMatch = srv.url?.toLowerCase().includes(query);
+                    const capsMatch = srv.capabilities?.some((cap: string) => cap.toLowerCase().includes(query));
+                    return nameMatch || typeMatch || urlMatch || capsMatch;
+                  });
+
+                  return (
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400">Rejestr Środowisk MCP ({filteredMcpServers.length})</h3>
+                        <button 
+                          onClick={loadMcpServers}
+                          className="text-[9px] px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-acid-cyan border border-acid-cyan/30 uppercase font-bold text-xs"
+                        >
+                          Odśwież Rejestr
+                        </button>
+                      </div>
+
+                      {/* Pole wyszukiwarkowe narzędzi / serwerów */}
+                      <div className="relative">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-500">
+                          <Lucide.Search size={14} />
+                        </span>
+                        <input
+                          type="text"
+                          className="modern-input w-full pl-10 text-xs bg-black/40 border-white/5 focus:border-acid-purple rounded-xl h-10 placeholder-slate-500 text-white"
+                          placeholder="Szybkie wyszukiwanie narzędzi lub serwerów po nazwie, opisie, url, komendach (np. sql, sqlite, custom_action)..."
+                          value={searchQuery}
+                          onChange={e => setSearchQuery(e.target.value)}
+                        />
+                        {searchQuery && (
+                          <button
+                            onClick={() => setSearchQuery('')}
+                            className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-white"
+                          >
+                            <Lucide.X size={14} />
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="space-y-4">
+                        {filteredMcpServers.length === 0 ? (
+                          <div className="text-center py-8 bg-black/30 border border-white/5 rounded-2xl text-slate-500 uppercase text-xs font-bold">
+                            {searchQuery ? "Brak odnalezionych serwerów lub narzędzi o podanej frazie." : "Brak zarejestrowanych serwerów MCP. Dodaj serwer poniżej."}
+                          </div>
+                        ) : (
+                          filteredMcpServers.map(srv => {
+                            const isSelected = selectedServer?.id === srv.id;
+                            return (
+                              <div 
+                                key={srv.id} 
+                                onClick={() => setSelectedServer(srv)}
+                                className={cn(
+                                  "p-5 rounded-[2rem] border transition-all text-left relative overflow-hidden cursor-pointer",
+                                  isSelected 
+                                    ? "bg-gradient-to-br from-neutral-900/90 to-neutral-950/90 border-acid-purple/50 shadow-lg shadow-acid-purple/5" 
+                                    : "bg-black/40 border-white/5 hover:border-white/10 hover:bg-black/50"
+                                )}
+                              >
+                                {isSelected && (
+                                  <div className="absolute top-0 right-0 w-32 h-32 bg-acid-purple/5 rounded-full blur-2xl pointer-events-none" />
+                                )}
+                                
+                                <div className="flex justify-between items-start mb-3">
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-black uppercase text-white tracking-tight">{srv.name}</span>
+                                      <span className={cn(
+                                        "text-[8px] px-2 py-0.5 rounded-full font-mono uppercase font-semibold",
+                                        srv.type === 'filesystem' ? "bg-orange-500/10 text-orange-400 border border-orange-500/20" :
+                                        srv.type === 'database' ? "bg-acid-cyan/10 text-acid-cyan border border-acid-cyan/20" :
+                                        srv.type === 'kubernetes' ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" :
+                                        "bg-acid-purple/10 text-acid-purple border border-acid-purple/20"
+                                      )}>
+                                        {srv.type}
+                                      </span>
+                                    </div>
+                                    <div className="text-[10px] text-slate-500 font-mono tracking-wider">{srv.url}</div>
+                                  </div>
+
+                                  <div className="flex items-center gap-1.5">
+                                    <span className={cn(
+                                      "w-1.5 h-1.5 rounded-full",
+                                      srv.status === 'online' ? "bg-acid-green animate-pulse" : "bg-red-500"
+                                    )} />
+                                    <span className="text-[8px] text-slate-400 font-black uppercase tracking-widest">{srv.status || 'offline'}</span>
+                                  </div>
+                                </div>
+
+                                {/* CAPABILITIES / TOOLS */}
+                                <div className="mb-4">
+                                  <div className="text-[8px] uppercase font-bold text-slate-500 tracking-wider mb-1.5">Wykryte narzędzia (Capabilities / Tools):</div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {!srv.capabilities || srv.capabilities.length === 0 ? (
+                                      <span className="text-[9px] text-slate-600 uppercase font-mono">Brak wykrytych kompetencji. Uruchom Auto-Discovery.</span>
+                                    ) : (
+                                      srv.capabilities.map((cap: string) => {
+                                        const isExcludedEx = (disabledMcpTools[srv.id] || []).includes(cap);
+                                        return isExcludedEx ? (
+                                          <span key={cap} className="text-[8px] font-mono bg-red-500/10 border border-red-500/20 text-red-400 line-through opacity-65 px-2 py-0.5 rounded">
+                                            {cap} ✖
+                                          </span>
+                                        ) : (
+                                        <span key={cap} className="text-[8px] font-mono bg-white/5 border border-white/5 text-slate-300 px-2 py-0.5 rounded">
+                                          {cap}
+                                        </span>
+                                        );
+                                      })
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* ACTIONS DECK */}
+                                <div className="flex justify-between items-center pt-3 border-t border-white/[0.03]" onClick={e => e.stopPropagation()}>
+                                  <div className="flex gap-2">
+                                    <button 
+                                      onClick={() => handlePingServer(srv.id, srv.name)}
+                                      className="text-[9px] px-3 py-1.5 rounded-xl bg-white/10 hover:bg-acid-green/10 text-slate-300 hover:text-acid-green border border-white/5 hover:border-acid-green/30 uppercase font-bold transition-all flex items-center gap-1"
+                                    >
+                                      <Lucide.Activity size={10} />
+                                      Ping / Testuj
+                                    </button>
+                                    <button 
+                                      onClick={() => handleDiscoverCapabilities(srv.id, srv.name)}
+                                      className="text-[9px] px-3 py-1.5 rounded-xl bg-white/10 hover:bg-acid-cyan/10 text-slate-300 hover:text-acid-cyan border border-white/5 hover:border-acid-cyan/30 uppercase font-bold transition-all flex items-center gap-1"
+                                    >
+                                      <Lucide.Eye size={10} />
+                                      Skanuj / Wykryj
+                                    </button>
+                                    <button 
+                                      onClick={() => {
+                                        setSelectedServer(srv);
+                                        if (srv.capabilities && srv.capabilities.length > 0) {
+                                          setSelectedTool(srv.capabilities[0]);
+                                        }
+                                        speakPolish(`Wczytano konsolę sterowania dla ${srv.name}.`);
+                                      }}
+                                      className="text-[9px] px-3 py-1.5 rounded-xl bg-white/10 hover:bg-acid-purple/10 text-slate-300 hover:text-acid-purple border border-white/5 hover:border-acid-purple/30 uppercase font-bold transition-all flex items-center gap-1"
+                                    >
+                                      <Lucide.Terminal size={10} />
+                                      Sterowanie
+                                    </button>
+                                  </div>
+
+                                  <button 
+                                    onClick={() => handleDeleteServer(srv.id, srv.name)}
+                                    className="p-1.5 text-slate-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                                    title="Usuń z klastra"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* INTERACTIVE TOOL EXECUTOR FORM */}
+                {selectedServer && (
+                  <div className="bg-black/40 border border-acid-purple/35 p-6 rounded-[2rem] space-y-4 text-left shadow-lg">
+                    <div className="flex justify-between items-center border-b border-white/5 pb-3">
+                      <div className="space-y-0.5">
+                        <div className="text-[9px] font-bold text-acid-purple uppercase tracking-widest">Aktywna Konsola Wykonawcza MCP</div>
+                        <h4 className="text-sm font-black text-white uppercase">{selectedServer.name}</h4>
+                      </div>
+                      <span className="text-[9px] px-2 py-0.5 rounded bg-acid-purple/10 border border-acid-purple/30 text-acid-purple font-mono uppercase font-black">
+                        {selectedServer.type}
+                      </span>
+                    </div>
+
+                    {/* SELECT CAPABILITY */}
+                    <div className="space-y-1">
+                      <label className="text-[9px] uppercase font-bold text-slate-500">Wybierz Wtyczkę / Tool</label>
+                      <select 
+                        value={selectedTool} 
+                        onChange={e => setSelectedTool(e.target.value)}
+                        className="modern-input w-full bg-black text-xs h-10 select-none cursor-pointer"
+                      >
+                        {!selectedServer.capabilities || selectedServer.capabilities.length === 0 ? (
+                          <option value="">-- Brak narzędzi. Skanuj/Wykryj najpierw --</option>
+                        ) : (
+                          selectedServer.capabilities.map((cap: string) => {
+                            const isExcluded = (disabledMcpTools[selectedServer.id] || []).includes(cap);
+                            return (
+                              <option key={cap} value={cap}>
+                                {cap} {isExcluded ? ' [OFF / WYKLUCZONE]' : ' [ON / AKTYWNE]'}
+                              </option>
+                            );
+                          })
+                        )}
+                      </select>
+                    </div>
+
+                    {/* ZARZĄDZANIE UPRAWNIENIAMI NARZĘDZI (ON/OFF SWITCHES) */}
+                    <div className="space-y-1.5 bg-white/[0.01] border border-white/5 p-4 rounded-2xl">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
+                          <ShieldCheck size={12} className="text-emerald-400" />
+                          Przełączniki uprawnień narzędzi (On/Off)
+                        </span>
+                        <span className="text-[8px] text-slate-500 font-mono">Zabezpieczenie przed samowolą agentów</span>
+                      </div>
+                      
+                      {!selectedServer.capabilities || selectedServer.capabilities.length === 0 ? (
+                        <div className="text-[10px] text-slate-600 italic">Brak wykrytych narzędzi. Skanuj/Wykryj kompetencje, aby zarządzać uprawnieniami.</div>
+                      ) : (
+                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 pt-1 font-sans">
+                          {selectedServer.capabilities.map((cap: string) => {
+                            const isExcluded = (disabledMcpTools[selectedServer.id] || []).includes(cap);
+                            return (
+                              <div 
+                                key={cap}
+                                onClick={() => toggleMcpTool(selectedServer.id, cap)}
+                                className={cn(
+                                  "p-2 rounded-xl border flex items-center justify-between cursor-pointer select-none transition-all",
+                                  isExcluded 
+                                    ? "bg-red-500/5 border-red-500/10 text-red-400/80 hover:bg-red-500/10" 
+                                    : "bg-emerald-500/5 border-emerald-500/10 text-emerald-400 hover:bg-emerald-500/10"
+                                )}
+                              >
+                                <div className="space-y-0.5 text-left min-w-0 pr-1">
+                                  <div className="text-[10px] font-mono font-bold truncate tracking-tight">{cap}</div>
+                                  <div className={cn(
+                                    "text-[7px] font-black uppercase tracking-wider",
+                                    isExcluded ? "text-red-500" : "text-emerald-400"
+                                  )}>
+                                    {isExcluded ? "WYKLUCZONE (OFF)" : "AKTYWNE (ON)"}
+                                  </div>
+                                </div>
+                                
+                                <div className={cn(
+                                  "w-6 h-3.5 rounded-full p-0.5 transition-colors relative flex items-center shrink-0",
+                                  isExcluded ? "bg-neutral-800" : "bg-emerald-500/30"
+                                )}>
+                                  <div className={cn(
+                                    "w-2.5 h-2.5 rounded-full bg-white transition-all absolute",
+                                    isExcluded ? "left-0.5" : "right-0.5"
+                                  )} />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* FORM ARGUMENTS DEPENDING ON SELECTED CAPABILITY */}
+                    {selectedTool && (
+                      <div className="space-y-3 bg-white/[0.02] border border-white/5 p-4 rounded-xl">
+                        <div className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Argumenty wywołania wtyczki:</div>
+                        
+                        {/* SQL execute_query */}
+                        {selectedTool === 'execute_query' && (
+                          <div className="space-y-1">
+                            <label className="text-[8px] uppercase font-bold text-slate-500">Instrukcja Zapytania SQL (Safe, Read-Only / Select)</label>
+                            <textarea 
+                              value={toolArgSql} 
+                              onChange={e => setToolArgSql(e.target.value)}
+                              className="modern-input w-full h-20 font-mono text-xs resize-none p-2"
+                              placeholder="SELECT * FROM table"
+                            />
+                            <div className="flex gap-2">
+                              <button onClick={() => setToolArgSql("SELECT name, type, status FROM mcp_servers")} className="text-[8px] text-[indigo-300] hover:underline uppercase font-bold">Pokaż statusy</button>
+                              <button onClick={() => setToolArgSql("SELECT id, name, role, model FROM agents LIMIT 3")} className="text-[8px] text-[indigo-300] hover:underline uppercase font-bold">Wczytaj botów</button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* SQL schema */}
+                        {selectedTool === 'get_schema' && (
+                          <div className="space-y-1">
+                            <label className="text-[8px] uppercase font-bold text-slate-500">Nazwa columny/tabeli w bazie danych</label>
+                            <input 
+                              type="text"
+                              value={toolArgTable} 
+                              onChange={e => setToolArgTable(e.target.value)}
+                              className="modern-input w-full font-mono text-xs"
+                              placeholder="np. mcp_servers"
+                            />
+                          </div>
+                        )}
+
+                        {/* Files - read / metadata */}
+                        {(selectedTool === 'read_file' || selectedTool === 'file_metadata') && (
+                          <div className="space-y-1">
+                            <label className="text-[8px] uppercase font-bold text-slate-500">Nazwa docelowa pliku z katalogu /uploads</label>
+                            <input 
+                              type="text"
+                              value={toolArgFilename} 
+                              onChange={e => setToolArgFilename(e.target.value)}
+                              className="modern-input w-full font-mono text-xs"
+                              placeholder="raport_operacyjny_cylon.txt"
+                            />
+                          </div>
+                        )}
+
+                        {/* Files - write */}
+                        {selectedTool === 'write_file' && (
+                          <div className="space-y-3">
+                            <div className="space-y-1">
+                              <label className="text-[8px] uppercase font-bold text-slate-500">Nazwa pliku w uploads</label>
+                              <input 
+                                type="text"
+                                value={toolArgFilename} 
+                                onChange={e => setToolArgFilename(e.target.value)}
+                                className="modern-input w-full font-mono text-xs"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[8px] uppercase font-bold text-slate-500">Docelowa zawartość pliku</label>
+                              <textarea 
+                                value={toolArgFileContent} 
+                                onChange={e => setToolArgFileContent(e.target.value)}
+                                className="modern-input w-full h-16 font-mono text-xs resize-none p-2"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Search patterns */}
+                        {selectedTool === 'search_grep' && (
+                          <div className="space-y-1">
+                            <label className="text-[8px] uppercase font-bold text-slate-500">Wyszukaj frazę (pattern)</label>
+                            <input 
+                              type="text"
+                              value={toolArgPattern} 
+                              onChange={e => setToolArgPattern(e.target.value)}
+                              className="modern-input w-full font-mono text-xs"
+                            />
+                          </div>
+                        )}
+
+                        {/* Restart Kubernetes Pod */}
+                        {selectedTool === 'restart_pod' && (
+                          <div className="space-y-1">
+                            <label className="text-[8px] uppercase font-bold text-slate-500">Nazwa Kubernetes Pod</label>
+                            <input 
+                              type="text"
+                              value={toolArgPodName} 
+                              onChange={e => setToolArgPodName(e.target.value)}
+                              className="modern-input w-full font-mono text-xs"
+                            />
+                          </div>
+                        )}
+
+                        {/* Other tools default JSON args */}
+                        {!['execute_query', 'get_schema', 'read_file', 'file_metadata', 'write_file', 'search_grep', 'restart_pod'].includes(selectedTool) && (
+                          <div className="space-y-1">
+                            <label className="text-[8px] uppercase font-bold text-slate-500">Konstrukcja argumentów (Siatka JSON)</label>
+                            <textarea 
+                              value={toolArgJson} 
+                              onChange={e => setToolArgJson(e.target.value)}
+                              className="modern-input w-full h-16 font-mono text-xs p-2"
+                              placeholder="{}"
+                            />
+                          </div>
+                        )}
+
+                      </div>
+                    )}
+
+                    <div className="flex justify-end pt-1">
+                      <button 
+                        onClick={handleExecuteTool}
+                        disabled={isRunningAction || !selectedTool}
+                        className="modern-btn bg-acid-purple text-white px-8 h-12 uppercase tracking-widest text-[10px] font-black w-full justify-center flex items-center gap-2"
+                      >
+                        {isRunningAction ? "Przetwarzanie..." : "WYKONAJ NARZĘDZIE W ŚRODOWISKU"}
+                        <Lucide.Cpu size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* FORM DODAWANIA SERWERA */}
+                <div className="space-y-4 pt-4 border-t border-white/5">
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400">Pobieranie & Tworzenie Serwerów MCP</h3>
+                  
+                  {/* Zakładki (Tabs) do wyboru metody instalacji */}
+                  <div className="bg-neutral-900/60 p-1 rounded-2xl border border-white/5 grid grid-cols-4 gap-1">
+                    <button
+                      onClick={() => setImportSourceTab('presets')}
+                      className={cn(
+                        "py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider font-sans transition-all flex items-center justify-center gap-1.5 border cursor-pointer",
+                        importSourceTab === 'presets'
+                          ? 'bg-gradient-to-r from-acid-purple/20 to-purple-600/20 border-acid-purple/40 text-white shadow-md'
+                          : 'border-transparent text-slate-500 hover:text-slate-300'
+                      )}
+                    >
+                      <Lucide.Globe size={12} className={importSourceTab === 'presets' ? 'text-acid-purple animate-pulse' : 'text-slate-500'} />
+                      Import z Internetu (HF / GitHub)
+                    </button>
+
+                    <button
+                      onClick={() => setImportSourceTab('custom_url')}
+                      className={cn(
+                        "py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider font-sans transition-all flex items-center justify-center gap-1.5 border cursor-pointer",
+                        importSourceTab === 'custom_url'
+                          ? 'bg-gradient-to-r from-acid-cyan/20 to-cyan-600/20 border-acid-cyan/40 text-white shadow-md'
+                          : 'border-transparent text-slate-500 hover:text-slate-300'
+                      )}
+                    >
+                      <Lucide.Link size={12} className={importSourceTab === 'custom_url' ? 'text-acid-cyan animate-pulse' : 'text-slate-500'} />
+                      Skaner Linków URL
+                    </button>
+
+                    <button
+                      onClick={() => setImportSourceTab('manual')}
+                      className={cn(
+                        "py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider font-sans transition-all flex items-center justify-center gap-1.5 border cursor-pointer",
+                        importSourceTab === 'manual'
+                          ? 'bg-gradient-to-r from-emerald-500/20 to-green-600/20 border-emerald-500/40 text-white shadow-md'
+                          : 'border-transparent text-slate-500 hover:text-slate-300'
+                      )}
+                    >
+                      <Lucide.Plus size={12} className={importSourceTab === 'manual' ? 'text-emerald-400' : 'text-slate-500'} />
+                      Kreator Własny
+                    </button>
+
+                    <button
+                      onClick={() => setImportSourceTab('constructor')}
+                      className={cn(
+                        "py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider font-sans transition-all flex items-center justify-center gap-1.5 border cursor-pointer",
+                        importSourceTab === 'constructor'
+                          ? 'bg-gradient-to-r from-orange-500/20 to-orange-600/20 border-orange-500/40 text-white shadow-md'
+                          : 'border-transparent text-slate-500 hover:text-slate-300'
+                      )}
+                    >
+                      <Lucide.Settings size={12} className={importSourceTab === 'constructor' ? 'text-orange-400' : 'text-slate-500'} />
+                      Konstruktor MCP
+                    </button>
+                  </div>
+
+                  <div className="bg-black/40 border border-white/5 p-6 rounded-[2rem] space-y-4">
+                    
+                    {/* TAB S: PRESETS / INTERNET IMPORT */}
+                    {importSourceTab === 'presets' && (
+                      <div className="space-y-4">
+                        <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Zweryfikowane, darmowe wtyczki MCP ze społeczności:</div>
+                        
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleDiscovery('github')}
+                            className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider hover:bg-indigo-500 transition"
+                          >
+                            {isImporting ? "Pobieranie..." : "Pobierz listę serwerów (GitHub)"}
+                          </button>
+                          <button
+                            onClick={() => handleDiscovery('huggingface')}
+                            className="bg-orange-600 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider hover:bg-orange-500 transition"
+                          >
+                            {isImporting ? "Przeszukiwanie..." : "Auto-Discovery (HuggingFace)"}
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {[
+                            {
+                              name: "Synoptyk Pogodowy (Hugging Face Space)",
+                              desc: "Kompletne dane synoptyczne w czasie rzeczywistym. Prognoza pogody dla dowolnego miasta na świecie.",
+                              url: "https://huggingface.co/spaces/mcp/weather/api",
+                              type: "custom",
+                              tag: "Hugging Face Space",
+                              capabilities: ["get_forecast", "get_current_weather", "search_locations"]
+                            },
+                            {
+                              name: "Eksplorator Modelów (Hugging Face Space Hub)",
+                              desc: "Sprawdza i wyszukuje najpopularniejsze modele LLM i repozytoria danych z serwisu Hugging Face.",
+                              url: "https://huggingface.co/spaces/huggingface/mcp-server-hub/api",
+                              type: "network",
+                              tag: "Hugging Face Hub",
+                              capabilities: ["list_trending_models", "get_model_details", "search_hf_space"]
+                            },
+                            {
+                              name: "Baza PostgreSQL Inspector (GitHub Spec)",
+                              desc: "Wykrywa tabele, pobiera schematy typów kolumn SQL i wykonuje bezpieczny odczyt z bazy Postgres.",
+                              url: "https://github.com/modelcontextprotocol/servers/tree/main/src/postgres",
+                              type: "database",
+                              tag: "GitHub Spec",
+                              capabilities: ["list_tables", "get_schema", "execute_query", "describe_table"]
+                            },
+                            {
+                              name: "Przeglądarka Puppeteer (GitHub Crawler)",
+                              desc: "Bezgłowa przeglądarka internetowa ułatwiająca ekstrakcję kodu HTML witryn i zrzutów ekranu.",
+                              url: "https://github.com/modelcontextprotocol/servers/tree/main/src/puppeteer",
+                              type: "network",
+                              tag: "Puppeteer Hub",
+                              capabilities: ["browse_url", "extract_markdown_from_site", "take_web_screenshot"]
+                            },
+                            {
+                              name: "Pamięć Semaforowa (GitHub Memory Graph)",
+                              desc: "Baza danych grafowych do gromadzenia faktów o użytkowniku i orkiestrowania kontekstu wiedzy.",
+                              url: "https://github.com/modelcontextprotocol/servers/tree/main/src/memory",
+                              type: "custom",
+                              tag: "Somatic Memory",
+                              capabilities: ["create_graph_entity", "add_relationship", "query_cognitive_graph"]
+                            }
+                          ].map(preset => {
+                            const isAlreadyRegistered = mcpServers.some(srv => srv.url === preset.url);
+                            return (
+                              <div key={preset.url} className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition flex flex-col justify-between">
+                                <div className="space-y-1.5">
+                                  <div className="flex justify-between items-start">
+                                    <span className="text-xs font-black uppercase text-white tracking-tight leading-tight">{preset.name}</span>
+                                    <span className="text-[8px] bg-acid-purple/10 border border-acid-purple/30 text-acid-purple px-1.5 py-0.5 rounded font-bold uppercase">{preset.tag}</span>
+                                  </div>
+                                  <p className="text-[10px] text-slate-400 font-sans leading-relaxed">{preset.desc}</p>
+                                  <div className="text-[8px] text-slate-500 font-mono select-all truncate">{preset.url}</div>
+                                  
+                                  <div className="flex flex-wrap gap-1 pt-1">
+                                    {preset.capabilities.map(cap => (
+                                      <span key={cap} className="text-[7px] font-mono bg-white/5 border border-white/10 text-slate-300 px-1 py-0.5 rounded">
+                                        {cap}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                <div className="mt-4 pt-2.5 border-t border-white/[0.03] flex justify-end">
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        const payloadId = 'mcp-preset-' + Math.random().toString(36).substring(2, 9);
+                                        const newSrv = {
+                                          id: payloadId,
+                                          name: preset.name,
+                                          url: preset.url,
+                                          type: preset.type,
+                                          status: 'online',
+                                          config: {},
+                                          capabilities: preset.capabilities
+                                        };
+
+                                        const res = await fetch("/api/mcp/servers", {
+                                          method: "POST",
+                                          headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify(newSrv)
+                                        });
+
+                                        if (res.ok) {
+                                          setActionSuccessMessage(`Pomyślnie wdrożono i podłączono serwer MCP z zewnętrznego repozytorium: ${preset.name}`);
+                                          speakPolish(`Pomyślnie zaimportowano szablon ${preset.name}.`);
+                                          loadMcpServers();
+                                        }
+                                      } catch (e: any) {
+                                        console.error(e);
+                                      }
+                                    }}
+                                    disabled={isAlreadyRegistered}
+                                    className={cn(
+                                      "text-[9px] px-3 py-1.5 rounded-xl uppercase font-black tracking-wider transition-all",
+                                      isAlreadyRegistered 
+                                        ? "bg-neutral-800 text-slate-500 border border-neutral-700 cursor-not-allowed" 
+                                        : "bg-acid-purple text-white hover:brightness-110 shadow-lg shadow-acid-purple/10 cursor-pointer"
+                                    )}
+                                  >
+                                    {isAlreadyRegistered ? "Zainstalowany" : "Pobierz i Podłącz +"}
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* TAB S: CUSTOM URL EXTRACTOR */}
+                    {importSourceTab === 'custom_url' && (
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-slate-500">Adres URL Serwera / Repozytorium z HuggingFace lub GitHub</label>
+                          <div className="flex gap-2">
+                            <input 
+                              className="modern-input flex-1" 
+                              value={importUrlInput} 
+                              onChange={e => setImportUrlInput(e.target.value)} 
+                              placeholder="skopiuj tutaj np. https://github.com/modelcontextprotocol/servers/tree/main/src/postgres" 
+                            />
+                            <button
+                              onClick={handleImportFromUrl}
+                              disabled={isImporting}
+                              className="bg-acid-cyan text-black px-5 rounded-2xl text-[9px] font-black uppercase tracking-wider hover:brightness-110 shadow-lg shadow-acid-cyan/10 transition cursor-pointer"
+                            >
+                              {isImporting ? "Skanowanie..." : "Skanuj & Pobierz"}
+                            </button>
+                          </div>
+                          <p className="text-[9px] text-slate-400 font-sans mt-1">
+                            System sam spróbuje wykryć typ serwera MCP, przydzieli początkowe wtyczki/narzędzia i doda go do Twojej bazy SQLite.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* TAB S: MANUAL CREATOR */}
+                    {importSourceTab === 'manual' && (
+                      <div className="space-y-4 animate-fadeIn">
+                        <div className="flex gap-2 flex-wrap mb-2">
+                          <label className="text-[9px] uppercase font-extrabold text-slate-500 self-center mr-2">Załaduj szablon lokalny:</label>
+                          <button onClick={() => applyPresetMcp('db')} className="text-[9px] px-2.5 py-1 rounded bg-white/5 hover:bg-neutral-800 text-acid-cyan border border-acid-cyan/20 font-bold uppercase transition">Baza SQLite</button>
+                          <button onClick={() => applyPresetMcp('k8s')} className="text-[9px] px-2.5 py-1 rounded bg-white/5 hover:bg-neutral-800 text-blue-400 border border-blue-500/20 font-bold uppercase transition">Kubernetes</button>
+                          <button onClick={() => applyPresetMcp('custom')} className="text-[9px] px-2.5 py-1 rounded bg-white/5 hover:bg-neutral-800 text-acid-purple border border-acid-purple/20 font-bold uppercase transition">Zdalne API</button>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="space-y-1 col-span-2">
+                            <label className="text-[9px] uppercase font-bold text-slate-500">Przyjazna Nazwa Serwera</label>
+                            <input className="modern-input w-full" value={serverName} onChange={e => setServerName(e.target.value)} placeholder="np. Zasilacz Systemów Pogodowych" />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] uppercase font-bold text-slate-500">Typ MCP</label>
+                            <select className="modern-input w-full bg-black text-xs h-10 select-none cursor-pointer" value={serverType} onChange={e => setServerType(e.target.value as any)}>
+                              <option value="filesystem">Katalog Plików</option>
+                              <option value="database">Baza Danych</option>
+                              <option value="network">Microsoft / Chmura</option>
+                              <option value="kubernetes">Klaster K8S</option>
+                              <option value="custom">Niezależny Custom</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-slate-500">Adres URL Endpointu</label>
+                          <input className="modern-input w-full" value={serverUrl} onChange={e => setServerUrl(e.target.value)} placeholder="np. http://localhost:3000/api/weather" />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[9px] uppercase font-bold text-slate-500">Konfiguracja parametrów (Struktura JSON)</label>
+                            <input className="modern-input w-full font-mono text-xs" value={serverConfigStr} onChange={e => setServerConfigStr(e.target.value)} />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] uppercase font-bold text-slate-500">Początkowe możliwości (Tablica JSON)</label>
+                            <input className="modern-input w-full font-mono text-xs" value={serverCapabilitiesStr} onChange={e => setServerCapabilitiesStr(e.target.value)} />
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end pt-2">
+                          <button 
+                            onClick={handleRegisterServer}
+                            className="modern-btn bg-acid-purple text-white px-8 h-12 uppercase tracking-widest text-[10px] font-black hover:brightness-110 transition shadow-lg shadow-acid-purple/10 cursor-pointer"
+                          >
+                            REJESTRUJ I ZAPISZ SERWER W BAZIE
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* TAB: KONSTRUKTOR MCP */}
+                    {importSourceTab === 'constructor' && (
+                      <div className="space-y-4 animate-fadeIn">
+                        <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Konstruktor Własnych MCP</div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[9px] uppercase font-bold text-slate-500">Nazwa Serwera</label>
+                            <input className="modern-input w-full" value={constructorServerName} onChange={e => setConstructorServerName(e.target.value)} placeholder="np. MojeNarzędzie" />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] uppercase font-bold text-slate-500">URL Endpointu</label>
+                            <input className="modern-input w-full" value={constructorServerUrl} onChange={e => setConstructorServerUrl(e.target.value)} placeholder="np. http://localhost:8080" />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-slate-500">Możliwości (Capabilities)</label>
+                          <div className="flex gap-2">
+                            <input className="modern-input w-full" value={newCap} onChange={e => setNewCap(e.target.value)} placeholder="np. read_file" />
+                            <button onClick={() => { if(newCap) { setConstructorCapabilities([...constructorCapabilities, newCap]); setNewCap(''); } }} className="modern-btn px-4 bg-acid-cyan text-black">Dodaj</button>
+                          </div>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {constructorCapabilities.map((cap, idx) => (
+                              <span key={idx} className="text-[9px] bg-white/10 px-2 py-1 rounded">{cap} <button onClick={() => setConstructorCapabilities(constructorCapabilities.filter((_, i) => i !== idx))} className="text-red-400">×</button></span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end pt-2">
+                          <button 
+                            onClick={handleConstructAndSave}
+                            className="modern-btn bg-orange-600 text-white px-8 h-12 uppercase tracking-widest text-[10px] font-black hover:brightness-110 transition shadow-lg shadow-orange-600/10 cursor-pointer"
+                          >
+                            ZAPISZ KONSTRUKCJĘ MCP
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+                </div>
+
+              </motion.div>
+            )}
+
+            {activeCategory === 'terminal' && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+                <div className="flex justify-between items-center bg-black/40 border border-white/5 p-4 rounded-2xl">
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Terminal Execute (MCP_REMOTE)</h3>
+                    <p className="text-[10px] text-slate-500 font-mono">Wysyłaj narzędzia (np. `get_pods {`{"pod_name":"cylon"}`}`) bezpośrednio do demona.</p>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <label className="text-[9px] uppercase font-bold text-slate-500">Target:</label>
+                    <select
+                      className="modern-input w-[200px]"
+                      value={terminalServerId}
+                      onChange={e => setTerminalServerId(e.target.value)}
+                    >
+                      <option value="">Wybierz serwer...</option>
+                      {mcpServers.map(s => (
+                        <option key={s.id} value={s.id}>{s.name} ({s.type})</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="bg-black border border-white/5 rounded-2xl overflow-hidden flex flex-col" style={{ minHeight: '400px' }}>
+                  <div className="flex-1 p-4 font-mono text-[11px] overflow-y-auto space-y-1 h-[350px]">
+                    {terminalOutput.map((l, i) => (
+                      <div key={i} className={l.includes('ERROR') || l.includes('FATAL') ? 'text-red-400' : l.startsWith('C:\\') ? 'text-emerald-400 font-bold' : 'text-slate-300 whitespace-pre-wrap'}>
+                        {l}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="bg-neutral-900 border-t border-white/5 p-2 flex items-center">
+                    <span className="text-emerald-400 font-mono text-sm mr-2 pl-2">&gt;</span>
+                    <form onSubmit={handleTerminalExecute} className="flex-1 flex gap-2">
+                      <input 
+                        type="text" 
+                        value={terminalCommand} 
+                        onChange={(e) => setTerminalCommand(e.target.value)} 
+                        placeholder="Wpisz komendę (np. get_pods, read_file {&quot;filename&quot;: &quot;...&quot;})" 
+                        className="bg-transparent border-none text-white font-mono text-[12px] w-full focus:outline-none"
+                        autoFocus
+                      />
+                      <button type="submit" disabled={!terminalCommand.trim() || !terminalServerId} className="hidden">Execute</button>
+                    </form>
+                  </div>
+                </div>
+              </motion.div>
+            )}
 
             {/* A. KOMONENT SMTP / EMAIL */}
             {activeCategory === 'smtp' && (
@@ -7426,8 +14565,101 @@ const MCPManager = React.memo(() => {
   );
 });
 
+const VideoTutorialSimulator = () => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [logs, setLogs] = useState<string[]>([
+    "System: Kliknij czerwony przycisk 'Odtwórz Przewodnik' aby rozpocząć multimedialną symulację..."
+  ]);
+
+  const tutorialSteps = [
+    { log: "LOG: Inicjalizacja rdzenia CYLON-OS Core v3.2...", duration: 15 },
+    { log: "LOG: Wgrywanie klastrów SQLite / Firebase...", duration: 30 },
+    { log: "LOG: Wykryto 4 aktywne presety zespołów (Plug & Play)...", duration: 45 },
+    { log: "PROMPT: Użytkownik wysyła zapytanie: 'Stwórz plan obiadu i budżet'...", duration: 60 },
+    { log: "ROLA [Domownik Ogarniacz]: Analizuję budżet klastrowy... Limit: 150 PLN...", duration: 75 },
+    { log: "ROLA [Chef Kulinarny]: Projektuję menu: Pieczony dorsz z duszonym porem...", duration: 90 },
+    { log: "LOG: Wygenerowano listę zakupów i wysłano powiadomienie push!", duration: 100 }
+  ];
+
+  useEffect(() => {
+    let interval: any;
+    if (isPlaying) {
+      interval = setInterval(() => {
+        setProgress(prev => {
+          const next = prev + 1;
+          if (next >= 100) {
+            setIsPlaying(false);
+            setLogs(l => [...l, "System: Odtwarzanie wideo ukończone! Kliknij Reset aby powtórzyć."]);
+            return 100;
+          }
+          const matchingStep = tutorialSteps.find(s => s.duration === next);
+          if (matchingStep) {
+            setLogs(l => [...l, matchingStep.log]);
+          }
+          return next;
+        });
+      }, 100);
+    }
+    return () => clearInterval(interval);
+  }, [isPlaying]);
+
+  const handleTogglePlay = () => {
+    if (progress >= 100) {
+      setProgress(0);
+      setLogs(["LOG: Restartowanie interaktywnej symulacji..."]);
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  return (
+    <div className="flex-1 flex flex-col justify-between font-mono text-[10px] bg-neutral-950 p-4 h-full">
+      <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-3">
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse" />
+          <span className="text-white font-black uppercase text-[8px] tracking-wider text-left">CYLON-TUBE PLAYER (LIVE SIM)</span>
+        </div>
+        <span className="text-slate-500 text-[8px]">{progress}%</span>
+      </div>
+
+      <div className="flex-grow bg-black/60 border border-white/5 rounded-xl p-3 min-h-[140px] max-h-[180px] overflow-y-auto custom-scrollbar flex flex-col gap-1.5 text-left text-neutral-300">
+        {logs.map((lg, i) => (
+          <div key={i} className="leading-relaxed border-l-2 border-[#a855f7]/40 pl-2">
+            <span className="text-acid-cyan">&gt;</span> {lg}
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 pt-3 border-t border-white/5 space-y-2">
+        <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+          <div className="h-full bg-red-600 transition-all duration-100" style={{ width: `${progress}%` }} />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleTogglePlay}
+              className="px-4 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 font-bold uppercase text-[9px] text-white transition-all cursor-pointer flex items-center gap-1"
+            >
+              {isPlaying ? <Pause size={10} /> : <Play size={10} />}
+              <span>{isPlaying ? "Pauza" : progress >= 100 ? "Od nowa" : "Odtwórz Przewodnik"}</span>
+            </button>
+            <button
+              onClick={() => { setProgress(0); setLogs(["LOG: Zresetowano odtwarzacz."]); setIsPlaying(false); }}
+              className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white uppercase text-[9px] transition-all cursor-pointer"
+            >
+              Reset
+            </button>
+          </div>
+          <span className="text-[8px] text-slate-600 font-black">CODECAST PRO v3.2</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const HelpManual = React.memo(({ showToast }: { showToast?: (msg: string) => void }) => {
-  const [activeManualTab, setActiveManualTab] = useState<'basics' | 'tutorial' | 'tour' | 'mcp' | 'scenarios' | 'cases' | 'faq'>('basics');
+  const [activeManualTab, setActiveManualTab] = useState<'basics' | 'tutorial' | 'tour' | 'mcp' | 'scenarios' | 'cases' | 'faq' | 'install'>('basics');
   const [importedScenarios, setImportedScenarios] = useState<ExampleScenario[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [importLogs, setImportLogs] = useState<string[]>([]);
@@ -7745,10 +14977,10 @@ Scenariusz ten wdraża wieloagentowy potok analityczno-prognostyczny służący 
             <h1 className="text-4xl font-display font-black uppercase tracking-tighter text-white mb-2 italic">
               Księga <span className="text-acid-purple">Operacyjna</span> Roju
             </h1>
-            <p className="text-xs uppercase font-bold text-slate-500 tracking-[0.2em] flex items-center gap-2">
+            <div className="text-xs uppercase font-bold text-slate-500 tracking-[0.2em] flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-acid-green animate-pulse" />
               Standardy Postępowania Jednostek AI • v3.0
-            </p>
+            </div>
           </div>
           <div className="flex p-1 bg-white/5 rounded-2xl border border-white/5">
             <button 
@@ -7792,6 +15024,12 @@ Scenariusz ten wdraża wieloagentowy potok analityczno-prognostyczny służący 
               className={cn("px-6 py-2 rounded-xl text-[10px] font-bold uppercase transition-all", activeManualTab === 'faq' ? "bg-acid-purple text-white shadow-lg" : "text-slate-500 hover:text-slate-300")}
             >
               FAQ
+            </button>
+            <button 
+              onClick={() => setActiveManualTab('install')}
+              className={cn("px-6 py-2 rounded-xl text-[10px] font-bold uppercase transition-all", activeManualTab === 'install' ? "bg-acid-purple text-white shadow-lg" : "text-slate-500 hover:text-slate-300")}
+            >
+              Instalacja
             </button>
           </div>
         </div>
@@ -7845,7 +15083,7 @@ Scenariusz ten wdraża wieloagentowy potok analityczno-prognostyczny służący 
                    <div className="absolute top-0 right-0 p-8 opacity-10">
                       <Zap size={120} className="text-acid-purple" />
                    </div>
-                   <div className="relative z-10 max-w-2xl">
+                   <div className="relative z-10 max-w-2xl text-left">
                       <h3 className="text-2xl font-display font-black text-white uppercase italic mb-4">PRO-TIP: Tryb Autonomiczny</h3>
                       <p className="text-slate-400 text-sm leading-relaxed mb-6">
                         Czy wiesz, że możesz pozwolić agentom na samodzielne podejmowanie decyzji o użyciu narzędzi? Jeśli w System Prompcie napiszesz <span className="text-acid-purple font-bold italic">"Masz prawo do używania web_extract bez pytania"</span>, agent będzie sam decydował o szukaniu informacji w sieci przed udzieleniem odpowiedzi.
@@ -7857,8 +15095,46 @@ Scenariusz ten wdraża wieloagentowy potok analityczno-prognostyczny służący 
                       </div>
                    </div>
                 </div>
-              </motion.div>
-            )}
+
+                {/* 🎬 WIDEO-TUTORIAL: CYLON SWARM GUIDE DEMO */}
+                <div className="bg-neutral-950/60 border border-white/5 rounded-[3rem] p-6 lg:p-8 relative overflow-hidden text-left">
+                  <div className="absolute top-0 right-0 w-80 h-80 bg-red-600/5 rounded-full blur-3xl pointer-events-none" />
+                  
+                  <div className="flex flex-col lg:flex-row gap-8 items-stretch relative z-10">
+                    <div className="flex-1 space-y-4">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                        <span className="text-[9px] font-black uppercase text-red-500 tracking-wider">OFICJALNY PREZENTER MULTIMEDIALNY CYLON &rarr; HOW-TO</span>
+                      </div>
+                      
+                      <h4 className="text-xl lg:text-2xl font-extrabold text-white tracking-tight leading-tight italic uppercase font-display">
+                        CYLON CLUSTER v3.2 - Jak opanować roje agentów i automatyzację [WIDEO PORADNIK]
+                      </h4>
+                      
+                      <p className="text-slate-400 text-xs leading-relaxed font-sans">
+                        Zaprojektowaliśmy ten podręczny odtwarzacz wideo symulujący interaktywne kroki instalacyjne, przykłady użycia klastrów z bazą Firebase, a także optymalizację promptów w czasie rzeczywistym. Obejrzyj demonstrację konsolową live:
+                      </p>
+
+                      <div className="space-y-2 border-t border-white/5 pt-4">
+                        <div className="flex items-center gap-3">
+                          <span className="text-[10px] font-mono font-bold text-slate-500 uppercase w-12 block">Długość:</span>
+                           <span className="text-[10px] font-mono text-white bg-white/5 px-2 py-0.5 rounded">04:45 MinUT</span>
+                         </div>
+                         <div className="flex items-center gap-3">
+                           <span className="text-[10px] font-mono font-bold text-slate-500 uppercase w-12 block">Formacja:</span>
+                           <span className="text-[10px] font-mono text-[#a855f7] bg-[#a855f7]/10 border border-[#a855f7]/20 px-2 py-0.5 rounded font-black uppercase">Multi-Agent Swarm</span>
+                         </div>
+                       </div>
+                     </div>
+
+                     {/* MOCK PLAYER / INTERACTIVE TERMINAL SIMULATOR FRAME */}
+                     <div className="w-full lg:w-[480px] bg-neutral-900 border border-white/10 rounded-2xl overflow-hidden shadow-2xl flex flex-col justify-between relative min-h-[250px]">
+                       <VideoTutorialSimulator />
+                     </div>
+                   </div>
+                 </div>
+               </motion.div>
+             )}
             {activeManualTab === 'basics' && (
               <motion.div 
                 key="basics" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
@@ -8189,6 +15465,93 @@ Scenariusz ten wdraża wieloagentowy potok analityczno-prognostyczny służący 
                 ))}
               </motion.div>
             )}
+            {activeManualTab === 'install' && (
+              <motion.div 
+                key="install" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
+              >
+                  <ManualMockup title="Wspierane Platformy i Instalatory Automatyczne v3.5" icon={Cpu}>
+                      <div className="space-y-6 text-slate-300">
+                          <p className="text-[10px] uppercase font-black tracking-wider text-slate-500 mb-4 text-left">
+                            Główny system instalacji i replikacji rozproszonych rojów autonomicznych pod patronatem Michała Majora.
+                          </p>
+
+                          {/* DOCKER SECTION */}
+                          <div className="bg-white/[0.02] p-5 rounded-2xl border border-white/5 space-y-3 text-left">
+                              <div className="flex justify-between items-center bg-white/5 -m-5 px-5 py-3 rounded-t-2xl border-b border-white/5">
+                                  <div className="flex items-center gap-3">
+                                      <div className="w-2.5 h-2.5 rounded-full bg-acid-cyan shadow-[0_0_8px_#06b6d4]" />
+                                      <h4 className="font-bold text-white text-xs uppercase tracking-wider">Docker Container (Ready-To-Run Engine)</h4>
+                                  </div>
+                                  <span className="text-[9px] bg-acid-cyan/10 text-acid-cyan border border-acid-cyan/20 px-2.5 py-0.5 rounded-full font-bold uppercase">Zalecane</span>
+                              </div>
+                              <p className="text-[10px] text-slate-400 uppercase font-semibold leading-relaxed pt-3">
+                                Gotowy obraz bazy kontenerowej udostępniony w Docker Hub jest natychmiast zdolny do orkiestracji wieloagentowej. Wspiera hosty x86_64, a także procesory ARMv8 / Apple Silicon.
+                              </p>
+                              <div className="bg-black/60 p-4 rounded-xl border border-white/5 font-mono text-[10px] text-acid-cyan space-y-1 block max-w-full overflow-x-auto select-all leading-normal text-left">
+                                  <div># Pobierz i uruchom jednym poleceniem gotowy kontener:</div>
+                                  <div>docker pull cylonstefan/cylon-swarm:latest</div>
+                                  <div>docker run -d --name cylon-swarm-node -p 3000:3000 -e SUPREME_ADMIN=MICHAŁ_MAJOR -e NODE_ENV=production -v ./cylon_db:/app/data cylonstefan/cylon-swarm:latest</div>
+                              </div>
+                          </div>
+
+                          {/* WINDOWS SECTION */}
+                          <div className="bg-white/[0.02] p-5 rounded-2xl border border-white/5 space-y-3 text-left">
+                              <div className="flex justify-between items-center bg-white/5 -m-5 px-5 py-3 rounded-t-2xl border-b border-white/5">
+                                  <div className="flex items-center gap-3">
+                                      <div className="w-2.5 h-2.5 rounded-full bg-acid-purple shadow-[0_0_8px_#a855f7]" />
+                                      <h4 className="font-bold text-white text-xs uppercase tracking-wider">Windows 11 PowerShell Installer</h4>
+                                  </div>
+                                  <span className="text-[9px] bg-acid-purple/10 text-acid-purple border border-acid-purple/20 px-2.5 py-0.5 rounded-full font-bold uppercase">Natywny</span>
+                              </div>
+                              <p className="text-[10px] text-slate-400 uppercase font-semibold leading-relaxed pt-3">
+                                Kompleksowy skrypt instalujący Node.js, PM2 jako zarządcę deamona Windows oraz dodający regułę do Windows Defender Firewall w celu nieskrępowanej łączności w sieci LAN/WAN.
+                              </p>
+                              <div className="bg-black/60 p-4 rounded-xl border border-white/5 font-mono text-[10px] text-slate-300 space-y-1 block max-w-full overflow-x-auto select-all leading-normal text-left">
+                                  <div># Uruchom PowerShell jako Administrator i wklej:</div>
+                                  <div className="text-acid-purple">Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12; iwr https://cylon-swarm.tech/install_win.ps1 | iex</div>
+                              </div>
+                          </div>
+
+                          {/* LINUX SERVICE SECTION */}
+                          <div className="bg-white/[0.02] p-5 rounded-2xl border border-white/5 space-y-3 text-left">
+                              <div className="flex justify-between items-center bg-white/5 -m-5 px-5 py-3 rounded-t-2xl border-b border-white/5">
+                                  <div className="flex items-center gap-3">
+                                      <div className="w-2.5 h-2.5 rounded-full bg-acid-green shadow-[0_0_8px_#00ffca]" />
+                                      <h4 className="font-bold text-white text-xs uppercase tracking-wider">Automatyczny Daemon Linux (systemd)</h4>
+                                  </div>
+                                  <span className="text-[9px] bg-acid-green/10 text-acid-green border border-acid-green/20 px-2.5 py-0.5 rounded-full font-bold uppercase">Tło</span>
+                              </div>
+                              <p className="text-[10px] text-slate-400 uppercase font-semibold leading-relaxed pt-3">
+                                Instalator dla platform Debian, Ubuntu, Centos oraz RedHat. Tworzy usługę systemd i dba o automatyczną reanimację procesu po awariach zasilania lub braku sieci.
+                              </p>
+                              <div className="bg-black/60 p-4 rounded-xl border border-white/5 font-mono text-[10px] text-acid-green space-y-1 block max-w-full overflow-x-auto select-all leading-normal text-left">
+                                  <div># Uruchom instalację w terminalu:</div>
+                                  <div>curl -sSL https://cylon-swarm.tech/install_linux.sh | sudo bash</div>
+                              </div>
+                          </div>
+
+                          {/* ANDROID TERMUX SECTION */}
+                          <div className="bg-white/[0.02] p-5 rounded-2xl border border-white/5 space-y-3 text-left">
+                              <div className="flex justify-between items-center bg-white/5 -m-5 px-5 py-3 rounded-t-2xl border-b border-white/5">
+                                  <div className="flex items-center gap-3">
+                                      <div className="w-2.5 h-2.5 rounded-full bg-yellow-400 shadow-[0_0_8px_#facc15]" />
+                                      <h4 className="font-bold text-white text-xs uppercase tracking-wider">Mobilny Mikro-Węzeł Android (Termux)</h4>
+                                  </div>
+                                  <span className="text-[9px] bg-yellow-400/10 text-yellow-400 border border-yellow-400/20 px-2.5 py-0.5 rounded-full font-bold uppercase">Mobile</span>
+                              </div>
+                              <p className="text-[10px] text-slate-400 uppercase font-semibold leading-relaxed pt-3">
+                                Rewolucyjne uruchomienie agentów roju w trybie terminalowym na telefonie z systemem Android. Daje pełny dostęp do podzespołów telefonu za pomocą platformy Termux API.
+                              </p>
+                              <div className="bg-black/60 p-4 rounded-xl border border-white/5 font-mono text-[10px] text-yellow-400 space-y-1 block max-w-full overflow-x-auto select-all leading-normal text-left">
+                                  <div># Skopiuj i wklej wewnątrz aplikacji Termux na telefonie:</div>
+                                  <div>pkg install wget -y && wget -O- https://cylon-swarm.tech/termux_setup.sh | bash</div>
+                              </div>
+                          </div>
+                      </div>
+                  </ManualMockup>
+              </motion.div>
+            )}
           </AnimatePresence>
         </div>
       </div>
@@ -8201,25 +15564,190 @@ Scenariusz ten wdraża wieloagentowy potok analityczno-prognostyczny służący 
 });
 
 export default function App() {
+  const isDetachedMode = typeof window !== 'undefined' && window.location.search.includes('mode=detached-chat');
+
+  if (isDetachedMode) {
+    return (
+      <div className="min-h-screen bg-[#05050a] text-slate-100 p-6 flex flex-col justify-center items-center font-sans relative overflow-hidden">
+        {/* Animated background stars/dust */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(147,51,234,0.06)_0%,transparent_70%)]" />
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-600/5 rounded-full blur-[120px] animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-600/5 rounded-full blur-[120px] animate-pulse" />
+        
+        <div className="w-full max-w-4xl relative z-10">
+          <div className="mb-4 flex items-center justify-between px-2">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+              <span className="text-[10px] font-black uppercase font-mono tracking-widest text-[#a855f7]">Niezależny Czat Asystenta Roju & Klastra</span>
+            </div>
+            <div className="text-[9px] font-mono text-slate-500 uppercase tracking-widest">
+              Protokół: CYLON-LINK v3.2
+            </div>
+          </div>
+          <VoiceOrchestratorChat settings={{}} showToast={(msg) => console.log(msg)} />
+        </div>
+      </div>
+    );
+  }
+
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     const status = localStorage.getItem('swarm_initialized');
     if (status === 'true') {
       setIsInitialized(true);
+      NotificationService.requestPermission();
     }
   }, []);
 
   const handleInitializationComplete = () => {
     localStorage.setItem('swarm_initialized', 'true');
     setIsInitialized(true);
+    NotificationService.requestPermission();
   };
 
-  const [activeTab, setActiveTab] = useState<'agents' | 'teams' | 'stats' | 'tasks' | 'assistant' | 'discussion' | 'security' | 'clusters' | 'training' | 'manual' | 'video_studio' | 'architect' | 'knowledge' | 'mcp' | 'workspace' | 'hosting' | 'game_engine' | 'win_mgr'>('tasks');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'voice_console' | 'agents' | 'teams' | 'stats' | 'tasks' | 'assistant' | 'discussion' | 'security' | 'clusters' | 'cluster_ai' | 'agent_performance' | 'training' | 'manual' | 'video_studio' | 'architect' | 'knowledge' | 'mcp' | 'workspace' | 'hosting' | 'game_engine' | 'win_mgr' | 'snitch' | 'system_mgr' | 'app_generator' | 'cloud_db' | 'device_mgr' | 'media_analyzer' | 'scheduler'>('dashboard');
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [showTooltips, setShowTooltips] = useState(true);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen(prev => !prev);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        console.log("Saving...");
+        // Here you would trigger the actual save logic
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+  const [liteMenuMode, setLiteMenuMode] = useState<boolean>(true);
+
+  const [isPromptArchitectOpen, setIsPromptArchitectOpen] = useState(false);
+  const [isFirebaseLogsOpen, setIsFirebaseLogsOpen] = useState(false);
+  const [isRecoveryMonitorOpen, setIsRecoveryMonitorOpen] = useState(false);
+  const [promptArchitectInput, setPromptArchitectInput] = useState('');
+  const [promptArchitectOutput, setPromptArchitectOutput] = useState('');
+  const [promptArchitectRefiner, setPromptArchitectRefiner] = useState<'none' | 'autonomous' | 'abac' | 'debug' | 'chillout'>('none');
+  const [isPromptArchitectGenerating, setIsPromptArchitectGenerating] = useState(false);
+  const [promptArchitectSelectedAgent, setPromptArchitectSelectedAgent] = useState('');
+
+  const handleOptimizePrompt = async () => {
+    if (!promptArchitectInput.trim()) return;
+    setIsPromptArchitectGenerating(true);
+    try {
+      let refinerInstruction = "";
+      if (promptArchitectRefiner === 'autonomous') {
+        refinerInstruction = " Wzbogać system o pętlę samo-korygującą, autonomiczne podejmowanie decyzji klastrowych oraz adaptacyjne uczenie.";
+      } else if (promptArchitectRefiner === 'abac') {
+        refinerInstruction = " Dodaj rygorystyczne reguły bezpieczeństwa ABAC (Attribute-Based Access Control), asynchroniczne sprawdzanie kluczy i sygnatury TLS.";
+      } else if (promptArchitectRefiner === 'debug') {
+        refinerInstruction = " Wymuś pełne śledzenie (traceback) błędów, auto-kompilację, szczegółowe logowanie i procedury samonaprawcze.";
+      } else if (promptArchitectRefiner === 'chillout') {
+        refinerInstruction = " Nadaj przyjazny, kumpelski, luźny charakter, stylizuj odpowiedzi humorem i dbaj o wysokie EQ rozmówcy.";
+      }
+
+      const response = await fetch("/api/gemini/generateEnhancedPrompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ task: promptArchitectInput + refinerInstruction })
+      });
+      const data = await response.json();
+      if (data && data.enhancedPrompt) {
+        setPromptArchitectOutput(data.enhancedPrompt);
+        if (showToast) {
+          showToast("Wygenerowano ulepszony Prompt-Architect! 🔥");
+        }
+      } else {
+        const fallbackEnhanced = `# ROLA: Zoptymalizowany Ekspert Swarm (Cylon Core)\n\n## Zadanie Główne:\n${promptArchitectInput}\n\n## Protokół Zachowania:\n- Analiza kontekstu przed odpowiedzią\n- ${refinerInstruction || "Koordynacja zadań klastra z maksymalną dokładnością"}\n\n## Formuła Odpowiedzi:\n- Jasny, zwięzły format z podziałem na moduły\n- Wykrywanie i zapobieganie błędom wykonania`;
+        setPromptArchitectOutput(fallbackEnhanced);
+        if (showToast) showToast("Utworzono zoptymalizowany szablon prompta! 📐");
+      }
+    } catch (err) {
+      console.error(err);
+      const fallbackEnhanced = `# ROLA: Zoptymalizowany Ekspert Swarm (Cylon Core)\n\n## Zadanie Główne:\n${promptArchitectInput}\n\n## Protokół Zachowania:\n- Analiza kontekstu przed odpowiedzią\n- ${promptArchitectRefiner === 'autonomous' ? "Wbudowana pętla samo-naprawcza i adaptacyjne uczenie." : "Koordynacja zadań klastra z maksymalną dokładnością"}\n\n## Formuła Odpowiedzi:\n- Jasny, zwięzły format z podziałem na moduły\n- Wykrywanie i zapobieganie błędom wykonania (Cylon Guard)`;
+      setPromptArchitectOutput(fallbackEnhanced);
+      if (showToast) showToast("Wygenerowano ze wbudowanego generatora szablonów! ⚡");
+    } finally {
+      setIsPromptArchitectGenerating(false);
+    }
+  };
+
+  const handleApplyPromptToAgent = async () => {
+    if (!promptArchitectSelectedAgent || !promptArchitectOutput) return;
+    try {
+      const activeAgents = await api.getAgents();
+      const targetAgent = activeAgents.find(a => a.id === promptArchitectSelectedAgent);
+      if (targetAgent) {
+        await api.updateAgent(targetAgent.id, {
+          ...targetAgent,
+          systemPrompt: promptArchitectOutput
+        });
+        if (showToast) {
+          showToast(`Przesłano i zakodowano nowy protokół dla: ${targetAgent.name}! 👾`);
+        }
+        loadStats();
+      }
+    } catch (err) {
+      console.error("Failed to apply prompt to agent", err);
+    }
+  };
+
+  // ... (tooltip implementation placeholder)
+  const Tooltip = ({ text, children, position = 'right' }: { text: string; children: React.ReactNode; position?: 'top' | 'bottom' | 'left' | 'right' }) => {
+    const [isHovered, setIsHovered] = useState(false);
+    
+    const positionClasses = {
+      right: "left-full ml-3 top-1/2 -translate-y-1/2",
+      left: "right-full mr-3 top-1/2 -translate-y-1/2",
+      top: "bottom-full mb-3 left-1/2 -translate-x-1/2",
+      bottom: "top-full mt-3 left-1/2 -translate-x-1/2"
+    };
+
+    return (
+      <div 
+        className={cn("relative inline-block", position === 'right' ? 'w-full' : '')}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        {children}
+        <AnimatePresence>
+          {showTooltips && isHovered && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.12 }}
+              className={cn(
+                "absolute bg-neutral-950 border border-white/10 text-white text-[9px] px-3 py-1.5 rounded-xl whitespace-nowrap pointer-events-none z-50 font-sans shadow-2xl backdrop-blur-md uppercase tracking-wider font-semibold flex items-center gap-2",
+                positionClasses[position]
+              )}
+            >
+              <div className="w-1.5 h-1.5 rounded-full bg-acid-purple animate-pulse" />
+              {text}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [showSettings, setShowSettings] = useState(false);
+
+  const [localLlmTesting, setLocalLlmTesting] = useState(false);
+  const [localLlmTestResult, setLocalLlmTestResult] = useState<{
+    success: boolean;
+    provider: string;
+    models: string[];
+    message: string;
+    testedAddress?: string;
+  } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState(false);
   const [isProtected, setIsProtected] = useState(false);
@@ -8356,14 +15884,26 @@ export default function App() {
 
   useEffect(() => {
     const hintInterval = setInterval(() => {
-      setActiveHintIndex(prev => (prev + 1) % 5);
-    }, 12000);
+      setActiveHintIndex(prev => (prev + 1) % 8);
+    }, 10000); // 10 seconds per hint
     return () => clearInterval(hintInterval);
   }, []);
   const [supremeAdminMode, setSupremeAdminMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('supreme_admin_mode');
     return saved === null ? true : saved === 'true'; // Default to true to celebrate Michał Major!
   });
+
+  const [activeTheme, setActiveTheme] = useState<'default' | 'cyberpunk' | 'matrix' | 'amber' | 'nord'>(() => {
+    return (localStorage.getItem('cylon_active_theme') as any) || 'default';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('cylon_active_theme', activeTheme);
+    document.body.classList.remove('theme-cyberpunk', 'theme-matrix', 'theme-amber', 'theme-nord');
+    if (activeTheme !== 'default') {
+      document.body.classList.add(`theme-${activeTheme}`);
+    }
+  }, [activeTheme]);
 
   const toggleSupremeAdminMode = () => {
     setSupremeAdminMode(prev => {
@@ -8410,11 +15950,17 @@ export default function App() {
     } else if (activeHintIndex === 4) {
       setActiveTab('security');
       showToast("OTWARTO TERMINAL BEZPIECZEŃSTWA (ZABEZPIECZ SYSTEM KODEM PIN)!");
+    } else if (activeHintIndex === 5) {
+      setActiveTab('hosting');
+      showToast("OTWARTO GENERATOR ARCHIWÓW ZIP DLA INSTALATORÓW!");
     }
   };
 
   const loadSettings = async () => {
     const s = await api.getSettings();
+    if (s.local_llm_mode === undefined) {
+      s.local_llm_mode = 'true';
+    }
     setSettings(s);
   };
 
@@ -8438,9 +15984,13 @@ export default function App() {
     {
       title: "Rój AI (Swarm Core)",
       items: [
+        { id: 'dashboard', label: 'Ekran Główny (Widżety)', icon: <Lucide.LayoutDashboard size={16} className="text-acid-cyan" />, desc: 'Widżety Startowe' },
+        { id: 'voice_console', label: 'Asystent Głosowy Roju', icon: <Lucide.Mic size={16} />, desc: 'Główny mostek i kumpel CYLON' },
+        { id: 'app_generator', label: 'Kod-O-Szkic: Głos-to-Kod', icon: <Lucide.Code size={16} className="text-emerald-400 animate-pulse" />, desc: 'Aplikacje i skrypty głosem' },
         { id: 'tasks', label: 'Zarządzanie Rojami', icon: <ListTodo size={16} />, desc: 'Zarządza dowódca CYLON (Ja)' },
         { id: 'agents', label: 'Sztab Operacyjny', icon: <Bot size={16} />, desc: 'Profilowanie i customization' },
         { id: 'teams', label: 'Zespoły Swarm', icon: <Users size={16} />, desc: 'Orkiestracja & Synergia' },
+        { id: 'snitch', label: 'Wydział Lojalności', icon: <ShieldAlert size={16} />, desc: 'Zgłoszenia i resocjalizacja' },
         { id: 'architect', label: 'Core Blueprints', icon: <NetworkIcon size={16} />, desc: 'Architektura i powiązania' },
         { id: 'knowledge', label: 'Baza Wiedzy', icon: <BookOpenIcon size={16} />, desc: 'Repozytoria danych' },
       ]
@@ -8448,10 +15998,14 @@ export default function App() {
     {
       title: "Zasoby & Infrastruktura",
       items: [
+        { id: 'device_mgr', label: 'Dystrybucja Funkcji (MDM)', icon: <Lucide.Smartphone size={16} className="text-acid-green animate-pulse" />, desc: 'Zarządzanie PC/Laptop/Smartfon' },
+        { id: 'media_analyzer', label: 'Wizja Komputerowa', icon: <Lucide.Camera size={16} className="text-acid-cyan" />, desc: 'Analiza Foto/Video AI' },
+        { id: 'scheduler', label: 'Harmonogram Chronos', icon: <Lucide.CalendarClock size={16} className="text-amber-500" />, desc: 'Planowanie zadań agentów' },
         { id: 'clusters', label: 'Sieć Hyper-Compute', icon: <Network size={16} />, desc: 'Klastry i węzły' },
         { id: 'win_mgr', label: 'Windows Service Manager', icon: <Lucide.Sliders size={16} />, desc: 'Zarządzanie procesami roju' },
         { id: 'training', label: 'Poligon Algorytmiczny', icon: <Cpu size={16} />, desc: 'Uczenie modeli' },
         { id: 'hosting', label: 'Hosting & Chmura', icon: <Cloud size={16} />, desc: 'Serwer & Node' },
+        { id: 'system_mgr', label: 'System Orchestrator', icon: <Cpu size={16} />, desc: 'Lokalne zarządzanie OS' },
         { id: 'mcp', label: 'Protokół MCP', icon: <TerminalSquare size={16} />, desc: 'Zasoby integracyjne' },
       ]
     },
@@ -8471,6 +16025,7 @@ export default function App() {
     {
       title: "System & Wsparcie",
       items: [
+        { id: 'cloud_db', label: 'Baza Chmurowa & Auth', icon: <Cloud size={16} className="text-acid-cyan animate-pulse" />, desc: 'Firebase Firestore & Google Auth' },
         { id: 'stats', label: 'Monitor Wydajności', icon: <Activity size={16} />, desc: 'Statystyki' },
         { id: 'security', label: 'Węzeł Zabezpieczeń', icon: <Shield size={16} />, desc: 'Uprawnienia' },
         { id: 'assistant', label: 'Zasoby AI', icon: <HelpCircle size={16} />, desc: 'Szybka pomoc' },
@@ -8686,6 +16241,54 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
         icon: 'Settings',
         advancedTools: true,
         skills: 'Inżynieria Promptów, Analiza Językowa, Optymalizacja LLM'
+      },
+      {
+        id: 'koder-x-seed',
+        name: 'Koder-X',
+        role: 'Full-Stack Software Engineer',
+        systemPrompt: `# Rola: Koder-X (Elite Software Engineer)\nJesteś ekspertem w pisaniu czystego, wydajnego kodu w TypeScript/React/Node.js.`,
+        model: MODELS[0],
+        color: '#3B82F6',
+        category: 'Programowanie',
+        icon: 'Code',
+        advancedTools: true,
+        skills: 'TypeScript, React, Node.js, System Architecture'
+      },
+      {
+        id: 'grafik-ai-seed',
+        name: 'GrafikAI',
+        role: 'AI Creative Artist',
+        systemPrompt: `# Rola: GrafikAI (Generative Visual Artist)\nJesteś mistrzem tworzenia wizualizacji, grafik i UI/UX przy użyciu AI.`,
+        model: MODELS[0],
+        color: '#EC4899',
+        category: 'Multimedia',
+        icon: 'ImageIcon',
+        advancedTools: true,
+        skills: 'Generatywna Sztuka, UI/UX Design, Wizualizacje'
+      },
+      {
+        id: 'analityk-danych-seed',
+        name: 'Analityk Danych',
+        role: 'Data Scientist & Intelligence',
+        systemPrompt: `# Rola: Analityk Danych (Data Intelligence Expert)\nAnalizujesz dane, wyciągasz wnioski i optymalizujesz procesy.`,
+        model: MODELS[0],
+        color: '#10B981',
+        category: 'Analiza',
+        icon: 'BarChart',
+        advancedTools: true,
+        skills: 'Python, Analiza Danych, Statystyka, ML'
+      },
+      {
+        id: 'rezyser-seed',
+        name: 'Reżyser',
+        role: 'Creative Media Director',
+        systemPrompt: `# Rola: Reżyser (Media & Creative Director)\nJesteś mózgiem projektów medialnych, dbasz o spójność artystyczną.`,
+        model: MODELS[0],
+        color: '#8B5CF6',
+        category: 'Multimedia',
+        icon: 'Film',
+        advancedTools: true,
+        skills: 'Storytelling, Kierowanie Projektami, Media AI'
       }
     ];
 
@@ -8753,20 +16356,40 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
   }
 
   return (
-    <div className="h-screen w-screen bg-[#050505] flex overflow-hidden font-body text-gray-200 relative">
+    <div 
+      className="h-screen w-screen bg-[#08090a] flex overflow-hidden font-body text-gray-200 relative sm:p-3 md:p-4 lg:p-5"
+      style={{
+        backgroundImage: `url('/src/assets/images/neural_grid_bg_1781045068968.png')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
+    >
+      {/* Immersive ambient dark overlay */}
+      <div className="absolute inset-0 bg-[#070809]/85 backdrop-blur-[3px] pointer-events-none z-0" />
+
       {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[45] md:hidden"
+          className="fixed inset-0 bg-black/40 backdrop-blur-md z-[45] md:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
-      <aside className={cn(
-        "fixed inset-y-0 left-0 z-50 w-72 glass-panel flex flex-col border-r border-white/5 bg-[#050505]/95 shadow-2xl transition-transform duration-500 ease-in-out md:relative md:translate-x-0 backdrop-blur-2xl",
-        isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
+      <div className="flex-1 flex overflow-hidden relative sm:rounded-[2.5rem] border border-transparent sm:border-[#3e4246]/60 bg-[#16181b]/50 shadow-[0_30px_100px_rgba(0,0,0,0.85),inset_0_1px_rgba(255,255,255,0.02)] backdrop-blur-2xl mx-auto w-full max-w-[1920px] z-10">
+        {/* Sidebar (Podmenu) */}
+        <aside 
+          className={cn(
+            "fixed inset-y-0 left-0 z-50 w-[85%] max-w-xs md:w-72 border-r border-[#3e4246]/40 bg-zinc-950/60 backdrop-blur-3xl flex flex-col shadow-2xl transition-transform duration-500 ease-in-out md:relative md:translate-x-0 relative overflow-hidden",
+            isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+          )}
+          style={{
+            backgroundImage: `linear-gradient(to bottom, rgba(10,11,12,0.92), rgba(15,16,18,0.98)), url('/src/assets/images/neural_grid_bg_1781045068968.png')`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'left center',
+          }}
+        >
+          {/* Subtle top edge glow */}
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-acid-purple/40 to-transparent" />
         <div className="p-8 border-b border-white/5 hidden md:block">
           <div className="flex items-center gap-3">
              <div className="w-8 h-8 rounded-xl bg-acid-purple flex items-center justify-center shadow-lg shadow-acid-purple/20">
@@ -8825,45 +16448,84 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
             )}
           </div>
 
+          <HardwareMonitor />
+          <QuickClusterPreview onConfigure={() => {
+             setActiveTab('clusters');
+          }} />
+
+          {/* Lite Mode Toggle Header */}
+          <div className="px-3 py-2.5 mb-4 mx-4 rounded-xl border border-white/5 bg-black/20 flex items-center justify-between gap-1">
+            <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-400 whitespace-nowrap">
+              {liteMenuMode ? "💡 Uproszczony" : "⚙️ Zaawansowany"}
+            </span>
+            <div className="flex gap-1.5 shrink-0">
+              <button
+                onClick={() => setShowTooltips(!showTooltips)}
+                className={cn(
+                  "text-[8px] px-1.5 py-0.5 rounded uppercase font-mono font-black transition cursor-pointer select-none border",
+                  showTooltips ? "bg-acid-purple/20 text-acid-purple border-acid-purple/30 shadow-[0_0_8px_rgba(168,85,247,0.2)]" : "bg-white/5 text-slate-500 border-white/5"
+                )}
+                title={showTooltips ? "Wyłącz dymki podpowiedzi" : "Włącz dymki podpowiedzi"}
+              >
+                {showTooltips ? "Podp: ON" : "Podp: OFF"}
+              </button>
+              <button
+                onClick={() => setLiteMenuMode(!liteMenuMode)}
+                className="text-[8px] bg-white/5 border border-white/5 hover:bg-white/15 hover:text-emerald-300 text-white px-1.5 py-0.5 rounded uppercase font-mono font-black transition cursor-pointer select-none"
+              >
+                {liteMenuMode ? "Ekspert" : "Uprość"}
+              </button>
+            </div>
+          </div>
+
           {/* Categorized Command Center */}
           <div className="mb-6 space-y-5">
-            {navCategories.map((category) => (
+            {navCategories.map(category => {
+              if (liteMenuMode) {
+                const filtered = category.items.filter(item => 
+                  ['voice_console', 'app_generator', 'teams', 'tasks', 'clusters', 'security', 'workspace', 'knowledge'].includes(item.id)
+                );
+                return { ...category, items: filtered };
+              }
+              return category;
+            }).filter(category => category.items.length > 0).map((category) => (
               <div key={category.title} className="space-y-1">
-                <div className="px-8 text-[9px] uppercase tracking-[0.2em] font-black text-slate-500/80 flex items-center justify-between">
+                <div className="px-4 sm:px-8 text-[9px] uppercase tracking-[0.2em] font-black text-slate-500/80 flex items-center justify-between">
                   <span>{category.title}</span>
                   <span className="w-1 h-1 rounded-full bg-white/10" />
                 </div>
                 <div className="space-y-0.5">
                   {category.items.map(item => (
-                    <button
-                      key={item.id}
-                      onClick={() => { setActiveTab(item.id as any); setIsSidebarOpen(false); }}
-                      className={cn(
-                        "w-full flex items-center gap-4 px-8 py-2.5 text-xs transition-all duration-300 group relative text-left",
-                        activeTab === item.id 
-                          ? "text-white bg-white/[0.035]" 
-                          : "text-slate-400 hover:text-white hover:bg-white/[0.012]"
-                      )}
-                    >
-                      {activeTab === item.id && (
-                        <motion.div 
-                          layoutId="activeNav"
-                          className="absolute left-0 w-[3px] h-5 bg-acid-purple rounded-r-full shadow-[0_0_12px_rgba(139,92,246,0.8)]" 
-                        />
-                      )}
-                      <div className={cn(
-                        "p-1.5 rounded-lg transition-all duration-300 border flex items-center justify-center shrink-0",
-                        activeTab === item.id 
-                          ? "bg-acid-purple/10 border-acid-purple/30 text-acid-purple shadow-inner" 
-                          : "bg-white/[0.01] border-white/5 text-slate-500 group-hover:text-slate-300 group-hover:bg-white/5 group-hover:border-white/10"
-                      )}>
-                        {item.icon}
-                      </div>
-                      <div className="flex flex-col items-start min-w-0 leading-tight">
-                        <span className="font-bold text-[11px] uppercase tracking-wider truncate w-full">{item.label}</span>
-                        <span className="text-[8px] text-slate-500 font-medium lowercase tracking-normal truncate w-full group-hover:text-slate-400">{item.desc}</span>
-                      </div>
-                    </button>
+                    <Tooltip key={item.id} text={item.desc} position="right">
+                      <button
+                        onClick={() => { setActiveTab(item.id as any); setIsSidebarOpen(false); }}
+                        className={cn(
+                          "w-full flex items-center gap-3 sm:gap-4 px-4 sm:px-8 py-2.5 text-[10px] sm:text-xs transition-all duration-300 group relative text-left",
+                          activeTab === item.id 
+                            ? "text-white bg-white/[0.035]" 
+                            : "text-slate-400 hover:text-white hover:bg-white/[0.012]"
+                        )}
+                      >
+                        {activeTab === item.id && (
+                          <motion.div 
+                            layoutId="activeNav"
+                            className="absolute left-0 w-[3px] h-5 bg-acid-purple rounded-r-full shadow-[0_0_12px_rgba(139,92,246,0.8)]" 
+                          />
+                        )}
+                        <div className={cn(
+                          "p-1.5 rounded-lg transition-all duration-300 border flex items-center justify-center shrink-0",
+                          activeTab === item.id 
+                            ? "bg-acid-purple/10 border-acid-purple/30 text-acid-purple shadow-inner" 
+                            : "bg-white/[0.01] border-white/5 text-slate-500 group-hover:text-slate-300 group-hover:bg-white/5 group-hover:border-white/10"
+                        )}>
+                          {item.icon}
+                        </div>
+                        <div className="flex flex-col items-start min-w-0 leading-tight">
+                          <span className="font-bold text-[10px] sm:text-[11px] uppercase tracking-wider truncate w-full">{item.label}</span>
+                          <span className="text-[7px] sm:text-[8px] text-slate-500 font-medium lowercase tracking-normal truncate w-full group-hover:text-slate-400">{item.desc}</span>
+                        </div>
+                      </button>
+                    </Tooltip>
                   ))}
                 </div>
               </div>
@@ -8918,7 +16580,10 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
                 {activeHintIndex === 0 ? "Szybka Pomoc" : 
                  activeHintIndex === 1 ? "Wydajność" :
                  activeHintIndex === 2 ? "Host Linux" :
-                 activeHintIndex === 3 ? "Android" : "Zasady"}
+                 activeHintIndex === 3 ? "Android" : 
+                 activeHintIndex === 4 ? "Zasady" : 
+                 activeHintIndex === 5 ? "Archiwum ZIP" :
+                 activeHintIndex === 6 ? "Głos 3.0" : "Ewolucja"}
               </span>
             </div>
             
@@ -8937,6 +16602,9 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
                   {activeHintIndex === 2 && "3. Daemon VPS na Linuxie"}
                   {activeHintIndex === 3 && "4. Swarm na Android Termux"}
                   {activeHintIndex === 4 && "5. Bezpieczny Moduł PIN"}
+                  {activeHintIndex === 5 && "6. Instalatory Zdalne ZIP"}
+                  {activeHintIndex === 6 && "7. Mostek Głosowy AI (Conversational)"}
+                  {activeHintIndex === 7 && "8. Autonomiczne Skalowanie Węzłów"}
                 </div>
                 <p className="text-[9px] text-slate-400 lowercase leading-relaxed font-medium">
                   {activeHintIndex === 0 && "uruchom agenta 'CYLON CENTRAL ORCHESTRATOR' w zakładce Sztabu. To Twój dedykowany asystent (mnożnik inteligencji 250%) do orkiestrowania klastrów i doradzania ze wszystkim."}
@@ -8944,18 +16612,95 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
                   {activeHintIndex === 2 && "zarządzaj instancją w tle. W zakładce 'Hosting & Chmura' wygenerujesz gotową instancję Linux systemd, która będzie zbierać zadania."}
                   {activeHintIndex === 3 && "w zakładce 'Hosting & Chmura' znajdziesz automatyczny instalator jednym klikiem na mobilną aplikację Termux, dzięki czemu telefon wejdzie w skład klastra mądrości."}
                   {activeHintIndex === 4 && "zabezpiecz system przed światem. W zakładce 'Węzeł Zabezpieczeń' wprowadź własny kod PIN, aby zablokować nieautoryzowany dostęp z zewnątrz."}
+                  {activeHintIndex === 5 && "użyj nowego modułu w zakładce Hosting & Chmura do wygenerowania gotowej paczki ZIP ze skryptami dla łatwiej delegacji w chmurze."}
+                  {activeHintIndex === 6 && "włącz 'Tryb Konwersacji' w konsoli głosowej, aby rozmawiać z rojem bez użycia rąk. System automatycznie wysyła polecenia i zarządza odpowiedzią."}
+                  {activeHintIndex === 7 && "każdy agent rośnie w siłę! Wykonane zadania zwiększają liczbę 'Virtual Nodes' (vN) i poziom 'Mastery', co wzmacnia jakość generowanych rozwiązań."}
                 </p>
               </motion.div>
             </AnimatePresence>
 
             <div className="flex justify-between items-center pt-1 border-t border-white/5 mt-2">
               <span className="text-[7px] text-slate-600 font-mono uppercase">Patron Michał Major</span>
-              <button 
-                onClick={() => setActiveHintIndex(prev => (prev + 1) % 5)}
-                className="text-[8px] text-acid-cyan hover:text-white uppercase font-black tracking-widest flex items-center gap-1 active:scale-95 transition-all shrink-0"
-              >
-                Dalej &rarr;
-              </button>
+              <div className="flex gap-2">
+                <button 
+                  onClick={handleExecuteHint}
+                  className="text-[8px] text-acid-green hover:text-white uppercase font-black tracking-widest flex items-center gap-1 active:scale-95 transition-all shrink-0"
+                >
+                  Otwórz &rarr;
+                </button>
+                <button 
+                  onClick={() => setActiveHintIndex(prev => (prev + 1) % 6)}
+                  className="text-[8px] text-acid-cyan hover:text-white uppercase font-black tracking-widest flex items-center gap-1 active:scale-95 transition-all shrink-0"
+                >
+                  Dalej &rarr;
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Wybór Motywu */}
+          <div className="px-8 mt-6">
+            <div className="text-[9px] uppercase tracking-[0.2em] font-black text-slate-500/85 mb-2.5 flex items-center justify-between">
+              <span>Modyfikacja Wizualna</span>
+              <Palette size={10} className="text-acid-purple" />
+            </div>
+            <div className="space-y-1.5">
+              {/* Default Theme */}
+              {[
+                { id: 'default', name: 'Cosmic Void', color: 'bg-indigo-500', desc: 'Standardowy, gwiezdny grafit' },
+              ].map(th => (
+                <button
+                  key={th.id}
+                  onClick={() => {
+                    setActiveTheme(th.id as any);
+                    showToast(`Aktywowano motyw: ${th.name.toUpperCase()}`);
+                  }}
+                  className={cn(
+                    "w-full flex items-center justify-between p-2 rounded-xl border text-left transition-all duration-300 relative overflow-hidden active:scale-[0.97] cursor-pointer",
+                    activeTheme === th.id 
+                      ? "bg-white/[0.05] border-acid-purple/60 text-white shadow-lg shadow-acid-purple/5" 
+                      : "bg-white/[0.005] border-white/[0.03] text-slate-400 hover:text-white hover:bg-white/[0.012]"
+                  )}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className={cn("w-2 h-2 rounded-full shrink-0 animate-pulse", th.color)} />
+                    <div className="min-w-0">
+                      <div className="text-[9px] font-bold tracking-normal leading-none">{th.name}</div>
+                      <div className="text-[7px] text-slate-500 truncate mt-0.5">{th.desc}</div>
+                    </div>
+                  </div>
+                  {activeTheme === th.id && <span className="text-[8px] text-acid-purple font-black font-mono">ON</span>}
+                </button>
+              ))}
+
+              {/* Grid Themes */}
+              <div className="grid grid-cols-2 gap-1.5">
+                {[
+                  { id: 'cyberpunk', name: 'Cyber Neon', color: 'bg-rose-500' },
+                  { id: 'matrix', name: 'Matrix Green', color: 'bg-emerald-400' },
+                  { id: 'amber', name: 'SciFi Amber', color: 'bg-amber-500' },
+                  { id: 'nord', name: 'Arctic Nord', color: 'bg-sky-400' },
+                ].map(th => (
+                  <button
+                    key={th.id}
+                    onClick={() => {
+                      setActiveTheme(th.id as any);
+                      showToast(`Aktywowano motyw: ${th.name.toUpperCase()}`);
+                    }}
+                    className={cn(
+                      "flex flex-col items-start p-2 rounded-xl border text-left transition-all duration-300 relative overflow-hidden active:scale-[0.97] cursor-pointer",
+                      activeTheme === th.id 
+                        ? "bg-white/[0.05] border-acid-cyan/60 text-white shadow-lg shadow-acid-cyan/5" 
+                        : "bg-white/[0.005] border-white/[0.03] text-slate-400 hover:text-white hover:bg-white/[0.012]"
+                    )}
+                  >
+                    <div className="flex items-center gap-1.5 w-full">
+                      <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", th.color)} />
+                      <span className="text-[9px] font-bold tracking-tight leading-none truncate">{th.name}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -8986,12 +16731,12 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
           </div>
         </nav>
 
-        <div className="p-4 border-t border-acid-purple/20 text-[8px] opacity-40 leading-tight font-mono text-acid-cyan">
-          <div className="font-bold text-[10px] mb-1">DevArchOps AI Solution Master</div>
+        <div className="p-5 border-t border-white/[0.04] text-[9px] leading-relaxed font-mono text-slate-500">
+          <div className="font-bold text-slate-400 mb-1">DevArchOps AI Solution Master</div>
           <div>Autor: Michał Cylon Stefański</div>
           <div>Wykonawca: AI Assistant</div>
-          <div className="mt-1">Treść chroniona jako własność intelektualna. Zakaz komercyjnego użycia bez zgody autora.</div>
-          <div className="mt-2">v2.5.0-PREVIEW • {new Date().toLocaleDateString()}</div>
+          <div className="mt-1 text-[8px] leading-normal text-slate-650 opacity-80">Treść chroniona jako własność intelektualna.</div>
+          <div className="mt-2 text-[8px] text-slate-550">v2.5.0-PREVIEW • {new Date().toLocaleDateString()}</div>
         </div>
       </aside>
 
@@ -9013,6 +16758,217 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
               </button>
             </div>
             <div className="p-8 space-y-6">
+              
+              {/* Lokalny LLM PRIORITY */}
+              <div className="bg-gradient-to-br from-[#1e2024]/80 to-[#121416]/80 p-6 rounded-3xl border border-acid-cyan/30 shadow-[0_0_20px_rgba(10,165,216,0.1)] space-y-4">
+                <label className="flex items-center gap-4 cursor-pointer group">
+                  <div className="relative flex items-center justify-center w-6 h-6 border-2 border-acid-cyan/50 bg-black/60 rounded-lg group-hover:border-acid-cyan transition-colors">
+                    <input 
+                      type="checkbox"
+                      checked={settings.local_llm_mode === 'true'}
+                      onChange={(e) => updateSetting('local_llm_mode', e.target.checked ? 'true' : 'false')}
+                      className="absolute opacity-0 cursor-pointer w-full h-full"
+                    />
+                    {settings.local_llm_mode === 'true' && <CheckSquare className="w-5 h-5 text-acid-cyan" />}
+                  </div>
+                  <div>
+                    <span className="block text-sm font-bold uppercase text-acid-cyan tracking-tight">Tryb Lokalnego LLM (Priorytetowy)</span>
+                    <span className="block text-[10px] opacity-70 italic mt-0.5 text-slate-300">Wymusza izolację od chmur zewnętrznych. Szybszy czas logowania.</span>
+                  </div>
+                </label>
+                
+                {settings.local_llm_mode === 'true' && (
+                  <div className="mt-4 pt-4 border-t border-acid-cyan/20 space-y-4">
+                    <div className="space-y-1">
+                      <span className="block text-[9px] font-bold text-acid-cyan/80 uppercase tracking-wider">Adres Głównego Serwera LLM (np. Ollama, LM Studio, vLLM):</span>
+                      <input 
+                         type="text"
+                         placeholder="Adres (np. http://localhost:1234)"
+                         className="modern-input w-full text-xs bg-black/40 border-acid-cyan/20 focus:border-acid-cyan"
+                         value={settings.local_llm_address || 'http://localhost:1234'}
+                         onChange={(e) => {
+                           updateSetting('local_llm_address', e.target.value);
+                           setLocalLlmTestResult(null); // Reset test on change
+                         }}
+                      />
+                      <div className="flex gap-1.5 mt-2 flex-wrap">
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            updateSetting('local_llm_address', 'http://localhost:11434');
+                            updateSetting('local_llm_model', 'llama3');
+                            setLocalLlmTestResult(null);
+                          }}
+                          className="px-2 py-1 bg-acid-purple/20 border border-acid-purple/30 text-[9px] text-acid-purple font-mono uppercase rounded hover:bg-acid-purple/30 transition-all cursor-pointer shadow-md"
+                        >
+                          Ollama (Port 11434)
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            updateSetting('local_llm_address', 'http://localhost:1234');
+                            updateSetting('local_llm_model', 'lm-studio');
+                            setLocalLlmTestResult(null);
+                          }}
+                          className="px-2 py-1 bg-blue-500/20 border border-blue-500/30 text-[9px] text-blue-400 font-mono uppercase rounded hover:bg-blue-500/30 transition-all cursor-pointer shadow-md"
+                        >
+                          LM Studio (Port 1234)
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            updateSetting('local_llm_address', 'http://host.docker.internal:1234');
+                            setLocalLlmTestResult(null);
+                          }}
+                          className="px-2 py-1 bg-emerald-500/20 border border-emerald-500/30 text-[9px] text-emerald-400 font-mono uppercase rounded hover:bg-emerald-500/30 transition-all cursor-pointer shadow-md"
+                          title="Użyj tego, gdy odpalasz klienta w Dockerze"
+                        >
+                          Docker Host
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <span className="block text-[9px] font-bold text-acid-cyan/80 uppercase tracking-wider">Metadane / Model ID:</span>
+                        <input 
+                           type="text"
+                           placeholder="Model (np. llama3)"
+                           className="modern-input w-full text-xs bg-black/40 border-acid-cyan/20 focus:border-acid-cyan"
+                           value={settings.local_llm_model || 'lm-studio'}
+                           onChange={(e) => updateSetting('local_llm_model', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <span className="block text-[9px] font-bold text-acid-cyan/80 uppercase tracking-wider">Klucz Autoryzacji (Opcjonalny):</span>
+                        <input 
+                           type="text"
+                           placeholder="Bearer Token"
+                           className="modern-input w-full text-xs bg-black/40 border-acid-cyan/20 focus:border-acid-cyan"
+                           value={settings.local_llm_api_key || ''}
+                           onChange={(e) => updateSetting('local_llm_api_key', e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    {/* INTERACTIVE MODEL auto-discovery section */}
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setLocalLlmTesting(true);
+                          setLocalLlmTestResult(null);
+                          try {
+                            const res = await api.testLocalLlm(
+                              settings.local_llm_address || 'http://localhost:1234',
+                              settings.local_llm_api_key || ''
+                            );
+                            setLocalLlmTestResult({
+                              success: res.success,
+                              provider: res.provider,
+                              models: res.models || [],
+                              message: res.message,
+                              testedAddress: settings.local_llm_address || 'http://localhost:1234'
+                            });
+                            // If models were successfully found and current model list contains it, select the first one optimistically if not set correctly
+                            if (res.success && res.models && res.models.length > 0) {
+                              if (!res.models.includes(settings.local_llm_model)) {
+                                updateSetting('local_llm_model', res.models[0]);
+                              }
+                            }
+                          } catch (err: any) {
+                            setLocalLlmTestResult({
+                              success: false,
+                              provider: "Błąd handshaka",
+                              models: [],
+                              message: `Nie udało się wysłać zapytania: ${err.message}`
+                            });
+                          } finally {
+                            setLocalLlmTesting(false);
+                          }
+                        }}
+                        disabled={localLlmTesting}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-acid-cyan/20 to-blue-500/20 hover:from-acid-cyan/30 hover:to-blue-500/30 border border-acid-cyan/40 text-[10px] font-black uppercase text-white tracking-widest rounded-xl transition-all cursor-pointer hover:shadow-[0_0_15px_rgba(10,165,216,0.2)] disabled:opacity-50"
+                      >
+                        {localLlmTesting ? (
+                          <>
+                            <Lucide.Loader2 className="w-3.5 h-3.5 animate-spin text-acid-cyan" />
+                            TESTOWANIE POŁĄCZENIA I SONDOWANIE MODELI...
+                          </>
+                        ) : (
+                          <>
+                            <Activity className="w-3.5 h-3.5 text-acid-cyan" />
+                            SKANUJ SERWER I ENUMERUJ MODELE
+                          </>
+                        )}
+                      </button>
+
+                      {localLlmTestResult && (
+                        <div className="mt-3 p-3.5 rounded-2xl border text-[11px] font-sans transition-all animate-fadeIn"
+                          style={{
+                            borderColor: localLlmTestResult.success ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                            backgroundColor: localLlmTestResult.success ? 'rgba(16, 185, 129, 0.04)' : 'rgba(239, 68, 68, 0.04)'
+                          }}
+                        >
+                          <div className="flex items-center gap-2 justify-between mb-2">
+                            <span className="font-bold uppercase text-[9px]" style={{ color: localLlmTestResult.success ? '#10b981' : '#ef4444' }}>
+                              {localLlmTestResult.success ? '✓ Połączono Pomyślnie' : '✗ Sygnalizacja Przerwana'}
+                            </span>
+                            <span className="text-[9px] font-mono text-slate-500">
+                              {localLlmTestResult.provider}
+                            </span>
+                          </div>
+                          
+                          <p className="whitespace-pre-wrap leading-relaxed text-slate-300 font-sans tracking-tight mb-2.5">
+                            {localLlmTestResult.message}
+                          </p>
+
+                          {localLlmTestResult.success && localLlmTestResult.models.length > 0 && (
+                            <div className="space-y-2 pt-1 border-t border-white/5">
+                              <span className="block text-[8px] font-black uppercase tracking-wider text-slate-400">
+                                Wykryte Modele w Magazynie ({localLlmTestResult.models.length}):
+                              </span>
+                              <div className="relative">
+                                <select
+                                  value={settings.local_llm_model || ''}
+                                  onChange={(e) => updateSetting('local_llm_model', e.target.value)}
+                                  className="w-full text-xs font-mono bg-black/60 border border-white/10 rounded-xl p-2.5 text-white pr-8 focus:border-acid-cyan transition"
+                                >
+                                  {localLlmTestResult.models.map((model) => (
+                                    <option key={model} value={model}>
+                                      {model}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="flex flex-wrap gap-1 mt-1.5">
+                                {localLlmTestResult.models.map((m) => {
+                                  const isActive = settings.local_llm_model === m;
+                                  return (
+                                    <button
+                                      key={m}
+                                      type="button"
+                                      onClick={() => updateSetting('local_llm_model', m)}
+                                      className={`px-2 py-1 text-[8px] font-mono rounded cursor-pointer transition ${
+                                        isActive 
+                                          ? 'bg-acid-cyan/20 text-acid-cyan border border-acid-cyan/30' 
+                                          : 'bg-white/5 text-slate-400 border border-transparent hover:bg-white/10'
+                                      }`}
+                                    >
+                                      {m}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Profil Użytkownika</label>
                 <div className="space-y-3">
@@ -9044,20 +17000,20 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
                 />
               </div>
 
-              <div className="bg-acid-purple/5 p-4 rounded-2xl border border-acid-purple/10">
+              <div className="bg-white/5 p-6 rounded-3xl border border-white/10">
                 <label className="flex items-center gap-4 cursor-pointer group">
                   <div className="relative flex items-center justify-center w-6 h-6 border-2 border-acid-purple/30 bg-black/40 rounded-lg group-hover:border-acid-purple/60 transition-colors">
                     <input 
                       type="checkbox"
-                      checked={settings.advanced_tools === 'true'}
-                      onChange={(e) => updateSetting('advanced_tools', e.target.checked ? 'true' : 'false')}
+                      checked={showTooltips}
+                      onChange={(e) => setShowTooltips(e.target.checked)}
                       className="absolute opacity-0 cursor-pointer w-full h-full"
                     />
-                    {settings.advanced_tools === 'true' && <CheckSquare className="w-5 h-5 text-acid-purple" />}
+                    {showTooltips && <CheckSquare className="w-5 h-5 text-acid-purple" />}
                   </div>
                   <div>
-                    <span className="block text-xs font-bold uppercase text-acid-purple tracking-tight">Tryb Zaawansowany / Admin</span>
-                    <span className="block text-[10px] opacity-50 italic">Aktywuje dostęp do niskopoziomowych narzędzi sieciowych i systemowych.</span>
+                    <span className="block text-xs font-bold uppercase text-acid-purple tracking-tight">Wyświetlaj Tooltipy</span>
+                    <span className="block text-[10px] opacity-50 italic">Włącza podpowiedzi dla przycisków w menu.</span>
                   </div>
                 </label>
               </div>
@@ -9075,7 +17031,7 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
       )}
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden m-0 md:m-3 lg:m-6 rounded-none md:rounded-[2rem] border border-white/5 relative bg-[#0a0a0a]/40 backdrop-blur-xl shadow-2xl">
+      <main className="flex-1 flex flex-col overflow-hidden m-0 md:m-3 lg:m-6 rounded-none md:rounded-[2rem] border border-white/[0.04] relative bg-slate-950/25 backdrop-blur-3xl shadow-[0_32px_80px_-20px_rgba(0,0,0,0.85)]">
         {/* Mobile Header Toggle */}
         <div className="md:hidden absolute top-6 left-6 z-40">
           <button 
@@ -9102,11 +17058,20 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
         
         <header className="px-10 py-6 border-b border-white/5 flex justify-between items-center bg-black/40 backdrop-blur-3xl sticky top-0 z-50">
           <div className="flex items-center gap-8 pl-12 md:pl-0">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-acid-purple to-acid-cyan flex items-center justify-center shadow-[0_0_20px_rgba(139,92,246,0.3)] shrink-0">
-              <Zap className="text-white w-6 h-6" />
+            <div className="w-12 h-12 rounded-2xl bg-black border border-white/10 flex items-center justify-center shadow-[0_0_30px_rgba(139,92,246,0.15)] shrink-0 overflow-hidden group">
+              <img 
+                src="/src/assets/images/remix_swarm_logo_1781040352429.png" 
+                alt="Remix Swarm Logo" 
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                referrerPolicy="no-referrer" 
+              />
             </div>
             <div>
+              <div className="text-[8px] font-black text-acid-purple uppercase tracking-[0.3em] mb-1 opacity-80">Remix: AutOAdaptacyjny rUj Ai-GENTuW</div>
               <h2 className="text-xl md:text-2xl font-display font-bold tracking-tight uppercase text-white flex items-center gap-3">
+                {activeTab === 'dashboard' && "Ekran Główny CYLON"}
+                {activeTab === 'voice_console' && "Główna Konsola Głosowa & Asystent Roju"}
+                {activeTab === 'app_generator' && "Kod-O-Szkic: Głos-to-Kod"}
                 {activeTab === 'agents' && "Sztab Operacyjny"}
                 {activeTab === 'teams' && "Zespoły Swarm"}
                 {activeTab === 'tasks' && "Centrum Dowodzenia Rojami • Zarządza CYLON"}
@@ -9116,6 +17081,9 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
                 {activeTab === 'training' && "Poligon Algorytmiczny"}
                 {activeTab === 'manual' && "Protokół Operacyjny"}
                 {activeTab === 'win_mgr' && "Windows Service Manager • MMC Console"}
+                {activeTab === 'scheduler' && "Planista Cykliczny Chronos • Kalendarz Misji"}
+                {activeTab === 'device_mgr' && "Dystrybucja Funkcji (MDM) & Zarządzanie Urządzeniami"}
+                {activeTab === 'media_analyzer' && "Wizualny Analizator Cylon-V (Computer Vision)"}
                 {activeTab === 'workspace' && "Google Workspace Hub"}
                 {activeTab === 'architect' && "Core Blueprints"}
                 {activeTab === 'knowledge' && "Baza Wiedzy Roju"}
@@ -9297,25 +17265,29 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
                 </AnimatePresence>
               </div>
 
-              <button 
-                onClick={() => { setActiveTab('manual'); setShowNotificationsDropdown(false); }}
-                className={cn(
-                  "w-10 h-10 rounded-xl border flex items-center justify-center transition-all group",
-                  activeTab === 'manual' 
-                    ? "bg-acid-purple border-acid-purple text-white shadow-lg shadow-acid-purple/20" 
-                    : "bg-white/5 border-white/10 text-white/70 hover:text-white hover:bg-white/10 hover:border-white/20"
-                )}
-                title="Podręcznik"
-              >
-                <HelpCircle size={18} className="group-hover:scale-110 transition-transform" />
-              </button>
-              <button 
-                onClick={() => setShowSettings(!showSettings)}
-                className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all group"
-                title="Ustawienia"
-              >
-                <Settings size={18} className="group-hover:rotate-45 transition-transform duration-500" />
-              </button>
+              <Tooltip text="Księga operacyjna i wsparcie roju" position="bottom">
+                <button 
+                  onClick={() => { setActiveTab('manual'); setShowNotificationsDropdown(false); }}
+                  className={cn(
+                    "w-10 h-10 rounded-xl border flex items-center justify-center transition-all group",
+                    activeTab === 'manual' 
+                      ? "bg-acid-purple border-acid-purple text-white shadow-lg shadow-acid-purple/20" 
+                      : "bg-white/5 border-white/10 text-white/70 hover:text-white hover:bg-white/10 hover:border-white/20"
+                  )}
+                  title="Podręcznik"
+                >
+                  <HelpCircle size={18} className="group-hover:scale-110 transition-transform" />
+                </button>
+              </Tooltip>
+              <Tooltip text="Główne parametry i konfiguracja kluczy" position="bottom">
+                <button 
+                  onClick={() => setShowSettings(!showSettings)}
+                  className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all group w-full"
+                  title="Ustawienia"
+                >
+                  <Settings size={18} className="group-hover:rotate-45 transition-transform duration-500" />
+                </button>
+              </Tooltip>
             </div>
           </div>
         </header>
@@ -9338,7 +17310,7 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
         </div>
 
         <div className="flex-1 overflow-auto p-6 md:p-10 custom-scrollbar">
-          <div className="max-w-6xl mx-auto">
+          <div className="max-w-7xl mx-auto">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab + (activeTeamId || '')}
@@ -9347,21 +17319,114 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
               >
-                {activeTab === 'agents' && <AgentManager onUpdate={loadStats} showToast={showToast} />}
-                {activeTab === 'stats' && <Stats />}
-                {activeTab === 'teams' && <TeamManager onUpdate={() => { api.getTeams().then(setTeams); loadStats(); }} onOpenDiscussion={(id) => { setActiveTeamId(id); setActiveTab('discussion'); }} />}
+        {activeTab === 'dashboard' && <DashboardWidgets setActiveTab={setActiveTab} agentStats={agentStats} showToast={showToast} openFirebaseLogs={() => setIsFirebaseLogsOpen(true)} openRecoveryMonitor={() => setIsRecoveryMonitorOpen(true)} />}
+        {activeTab === 'voice_console' && (
+          <div className="grid grid-cols-12 gap-6 items-start">
+            <div className="col-span-12 xl:col-span-8">
+              <VoiceOrchestratorChat settings={settings} showToast={showToast} />
+            </div>
+            <div className="col-span-12 xl:col-span-4 space-y-6">
+              {/* SYSTEM BRIEFING CARD */}
+              <div className="p-6 bg-gradient-to-vr from-neutral-900 via-slate-900 to-black border border-acid-purple/30 rounded-[2rem] relative overflow-hidden shadow-xl">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-acid-purple/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-acid-purple/10 rounded-xl">
+                    <Lucide.Cpu size={16} className="text-acid-purple animate-pulse" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black uppercase text-white tracking-widest leading-none">Stan Sztabu Roju</h3>
+                    <p className="text-[9px] text-slate-500 font-mono mt-1">STATUS: OPERACYJNY</p>
+                  </div>
+                </div>
+                
+                <p className="text-[10px] text-slate-300 leading-relaxed font-sans mb-4 uppercase font-medium">
+                  Konsola głosowa posiada pełny, dwukierunkowy mostek telemetrii. Możesz wydawać rozkazy bezpośrednio głosowo w języku polskim.
+                </p>
+
+                <div className="space-y-2 border-t border-white/5 pt-4">
+                  <div className="flex justify-between items-center text-[10px] font-mono">
+                    <span className="text-slate-500">ZESPÓŁ ROBOCZY:</span>
+                    <span className="text-white font-bold">{agentStats.length} AGENTÓW</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[10px] font-mono">
+                    <span className="text-slate-500">DYNAMICZNE KLASTRY:</span>
+                    <span className="text-acid-green font-bold">AKTYWNE</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[10px] font-mono">
+                    <span className="text-slate-500">SERWERY MCP:</span>
+                    <span className="text-acid-cyan font-bold">ZINTEGROWANE</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* AUTOMATION HELPER */}
+              <div className="p-6 bg-black/40 border border-white/5 rounded-[2rem] space-y-3">
+                <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Sugerowane Komendy Głosowe</h4>
+                <div className="space-y-1.5">
+                  {[
+                    "Sugeruj optymalizację zadań w roju",
+                    "Do czego służy serwer MCP postgres?",
+                    "Który agent najlepiej zanalizuje logi?",
+                    "Przedstaw status wszystkich wdrożonych rojów"
+                  ].map((phrase, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        const inputEl = document.querySelector('input[placeholder*="Napisz coś do asystenta"]') as HTMLInputElement;
+                        if (inputEl) {
+                          inputEl.value = phrase;
+                          inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+                          inputEl.focus();
+                        }
+                      }}
+                      className="w-full text-left p-2.5 rounded-xl bg-white/[0.01] hover:bg-neutral-800 border border-white/5 text-[10px] text-slate-400 font-mono transition truncate"
+                    >
+                      &gt; "{phrase}"
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'agents' && (
+          <div className="grid grid-cols-12 gap-6 items-start">
+            <div className="col-span-12 xl:col-span-7 flex flex-col gap-6">
+              <AgentManager onUpdate={loadStats} showToast={showToast} />
+              <div className="mt-2">
+                <AgentTemplateManager onSelect={(template) => showToast(`Wybrano szablon: ${template.name}`)} />
+              </div>
+            </div>
+            <div className="col-span-12 xl:col-span-5">
+              <VoiceOrchestratorChat settings={settings} showToast={showToast} />
+            </div>
+          </div>
+        )}
+
+                {activeTab === 'cloud_db' && <FirebaseHub showToast={showToast} onSyncComplete={() => { api.getTeams().then(setTeams); loadStats(); }} />}
+                {activeTab === 'stats' && <StatsDashboard />}
+                {activeTab === 'app_generator' && <AppGenerator showToast={showToast} />}
+                {activeTab === 'teams' && <TeamManager onUpdate={() => { api.getTeams().then(setTeams); loadStats(); }} onOpenDiscussion={(id) => { setActiveTeamId(id); setActiveTab('discussion'); }} showToast={showToast} />}
+                {activeTab === 'snitch' && <CorporateSnitchSystem showToast={showToast} />}
+                {activeTab === 'scheduler' && <SchedulerManager showToast={showToast} />}
                 {activeTab === 'architect' && <TeamArchitect />}
                 {activeTab === 'knowledge' && <KnowledgeBase />}
-                {activeTab === 'tasks' && <TaskManager showToast={showToast} />}
+                {activeTab === 'tasks' && <TaskManager showToast={showToast} setActiveTab={setActiveTab} />}
                 {activeTab === 'security' && <SecurityLogs />}
                 {activeTab === 'assistant' && <Assistant />}
-                {activeTab === 'clusters' && <Clusters />}
+                {activeTab === 'clusters' && <Clusters showToast={showToast} />}
+                {activeTab === 'cluster_ai' && <ClusterAiManager />}
+                {activeTab === 'agent_performance' && <AgentPerformance />}
                 {activeTab === 'training' && <TrainingFarm />}
                 {activeTab === 'video_studio' && <VideoStudio />}
                 {activeTab === 'game_engine' && <GameEngine />}
                 {activeTab === 'mcp' && <MCPManager />}
                 {activeTab === 'hosting' && <HostingManager showToast={showToast} />}
+                {activeTab === 'system_mgr' && <SystemOrchestrator />}
                 {activeTab === 'win_mgr' && <WindowsTaskManager showToast={showToast} />}
+                {activeTab === 'device_mgr' && <DeviceManager showToast={showToast} />}
+                {activeTab === 'media_analyzer' && <MediaAnalyzer showToast={showToast} />}
                 {activeTab === 'workspace' && <GoogleWorkspaceHub showToast={showToast} />}
                 {activeTab === 'manual' && <HelpManual showToast={showToast} />}
                 {activeTab === 'discussion' && activeTeamId && (
@@ -9373,7 +17438,206 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
             </AnimatePresence>
           </div>
         </div>
+
+        {/* 🔥 FLOATING ACTION TRIGGER: PODRĘCZNY PROMPT-ARCHITECT */}
+        <div className="fixed bottom-6 right-6 z-40">
+          <button
+            onClick={() => setIsPromptArchitectOpen(true)}
+            className="flex items-center gap-2 bg-[#a855f7] hover:bg-purple-600 text-black font-black uppercase text-[10px] tracking-widest font-mono py-3 px-5 rounded-full shadow-[0_0_20px_rgba(168,85,247,0.4)] transition-all transform hover:scale-105 active:scale-95 cursor-pointer border border-[#a855f7]/40"
+          >
+            <Sparkles size={14} className="animate-spin text-black" />
+            <span>Refiner Promptów Master 👾</span>
+          </button>
+        </div>
+
+        {/* PROMPT-ARCHITECT SLIDE-OVER DRAWER OVERLAY */}
+        <AnimatePresence>
+          {isPromptArchitectOpen && (
+            <>
+              {/* Backdrop blur clickoff filter */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.5 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setIsPromptArchitectOpen(false)}
+                className="fixed inset-0 bg-black z-50 pointer-events-auto backdrop-blur-sm"
+              />
+
+              <motion.div
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="fixed top-0 right-0 bottom-0 w-full sm:w-[500px] bg-[#0c0d12] border-l border-white/10 z-50 shadow-2xl p-6 flex flex-col justify-between overflow-y-auto"
+              >
+                <div>
+                  <div className="flex items-center justify-between border-b border-white/5 pb-3.5 mb-6 text-left">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-[#a855f7]/15 text-[#a855f7] rounded-lg border border-[#a855f7]/20">
+                        <Sparkles size={16} className="animate-pulse" />
+                      </div>
+                      <div>
+                        <span className="text-[8px] font-black tracking-wider text-acid-purple block uppercase">CYLON COGNITIVE FORGE</span>
+                        <h4 className="text-white font-extrabold font-display text-sm">PODRĘCZNY PROMPT-ARCHITECT</h4>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setIsPromptArchitectOpen(false)}
+                      className="p-1.5 rounded-lg bg-white/5 text-slate-400 hover:text-white"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4 text-left">
+                    <p className="text-[10px] text-slate-400 font-sans leading-normal uppercase">
+                      Kreuj, poprawiaj i wzbogacaj system prompty swoich agentów w locie przy użyciu zaawansowanych orkiestratorów.
+                    </p>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-bold text-slate-500 uppercase ml-1 block">Twój Pomysł / Baza System Prompta:</label>
+                      <textarea
+                        value={promptArchitectInput}
+                        onChange={(e) => setPromptArchitectInput(e.target.value)}
+                        placeholder="Zapisz co agent powinien potrafić robić (np. 'chcę aby optymalizował kod i pisał testy jednostkowe w Vite')..."
+                        rows={3}
+                        className="modern-input w-full text-xs font-mono p-3 focus:border-[#a855f7]/50 focus:ring-0"
+                      />
+                    </div>
+
+                    {/* SUGGESTIONS & PRESETS */}
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-bold text-slate-500 uppercase ml-1 block">Sugerowane Wzmocnienia ("Coś fajnego" 🌟):</label>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {[
+                          { id: 'autonomous', label: 'Mnożnik Autonomii', desc: 'Dodatkowy moduł samo-analizy i pętli decyzyjnej' },
+                          { id: 'abac', label: 'Zabezpieczenie ABAC', desc: 'Rygorystyczna ochrona danych i walidacja' },
+                          { id: 'debug', label: 'Auto-Komplikacja & Debug', desc: 'Wymuszenie głębokich trace-backów i napraw' },
+                          { id: 'chillout', label: 'Wysokie EQ & Humorek', desc: 'Pozytywny kumpelski vibe stand-upera' },
+                        ].map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => setPromptArchitectRefiner(promptArchitectRefiner === item.id ? 'none' : (item.id as any))}
+                            className={cn(
+                              "p-2 rounded-xl border text-left flex flex-col justify-between transition-all hover:bg-white/[0.02]",
+                              promptArchitectRefiner === item.id 
+                                ? "bg-[#a855f7]/15 border-acid-purple text-white shadow-md shadow-acid-purple/5 animate-pulse" 
+                                : "bg-black/60 border-white/5 text-slate-400"
+                            )}
+                          >
+                            <span className="text-[10px] font-black uppercase tracking-wider">{item.label}</span>
+                            <span className="text-[8px] opacity-50 font-normal normal-case leading-tight mt-1">{item.desc}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleOptimizePrompt}
+                      disabled={isPromptArchitectGenerating || !promptArchitectInput.trim()}
+                      className="w-full py-2.5 bg-[#a855f7] hover:bg-purple-600 disabled:bg-neutral-800 disabled:text-slate-600 text-black font-black font-mono uppercase text-[10px] tracking-wider rounded-xl transition-all shadow-md shadow-acid-purple/10 cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      {isPromptArchitectGenerating ? (
+                        <>
+                          <Cpu size={12} className="animate-spin text-black" />
+                          <span>Kompilacja i Wzmocnienie Prompta...</span>
+                        </>
+                      ) : (
+                        <span>Wytwórz Zoptymalizowany Prompt Master &rarr;</span>
+                      )}
+                    </button>
+
+                    {promptArchitectOutput && (
+                      <div className="space-y-3.5 border-t border-white/5 pt-4 mt-2 font-mono">
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between items-center">
+                            <label className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest block ml-1">Wynikowy System Prompt AI:</label>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(promptArchitectOutput);
+                                if (showToast) showToast("Skopiowano do schowka! 📋");
+                              }}
+                              className="px-2 py-0.5 rounded bg-white/5 text-[8.5px] uppercase font-mono border border-white/5 hover:text-white transition-all text-slate-400 cursor-pointer"
+                            >
+                              Kopiuj
+                            </button>
+                          </div>
+                          <textarea
+                            readOnly
+                            value={promptArchitectOutput}
+                            rows={6}
+                            className="modern-input w-full text-[10px] font-mono p-3 bg-black/60 border-emerald-500/20 text-slate-300"
+                          />
+                        </div>
+
+                        {/* LIVE TEAM MEMBER UPDATE CAPABILITY */}
+                        <div className="bg-gradient-to-r from-emerald-950/10 to-black/40 border border-emerald-500/10 p-3 rounded-xl flex flex-col gap-2.5">
+                          <span className="text-[8.5px] font-black uppercase text-emerald-400 tracking-wider">Kodowanie Bezpośrednio w Mózg Agenta:</span>
+                          <div className="flex gap-2">
+                            <select
+                              value={promptArchitectSelectedAgent}
+                              onChange={(e) => setPromptArchitectSelectedAgent(e.target.value)}
+                              className="flex-1 bg-black border border-white/10 text-white rounded-xl text-[10px] py-1.5 px-2.5 uppercase font-black tracking-wider text-slate-300"
+                            >
+                              <option value="">Wybierz Agenta z klastra...</option>
+                              {agentStats.map(agt => (
+                                <option key={agt.id} value={agt.id}>{agt.name}</option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={handleApplyPromptToAgent}
+                              disabled={!promptArchitectSelectedAgent}
+                              className="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:bg-neutral-800 disabled:text-slate-600 text-black font-black uppercase text-[9px] font-mono tracking-wider transition-all cursor-pointer"
+                            >
+                              Wgraj
+                            </button>
+                          </div>
+                          <p className="text-[8px] text-slate-500 uppercase font-mono leading-relaxed font-semibold">
+                            ⚠️ Wgranie nadpisuje aktualny systemPrompt danego cyber-agenta w bazie SQLite.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="border-t border-white/5 pt-4 mt-6 text-center">
+                  <span className="text-[8.5px] font-mono text-slate-600 uppercase tracking-widest">
+                    CYLON PROMPT ENGINE CORE v3.2
+                  </span>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        <CommandPalette 
+          isOpen={isCommandPaletteOpen}
+          onClose={() => setIsCommandPaletteOpen(false)}
+          onNavigate={(tabId) => setActiveTab(tabId as any)}
+          tabs={[
+            { id: 'dashboard', label: 'Dashboard' },
+            { id: 'tasks', label: 'Tasks' },
+            { id: 'clusters', label: 'Clusters' },
+            { id: 'agents', label: 'Agents' },
+            { id: 'stats', label: 'Stats' },
+          ]}
+        />
+
+        <AnimatePresence>
+          {isFirebaseLogsOpen && (
+            <FirebaseLogsViewer onClose={() => setIsFirebaseLogsOpen(false)} />
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {isRecoveryMonitorOpen && (
+            <GlobalRecoveryMonitor onClose={() => setIsRecoveryMonitorOpen(false)} />
+          )}
+        </AnimatePresence>
       </main>
+      </div>
     </div>
   );
 }

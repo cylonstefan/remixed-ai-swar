@@ -5,6 +5,10 @@ export const api = {
     const res = await fetch("/api/stats/agents");
     return res.json();
   },
+  async getSwarmHealth(): Promise<any> {
+    const res = await fetch("/api/stats/swarm-health");
+    return res.json();
+  },
   async getAgents(): Promise<Agent[]> {
     const res = await fetch("/api/agents");
     return res.json();
@@ -44,7 +48,97 @@ export const api = {
       body: JSON.stringify({ key, value }),
     });
   },
-  async createTeam(team: { id: string; name: string; description: string; mode?: string; agentIds: string[]; agentTasks?: Record<string, string>; flightMode?: 'autopilot' | 'manual' | 'vr'; flightConfig?: string }): Promise<void> {
+  async testLocalLlm(address: string, apiKey: string): Promise<{ success: boolean; provider: string; models: string[]; error?: string; message: string }> {
+    const res = await fetch("/api/settings/test-local-llm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address, apiKey }),
+    });
+    return res.json();
+  },
+  async executePowerShell(command: string): Promise<{ success: boolean; output: string; error?: string; powershellUsed: boolean; fallbackUsed: boolean; message: string }> {
+    const res = await fetch("/api/powershell/execute", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ command }),
+    });
+    return res.json();
+  },
+  async getSynergy(): Promise<any[]> {
+    const res = await fetch("/api/stats/synergy");
+    return res.json();
+  },
+  async getSchedules(): Promise<any[]> {
+    const res = await fetch("/api/schedules");
+    return res.json();
+  },
+  async getPairingSuggestions(): Promise<any[]> {
+    const res = await fetch("/api/teams/pairing-suggestions");
+    return res.json();
+  },
+  async createSchedule(data: any): Promise<{ id: string; success: boolean }> {
+    const res = await fetch("/api/schedules", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
+  async deleteSchedule(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`/api/schedules/${id}`, { method: "DELETE" });
+    return res.json();
+  },
+  async toggleSchedule(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`/api/schedules/${id}/toggle`, { method: "PATCH" });
+    return res.json();
+  },
+  async executeDeviceCommand(deviceId: string, action: string, command: string): Promise<{ success: boolean; output: string; error?: string }> {
+    const res = await fetch("/api/devices/execute", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceId, action, command }),
+    });
+    return res.json();
+  },
+  async analyzeMedia(mediaData: { type: 'image' | 'video', source: 'camera' | 'upload', data: string }): Promise<{ success: boolean; result: string; categorization: any }> {
+    const res = await fetch("/api/media/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(mediaData),
+    });
+    return res.json();
+  },
+  async autoDetectLocalLlm(address?: string, apiKey?: string): Promise<{ success: boolean; provider: string; detectedHardware: { ramGB: number; cores: number; platform: string }; recommendation: { size: string; details: string; uncensoredFirst: boolean }; discoveredModels: string[]; matchedUncensored: string[]; chosenModel: string; message: string }> {
+    const res = await fetch("/api/settings/auto-detect-local-llm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address, apiKey }),
+    });
+    return res.json();
+  },
+  async pullLocalLlmModel(address: string, model: string): Promise<{ success: boolean; message: string }> {
+    const res = await fetch("/api/settings/local-llm/pull", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address, model }),
+    });
+    return res.json();
+  },
+  async getCredentials(): Promise<any[]> {
+    const res = await fetch("/api/credentials");
+    return res.json();
+  },
+  async saveCredential(credential: any): Promise<void> {
+    await fetch("/api/credentials", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(credential),
+    });
+  },
+  async deleteCredential(id: string): Promise<void> {
+    await fetch(`/api/credentials/${id}`, { method: "DELETE" });
+  },
+  async createTeam(team: { id: string; name: string; description: string; mode?: string; agentIds: string[]; agentTasks?: Record<string, string>; flightMode?: 'autopilot' | 'manual' | 'vr'; flightConfig?: string; color?: string }): Promise<void> {
     await fetch("/api/teams", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -74,6 +168,12 @@ export const api = {
   },
   async getTasks(): Promise<Task[]> {
     const res = await fetch("/api/tasks");
+    if (!res.ok) throw new Error("Failed to load tasks");
+    const contentType = res.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+        console.error("DEBUG: Expected JSON but got", contentType);
+        throw new Error("Invalid response from server");
+    }
     return res.json();
   },
   async createTask(task: Task): Promise<void> {
@@ -177,6 +277,56 @@ export const api = {
     });
     return res.json();
   },
+  async generateMultimedia(data: {
+    prompt: string;
+    mode: "text-to-video" | "picture-to-video" | "text-to-image" | "voice-to-video" | "voice-to-image" | "text-to-audio";
+    image_url?: string;
+    audio_url?: string;
+    voiceName?: string;
+    duration?: number;
+    speed?: number;
+    effect?: string;
+    bgMusic?: string;
+  }): Promise<any> {
+    const res = await fetch("/api/generate/multimedia", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to generate multimedia");
+    }
+    return res.json();
+  },
+  async diagnoseImage(image_url: string, diagnosticType: string, customPrompt?: string): Promise<any> {
+    const res = await fetch("/api/diagnose", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image_url, diagnosticType, customPrompt }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to run diagnostics");
+    }
+    return res.json();
+  },
+  async compileVideo(data: {
+    scenes: any[];
+    bgMusic: string;
+    watermark?: string;
+  }): Promise<any> {
+    const res = await fetch("/api/videos/compile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to compile storyboard");
+    }
+    return res.json();
+  },
   async getVideos(): Promise<any[]> {
     const res = await fetch("/api/videos");
     return res.json();
@@ -188,7 +338,16 @@ export const api = {
   // Clusters
   async getClusters(): Promise<ClusterNode[]> {
     const res = await fetch("/api/clusters");
-    return res.json();
+    if (!res.ok) {
+        console.error("Failed to fetch clusters:", res.status, res.statusText);
+        return [];
+    }
+    try {
+        return await res.json();
+    } catch (e) {
+        console.error("Failed to parse cluster JSON:", e);
+        return [];
+    }
   },
   async addClusterNode(node: ClusterNode): Promise<void> {
     await fetch("/api/clusters", {
@@ -265,6 +424,54 @@ export const api = {
       body: JSON.stringify(config),
     });
   },
+  async pingMCPServer(id: string): Promise<any> {
+    const res = await fetch(`/api/mcp/servers/${id}/ping`, {
+      method: "POST"
+    });
+    return res.json();
+  },
+  async discoverMCPServer(id: string): Promise<any> {
+    const res = await fetch(`/api/mcp/servers/${id}/discover`, {
+      method: "POST"
+    });
+    return res.json();
+  },
+  async executeMCPTool(id: string, tool: string, args: any): Promise<any> {
+    const res = await fetch(`/api/mcp/servers/${id}/execute`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tool, arguments: args })
+    });
+    return res.json();
+  },
+  async getSnitchReports(): Promise<any[]> {
+    const res = await fetch("/api/snitch/reports");
+    return res.json();
+  },
+  async getAgentInteractionLogs(agentId: string): Promise<any[]> {
+    const res = await fetch(`/api/agents/${agentId}/interaction-logs`);
+    return res.json();
+  },
+  async generateSnitchReport(): Promise<any> {
+    const res = await fetch("/api/snitch/reports/generate", {
+      method: "POST"
+    });
+    return res.json();
+  },
+  async takeSnitchAction(id: string, action: 'motivate' | 'farm' | 'fire' | 'ignore'): Promise<any> {
+    const res = await fetch(`/api/snitch/reports/${id}/action`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action })
+    });
+    return res.json();
+  },
+  async deleteSnitchReport(id: string): Promise<any> {
+    const res = await fetch(`/api/snitch/reports/${id}`, {
+      method: "DELETE"
+    });
+    return res.json();
+  },
   async getScenarios(): Promise<any[]> {
     const res = await fetch("/api/scenarios");
     return res.json();
@@ -278,6 +485,13 @@ export const api = {
   async createKnowledge(entry: KnowledgeEntry): Promise<void> {
     await fetch("/api/knowledge", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(entry),
+    });
+  },
+  async updateKnowledge(entry: KnowledgeEntry): Promise<void> {
+    await fetch(`/api/knowledge/${entry.id}`, {
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(entry),
     });
@@ -379,6 +593,13 @@ export const api = {
       body: JSON.stringify(server),
     });
   },
+  async updateMCPServer(server: any): Promise<void> {
+    await fetch(`/api/mcp/servers/${server.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(server),
+    });
+  },
   async deleteMCPServer(id: string): Promise<void> {
     await fetch(`/api/mcp/servers/${id}`, { method: "DELETE" });
   },
@@ -406,6 +627,36 @@ export const api = {
     const res = await fetch(`/api/process_states/${id}/dump`, {
       method: "POST"
     });
+    return res.json();
+  },
+  async getAgentMemories(agentId: string): Promise<any[]> {
+    const res = await fetch(`/api/agents/${agentId}/memories`);
+    return res.json();
+  },
+  async addAgentMemory(agentId: string, memory: { id: string; teamId?: string | null; content: string; category?: string }): Promise<void> {
+    await fetch(`/api/agents/${agentId}/memories`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(memory),
+    });
+  },
+  async deleteAgentMemory(id: string): Promise<void> {
+    await fetch(`/api/agents/memories/${id}`, { method: "DELETE" });
+  },
+  async consolidateMemories(agentId: string, teamId: string): Promise<{ success: boolean; count: number; memories?: any[] }> {
+    const res = await fetch(`/api/agents/${agentId}/memories/consolidate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ teamId }),
+    });
+    return res.json();
+  },
+  async runSelfCorrection(): Promise<{ success: boolean; processed: number; corrected: number; details: any[] }> {
+    const res = await fetch("/api/agents/self-correction", { method: "POST" });
+    return res.json();
+  },
+  async getAgentMessagesOverTime(): Promise<{ agents: { id: string; name: string; color: string }[]; timeline: any[] }> {
+    const res = await fetch("/api/stats/agent-messages-over-time");
     return res.json();
   },
 };

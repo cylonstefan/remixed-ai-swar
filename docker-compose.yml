@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  swarm-os:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ai-swarm-os:v3.2
+    container_name: ai_swarm_os
+    # Features: MDM Distribution, Vision AI, Chronos Scheduler
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      # Pass your Gemini API Key container-side or via an .env file
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # Map the SQLite DB file and uploads folder for absolute persistence
+      - ./agents.db:/app/agents.db
+      - ./uploads:/app/uploads
+    restart: always

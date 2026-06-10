@@ -11,11 +11,15 @@ import {
   ChevronDown,
   ChevronUp,
   UserPlus,
-  Check
+  Check,
+  Lock,
+  AlertTriangle,
+  Network
 } from 'lucide-react';
 import { Task, Agent } from '../types';
 import { cn } from '../lib/utils';
 import { TaskPreviewModal } from './TaskPreviewModal';
+import { TaskDependenciesGraph } from './TaskDependenciesGraph';
 import { api } from '../services/api';
 
 interface TaskCardProps {
@@ -29,6 +33,8 @@ interface TaskCardProps {
   handleDelete: (id: string) => void;
   handleUpdateStatus: (id: string, status: 'todo' | 'in-progress' | 'done') => void;
   onUpdate?: () => void;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }
 
 export const TaskCard: React.FC<TaskCardProps> = ({
@@ -41,31 +47,42 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   handleAutoTeam,
   handleDelete,
   handleUpdateStatus,
-  onUpdate
+  onUpdate,
+  selected,
+  onToggleSelect
 }) => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isGraphOpen, setIsGraphOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   
   const [logs, setLogs] = useState<any[]>([]);
   const [errorLogs, setErrorLogs] = useState<any[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
 
   const [allAgents, setAllAgents] = useState<Agent[]>([]);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [isAssignOpen, setIsAssignOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const assignedAgent = allAgents.find(a => a.id === task.assignedAgentId);
+  const blockedBy = task.dependentOn?.filter(depId => !allTasks.find(t => t.id === depId && t.status === 'done')) || [];
+  const isBlocked = blockedBy.length > 0;
 
   useEffect(() => {
-    const fetchAgents = async () => {
+    const fetchData = async () => {
       try {
-        const data = await api.getAgents();
-        setAllAgents(data);
+        const [agents, tasks] = await Promise.all([
+          api.getAgents(),
+          api.getTasks()
+        ]);
+        setAllAgents(agents);
+        setAllTasks(tasks);
       } catch (err) {
-        console.error("Błąd ładowania agentów w TaskCard:", err);
+        console.error("Błąd ładowania danych w TaskCard:", err);
       }
     };
-    fetchAgents();
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -120,17 +137,29 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   }, [isExpanded, task.title]);
 
   return (
-    <div 
+    <motion.div 
+      layout="position"
       onClick={() => setIsExpanded(!isExpanded)}
       className={cn(
-        "glass-panel border border-white/5 p-4 hover:border-acid-purple/30 transition-all rounded-2xl group relative overflow-hidden cursor-pointer select-none",
+        "glass-panel border border-white/5 p-4 pl-5 hover:border-acid-purple/30 transition-all rounded-2xl group relative overflow-hidden cursor-pointer select-none",
         "task-card-glow",
-        task.status === 'todo' && "status-todo",
-        task.status === 'in-progress' && "status-in-progress bg-acid-cyan/5 border-acid-cyan/20",
-        task.status === 'done' && "status-done",
+        {
+          "status-todo": task.status === 'todo',
+          "status-in-progress": task.status === 'in-progress',
+          "status-done": task.status === 'done'
+        },
+        task.status === 'in-progress' ? "bg-acid-cyan/5 border-acid-cyan/20" : "",
         isExpanded ? "border-acid-purple/40 bg-black/20" : ""
       )}
     >
+      {/* Left priority accent bar / paski */}
+      <div className={cn(
+        "absolute left-0 top-0 bottom-0 w-1.5",
+        task.priority === 'high' ? "bg-gradient-to-b from-red-600 to-red-400" :
+        task.priority === 'medium' ? "bg-gradient-to-b from-amber-500 to-yellow-400" :
+        "bg-gradient-to-b from-emerald-500 to-emerald-300"
+      )} />
+
       {/* Quick Action Overlay Row */}
       <div className="absolute top-2 right-2 z-20 flex gap-2 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all duration-300">
         <button
@@ -153,6 +182,15 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         >
           <Eye size={10} /> Szybki podgląd
         </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsGraphOpen(true);
+          }}
+          className="px-2 py-1 bg-neutral-900/95 hover:bg-emerald-500/20 border border-white/10 hover:border-emerald-500/40 rounded-lg text-[9px] font-black uppercase tracking-widest text-emerald-400 shadow-md flex items-center gap-1 cursor-pointer"
+        >
+          <Network size={10} /> Graf Zależności
+        </button>
       </div>
 
       {task.status === 'in-progress' && (
@@ -161,6 +199,18 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       
       <div className="flex justify-between items-start relative z-10">
         <div className="flex items-center gap-3">
+          {onToggleSelect && (
+            <input
+              type="checkbox"
+              checked={selected || false}
+              onChange={() => {}}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleSelect();
+              }}
+              className="w-4 h-4 rounded border-white/10 accent-acid-purple cursor-pointer flex-shrink-0"
+            />
+          )}
           <div className={cn(
             "w-2 h-2 rounded-full flex-shrink-0",
             task.priority === 'high' ? "bg-red-500 shadow-[0_0_10px_#ef4444]" : 
@@ -170,20 +220,31 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <span className={cn(
-                "font-bold uppercase font-display tracking-tight text-sm text-gray-100", 
+                "font-bold uppercase font-display tracking-tight text-sm text-gray-100 truncate block max-w-[200px]", 
                 task.status === 'done' && "opacity-40 text-slate-500"
               )}>
                 {task.title}
               </span>
-              <span className={cn(
-                "text-[8px] font-mono px-1.5 py-0.5 rounded border font-black uppercase tracking-wider",
-                task.status === 'done' ? "bg-acid-green/10 text-acid-green border-acid-green/20" :
-                task.status === 'in-progress' ? "bg-acid-cyan/10 text-acid-cyan border-acid-cyan/20 animate-pulse" :
-                "bg-acid-purple/10 text-acid-purple border-acid-purple/20"
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isBlocked) return;
+                  const nextStatus = task.status === 'todo' ? 'in-progress' : task.status === 'in-progress' ? 'done' : 'todo';
+                  handleUpdateStatus(task.id, nextStatus);
+                }}
+                title={isBlocked ? "Zablokowane przez nieukończone zadania zależne" : "Szybka zmiana statusu"}
+                disabled={isBlocked}
+                className={cn(
+                "text-[8px] font-mono px-1.5 py-0.5 rounded border font-black uppercase tracking-wider transition-all inline-flex items-center gap-1",
+                isBlocked ? "bg-red-500/10 text-red-400 border-red-500/30 cursor-not-allowed opacity-60" :
+                task.status === 'done' ? "bg-acid-green/10 text-acid-green border-acid-green/20 cursor-pointer hover:opacity-80" :
+                task.status === 'in-progress' ? "bg-acid-cyan/10 text-acid-cyan border-acid-cyan/20 animate-pulse cursor-pointer hover:opacity-80" :
+                "bg-acid-purple/10 text-acid-purple border-acid-purple/20 cursor-pointer hover:opacity-80"
               )}>
+                {isBlocked && <Lock size={7} />}
                 {task.status === 'done' ? 'TERMINATED' :
                  task.status === 'in-progress' ? 'SYSTEM_BUSY' : 'BACKLOG'}
-              </span>
+              </button>
             </div>
             <div className="flex flex-wrap gap-2 items-center mt-1">
               {task.createdAt && (
@@ -214,14 +275,85 @@ export const TaskCard: React.FC<TaskCardProps> = ({
                 </>
               )}
               <span className="text-[8px] text-slate-600 font-mono">•</span>
+              <span className={cn(
+                "text-[8px] font-mono font-black uppercase tracking-wider px-1.5 py-0.5 rounded border inline-flex items-center gap-1",
+                task.priority === 'high' ? "bg-red-500/10 text-red-400 border-red-500/20" :
+                task.priority === 'medium' ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
+                "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+              )}>
+                PRIORYTET: {task.priority === 'high' ? 'WYSOKI' : task.priority === 'medium' ? 'ŚREDNI' : 'NISKI'}
+              </span>
+              <span className="text-[8px] text-slate-600 font-mono">•</span>
               <span className="text-[8px] font-mono text-acid-purple flex items-center gap-0.5">
                 {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />} 
                 {isExpanded ? 'Zwiń' : 'Rozwiń parametry'}
               </span>
             </div>
+            
+            {/* Progress bar */}
+            <div className="mt-3 flex flex-col gap-1.5">
+               <div className="flex justify-between items-center text-[8px] text-slate-500 font-mono font-bold tracking-widest">
+                  <span className="flex items-center gap-1.5">
+                    <Activity size={10} className={cn(task.status === 'in-progress' ? "text-acid-cyan animate-pulse" : "text-slate-500")} />
+                    POSTĘP OPERACYJNY
+                  </span>
+                  <span className={cn(
+                    "px-1.5 py-0.5 rounded bg-black/40 border border-white/5",
+                    task.status === 'done' ? "text-acid-green" : "text-acid-cyan"
+                  )}>
+                    {task.completionPercentage !== undefined ? task.completionPercentage : Math.round(((
+                      (task.dependentOn?.filter(id => allTasks.find(t => t.id === id && t.status === 'done')).length || 0) + 
+                      (task.status === 'done' ? 1 : 0) +
+                      (task.subtasks?.filter(st => st.status === 'done').length || 0)
+                   ) / (
+                      (task.dependentOn?.length || 0) + 
+                      1 + 
+                      (task.subtasks?.length || 0)
+                   ) || 1) * 100)}%
+                  </span>
+               </div>
+               <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden relative shadow-inner">
+                  <div 
+                     className={cn("h-full rounded-full transition-all duration-1000 ease-out relative", 
+                        (task.completionPercentage === 100 || (((task.dependentOn?.filter(id => allTasks.find(t => t.id === id && t.status === 'done')).length || 0) + (task.status === 'done' ? 1 : 0) + (task.subtasks?.filter(st => st.status === 'done').length || 0)) / ((task.dependentOn?.length || 0) + 1 + (task.subtasks?.length || 0) || 1) * 100) === 100) ? "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]" : "bg-acid-cyan shadow-[0_0_10px_rgba(6,182,212,0.4)]"
+                     )}
+                     style={{ width: `${task.completionPercentage !== undefined ? task.completionPercentage : Math.round(((task.dependentOn?.filter(id => allTasks.find(t => t.id === id && t.status === 'done')).length || 0) + (task.status === 'done' ? 1 : 0) + (task.subtasks?.filter(st => st.status === 'done').length || 0)) / ((task.dependentOn?.length || 0) + 1 + (task.subtasks?.length || 0) || 1) * 100)}%` }} 
+                  >
+                    {task.status === 'in-progress' && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent w-1/2 animate-shimmer" />
+                    )}
+                  </div>
+               </div>
+            </div>
+
+            {/* Visual Blocked Dependencies Indicator */}
+            {isBlocked && (
+              <div className="mt-2.5 bg-red-950/20 border border-red-500/20 rounded-xl p-2.5 space-y-1">
+                <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-red-400">
+                  <AlertTriangle size={11} className="text-red-500 animate-pulse" />
+                  <span>Zablokowane — wymaga ukończenia:</span>
+                </div>
+                <div className="space-y-1">
+                  {blockedBy.map(depId => {
+                    const depTask = allTasks.find(t => t.id === depId);
+                    return (
+                      <div key={depId} className="flex items-center gap-1.5 text-[9px] font-mono text-slate-400 pl-1">
+                        <Lock size={8} className="text-red-500/60" />
+                        <span className="truncate">{depTask ? depTask.title : `Zadanie ID: ${depId}`}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-1.5 font-mono">
+          {isBlocked && (
+            <span className="text-[9px] font-black uppercase tracking-wider text-red-500 bg-red-500/10 px-2 py-1 rounded-lg border border-red-500/20">
+              ZABLOKOWANE ({blockedBy.length})
+            </span>
+          )}
           {task.status !== 'done' && (
             <>
               <button 
@@ -229,12 +361,12 @@ export const TaskCard: React.FC<TaskCardProps> = ({
                   e.stopPropagation();
                   handleLaunchMassiveSwarm(task);
                 }}
-                disabled={activeSwarmId !== null}
+                disabled={activeSwarmId !== null || isBlocked}
                 className={cn(
                   "px-3 py-1.5 rounded-xl transition-all border border-acid-purple/30 bg-acid-purple/10 text-acid-purple hover:bg-acid-purple/20 flex items-center gap-1 text-[9px] font-black uppercase tracking-wider",
-                  activeSwarmId !== null && "opacity-40 cursor-not-allowed"
+                  (activeSwarmId !== null || isBlocked) && "opacity-40 cursor-not-allowed"
                 )}
-                title="Uruchom równoległy rój mini-agentów"
+                title={isBlocked ? "Nie można uruchomić: zadania zależne nieukończone" : "Uruchom równoległy rój mini-agentów"}
               >
                 <Layers size={10} className="animate-pulse" />
                 Uruchom Rój ({swarmSize})
@@ -245,12 +377,13 @@ export const TaskCard: React.FC<TaskCardProps> = ({
                   e.stopPropagation();
                   handleAutoTeam(task);
                 }}
-                disabled={isPlanning !== null}
+                disabled={isPlanning !== null || isBlocked}
                 className={cn(
                   "p-1.5 rounded-xl transition-all border border-white/5 bg-white/5 text-acid-cyan hover:bg-acid-cyan/10 hover:border-acid-cyan/30",
+                  (isPlanning === task.id || isBlocked) && "opacity-40 cursor-not-allowed",
                   isPlanning === task.id ? "animate-pulse border-acid-cyan" : ""
                 )}
-                title="Analiza AI & Dispatch (Klasyczny Zespół)"
+                title={isBlocked ? "Zablokowane" : "Analiza AI & Dispatch (Klasyczny Zespół)"}
               >
                 <Cpu size={14} className={isPlanning === task.id ? "animate-spin" : ""} />
               </button>
@@ -259,7 +392,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           <button 
             onClick={(e) => {
               e.stopPropagation();
-              handleDelete(task.id);
+              setShowConfirm(true);
             }} 
             className="text-slate-600 hover:text-red-400 hover:bg-red-500/10 p-1.5 rounded-xl transition-all" 
             title="Usuń zadanie"
@@ -268,6 +401,33 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirm && (
+        <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 rounded-2xl animate-fadeIn">
+          <div className="bg-neutral-900 border border-white/10 p-6 rounded-2xl text-center max-w-sm">
+            <h3 className="text-white font-bold text-lg mb-2">Trwałe usuwanie zadania</h3>
+            <p className="text-slate-400 text-xs mb-6">Czy na pewno chcesz usunąć to zadanie? Tej akcji nie można cofnąć.</p>
+            <div className="flex gap-3 justify-center">
+              <button 
+                 onClick={() => setShowConfirm(false)}
+                 className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-lg text-xs font-bold"
+              >
+                Anuluj
+              </button>
+              <button 
+                 onClick={() => {
+                   setShowConfirm(false);
+                   handleDelete(task.id);
+                 }}
+                 className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-bold"
+              >
+                Usuń trwale
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <AnimatePresence initial={false}>
         {isExpanded && (
@@ -319,7 +479,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 
             {/* Status Switcher Row */}
             <div className="space-y-1.5">
-              <span className="text-[8px] font-mono font-black text-slate-500 uppercase tracking-widest block">Edycja Statusu Systemowego</span>
+              <span className="text-[8px] font-mono font-black text-slate-500 uppercase tracking-widest block">
+                {isBlocked ? "Edycja Statusu (Zablokowana przez zależności)" : "Edycja Statusu Systemowego"}
+              </span>
               <div className="flex gap-2">
                 <button 
                   onClick={(e) => {
@@ -333,21 +495,78 @@ export const TaskCard: React.FC<TaskCardProps> = ({
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (isBlocked) return;
                     handleUpdateStatus(task.id, 'in-progress');
                   }}
-                  className={cn("text-[9px] border px-3 py-1.5 uppercase rounded-xl font-bold transition-all flex-1 cursor-pointer", task.status === 'in-progress' ? "bg-acid-cyan/10 border-acid-cyan/50 text-acid-cyan shadow-[0_0_15px_rgba(6,182,212,0.2)]" : "border-white/5 text-slate-500 hover:bg-white/5")}
+                  disabled={isBlocked}
+                  className={cn(
+                    "text-[9px] border px-3 py-1.5 uppercase rounded-xl font-bold transition-all flex-1 text-center justify-center items-center flex gap-1", 
+                    isBlocked 
+                      ? "border-red-500/10 text-red-500/50 bg-red-950/5 cursor-not-allowed" 
+                      : task.status === 'in-progress' 
+                        ? "bg-acid-cyan/10 border-acid-cyan/50 text-acid-cyan shadow-[0_0_15px_rgba(6,182,212,0.2)] cursor-pointer" 
+                        : "border-white/5 text-slate-500 hover:bg-white/5 cursor-pointer"
+                  )}
                 >
-                  SYSTEM_BUSY
+                  {isBlocked && <Lock size={9} />} SYSTEM_BUSY
                 </button>
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (isBlocked) return;
                     handleUpdateStatus(task.id, 'done');
                   }}
-                  className={cn("text-[9px] border px-3 py-1.5 uppercase rounded-xl font-bold transition-all flex-1 cursor-pointer ml-auto", task.status === 'done' ? "bg-acid-green/10 border-acid-green/50 text-acid-green shadow-[0_0_15px_rgba(0,255,202,0.2)]" : "border-white/5 text-slate-500 hover:bg-white/5")}
+                  disabled={isBlocked}
+                  className={cn(
+                    "text-[9px] border px-3 py-1.5 uppercase rounded-xl font-bold transition-all flex-1 ml-auto text-center justify-center items-center flex gap-1", 
+                    isBlocked 
+                      ? "border-red-500/10 text-red-500/50 bg-red-950/5 cursor-not-allowed" 
+                      : task.status === 'done' 
+                        ? "bg-acid-green/10 border-acid-green/50 text-acid-green shadow-[0_0_15px_rgba(0,255,202,0.2)] cursor-pointer" 
+                        : "border-white/5 text-slate-500 hover:bg-white/5 cursor-pointer"
+                  )}
                 >
-                  TERMINATED
+                  {isBlocked && <Lock size={9} />} TERMINATED
                 </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-white/5">
+              <div className="space-y-1.5">
+                <span className="text-[8px] font-mono font-black text-slate-500 uppercase tracking-widest block">Format Oczekiwany (w trakcie)</span>
+                <select
+                  className="w-full bg-black/40 border border-white/5 rounded-lg px-2 py-1.5 outline-none focus:border-acid-cyan/50 transition-all text-[9px] font-mono text-slate-300"
+                  value={task.expectedOutputFormat || ''}
+                  onChange={async (e) => {
+                    e.stopPropagation();
+                    await api.updateTask(task.id, { expectedOutputFormat: e.target.value });
+                    if (onUpdate) onUpdate();
+                  }}
+                >
+                  <option value="">Auto (wg woli roju)</option>
+                  <option value="json">JSON Strukturalny</option>
+                  <option value="markdown">Raport / Dokumentacja</option>
+                  <option value="code">Kod źródłowy</option>
+                  <option value="summary">Zwięzłe podsumowanie</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <span className="text-[8px] font-mono font-black text-slate-500 uppercase tracking-widest block">Nastawienie Roju (w trakcie)</span>
+                <select
+                  className="w-full bg-black/40 border border-white/5 rounded-lg px-2 py-1.5 outline-none focus:border-acid-purple/50 transition-all text-[9px] font-mono text-slate-300"
+                  value={task.swarmAttitude || ''}
+                  onChange={async (e) => {
+                    e.stopPropagation();
+                    await api.updateTask(task.id, { swarmAttitude: e.target.value });
+                    if (onUpdate) onUpdate();
+                  }}
+                >
+                  <option value="">Zrównoważone</option>
+                  <option value="analytical">Analityczne</option>
+                  <option value="creative">Kreatywne</option>
+                  <option value="fast">Wysoka Szybkość</option>
+                  <option value="deep">Deep Thought</option>
+                </select>
               </div>
             </div>
 
@@ -403,6 +622,15 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           <TaskPreviewModal 
             task={task}
             onClose={() => setIsPreviewOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isGraphOpen && (
+          <TaskDependenciesGraph
+            tasks={allTasks}
+            onClose={() => setIsGraphOpen(false)}
           />
         )}
       </AnimatePresence>
@@ -528,6 +756,6 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           </AnimatePresence>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };

@@ -1,0 +1,2 @@
+6011:  const [metricsHistory, setMetricsHistory] = useState<any[]>([]);
+6895:      setMetricsHistory(prev => {

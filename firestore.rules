@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isValidLog(data) {
+      // Basic validation for log entries
+      return data.keys().hasAny(['id', 'action', 'timestamp']) &&
+             data.id is string &&
+             data.action is string &&
+             data.timestamp is string;
+    }
+
+    match /logs/{logId} {
+      // Allowing create for now so the backend can write via JS SDK
+      // Ideally this would be restricted to a service account or authenticated admin
+      allow create: if isValidLog(incoming());
+      allow read: if isSignedIn();
+    }
+  }
+}

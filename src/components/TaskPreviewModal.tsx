@@ -1,15 +1,22 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { X } from 'lucide-react';
+import { X, GitCommit, GitMerge, ArrowDown, ArrowUp } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Task } from '../types';
 
 interface TaskPreviewModalProps {
   task: Task;
+  allTasks?: Task[];
   onClose: () => void;
 }
 
-export const TaskPreviewModal: React.FC<TaskPreviewModalProps> = ({ task, onClose }) => {
+export const TaskPreviewModal: React.FC<TaskPreviewModalProps> = ({ task, allTasks = [], onClose }) => {
+  const resolvedDependencies = task.dependencies 
+    ? allTasks.filter(t => task.dependencies?.includes(t.id)) 
+    : [];
+    
+  const resolvedDependents = allTasks.filter(t => t.dependencies?.includes(task.id));
+
   return (
     <motion.div 
       initial={{ opacity: 0 }}
@@ -92,9 +99,36 @@ export const TaskPreviewModal: React.FC<TaskPreviewModalProps> = ({ task, onClos
                 </span>
               </div>
             )}
+            
+            {task.expectedOutputFormat && (
+              <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 space-y-1">
+                <span className="text-[8px] font-mono font-black text-slate-500 uppercase tracking-widest block">Format Oczekiwany</span>
+                <span className="text-[10px] text-acid-green font-bold uppercase tracking-wide block">
+                  {task.expectedOutputFormat}
+                </span>
+              </div>
+            )}
+            
+            {task.swarmAttitude && (
+              <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 space-y-1">
+                <span className="text-[8px] font-mono font-black text-slate-500 uppercase tracking-widest block">Nastawienie Roju</span>
+                <span className="text-[10px] text-acid-purple font-bold uppercase tracking-wide block">
+                  {task.swarmAttitude}
+                </span>
+              </div>
+            )}
           </div>
 
-          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 space-y-2 text-xs">
+          {task.hints && (
+            <div className="p-3 rounded-xl bg-white/[0.02] border border-acid-purple/10 space-y-1 text-xs mt-3">
+              <span className="text-[8px] font-mono font-black text-acid-purple uppercase tracking-widest block">Podpowiedzi / Instrukcje Rozszerzone</span>
+              <p className="text-[11px] text-slate-300 leading-relaxed font-mono">
+                {task.hints}
+              </p>
+            </div>
+          )}
+
+          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 space-y-2 text-xs mt-3">
             <div className="flex justify-between items-center text-[9px] font-mono text-slate-400">
               <span>UTWORZONO:</span>
               <span>{task.createdAt ? new Date(task.createdAt).toLocaleString() : 'N/A'}</span>
@@ -106,6 +140,58 @@ export const TaskPreviewModal: React.FC<TaskPreviewModalProps> = ({ task, onClos
               </div>
             )}
           </div>
+
+          {/* DEPENDENCY VISUALIZATION ROW */}
+          {(resolvedDependencies.length > 0 || resolvedDependents.length > 0) && (
+            <div className="mt-4 p-4 rounded-xl border border-white/10 bg-black/40 space-y-4">
+              <span className="text-[10px] font-mono font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                <GitMerge size={12} className="text-acid-purple" /> 
+                Łańcuch Zależności Roju
+              </span>
+
+              <div className="flex flex-col items-center justify-center gap-1 font-mono">
+                {/* Parents (Dependencies) */}
+                {resolvedDependencies.length > 0 && (
+                  <div className="flex flex-wrap items-center justify-center gap-2 w-full">
+                    {resolvedDependencies.map(dep => (
+                      <div key={dep.id} className="text-[9px] uppercase border border-slate-700 bg-slate-900 px-3 py-1.5 rounded text-slate-400 max-w-[150px] truncate">
+                        {dep.title}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {resolvedDependencies.length > 0 && (
+                  <div className="flex flex-col items-center opacity-50 py-1">
+                    <div className="w-[1px] h-4 bg-acid-purple border-l border-dashed border-acid-purple"></div>
+                    <ArrowDown size={12} className="text-acid-purple -mt-1" />
+                  </div>
+                )}
+
+                {/* Current Task */}
+                <div className="px-5 py-2.5 bg-acid-purple/10 border border-acid-purple/40 rounded-lg text-acid-purple text-[10px] uppercase font-black tracking-widest shadow-[0_0_15px_rgba(139,92,246,0.15)] max-w-full truncate text-center">
+                  <GitCommit size={10} className="inline-block mr-1.5 -mt-0.5" />
+                  {task.title}
+                </div>
+
+                {/* Children (Dependents) */}
+                {resolvedDependents.length > 0 && (
+                  <div className="flex flex-col items-center py-1">
+                    <ArrowDown size={12} className="text-acid-cyan opacity-80" />
+                    <div className="w-[1px] h-4 bg-acid-cyan/50 border-l border-dashed border-acid-cyan -mt-1"></div>
+                  </div>
+                )}
+                {resolvedDependents.length > 0 && (
+                  <div className="flex flex-wrap items-center justify-center gap-2 w-full">
+                    {resolvedDependents.map(dep => (
+                      <div key={dep.id} className="text-[9px] uppercase border border-acid-cyan/20 bg-acid-cyan/5 px-3 py-1.5 rounded text-acid-cyan max-w-[150px] truncate">
+                        {dep.title}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="mt-6 flex justify-end gap-2">

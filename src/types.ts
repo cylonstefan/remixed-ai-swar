@@ -11,6 +11,8 @@ export interface Agent {
   model: string;
   color: string;
   voice?: 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Zephyr';
+  voicePitch?: number;
+  voiceSpeed?: number;
   skills?: string;
   knowledge?: string;
   personality?: string;
@@ -25,13 +27,22 @@ export interface Agent {
   category?: string;
   createdAt?: string;
   usage?: number;
+  tokensUsed?: number;
+  successRate?: number;
   icon?: string;
   messageCount?: number;
   tasksCompleted?: number;
+  mode?: 'normal' | 'debugging' | 'enhanced' | 'restricted';
   advancedTools?: boolean;
   history?: AgentHistoryEntry[];
   flightMode?: 'autopilot' | 'manual' | 'vr';
   flightConfig?: string;
+  xp?: number;
+  experienceLevel?: 'novice' | 'intermediate' | 'expert';
+  size?: 'tiny' | 'small' | 'medium' | 'large' | 'massive';
+  specialization?: string;
+  processingPower?: number;
+  autonomyLevel?: number;
 }
 
 export interface Team {
@@ -41,6 +52,7 @@ export interface Team {
   agents: Agent[];
   agentIds: string[];
   mode?: 'loose' | 'sharp' | 'concrete' | 'business' | 'work' | 'office' | 'debugging' | 'creative' | 'strategic';
+  dynamics?: string; // Added field
   agentTasks?: Record<string, string>;
   memory?: string;
   createdAt?: string;
@@ -48,6 +60,7 @@ export interface Team {
   advancedTools?: boolean;
   flightMode?: 'autopilot' | 'manual' | 'vr';
   flightConfig?: string;
+  color?: string;
 }
 
 export interface Message {
@@ -67,11 +80,20 @@ export interface Task {
   title: string;
   status: 'todo' | 'in-progress' | 'done';
   priority: 'low' | 'medium' | 'high';
+  completionPercentage?: number;
   complexity?: 'low' | 'medium' | 'high';
   taskType?: string;
+  expectedOutputFormat?: string;
+  swarmAttitude?: string;
+  hints?: string;
   createdAt?: string;
   dueDate?: string;
+  subtasks?: { id: string; title: string; status: 'todo' | 'done' }[];
+  dependencies?: string[];
+  dependentOn?: string[];
+  googleTaskId?: string;
   assignedAgentId?: string;
+  teamId?: string; // New field
 }
 
 export interface Log {
@@ -93,6 +115,8 @@ export interface TrainingSession {
   createdAt: string;
 }
 
+export type NodeArchitecture = 'server' | 'desktop' | 'laptop' | 'phone' | 'hosting' | 'hosting-vps' | 'azure' | 'gcp' | 'aws';
+
 export interface ClusterNode {
   id: string;
   name: string;
@@ -106,6 +130,8 @@ export interface ClusterNode {
   ramUsage?: number;
   latency?: number;
   protocol?: 'gRPC' | 'WebSocket' | 'REST' | 'RabbitMQ';
+  architecture?: NodeArchitecture;
+  isAndroid?: boolean;
 }
 
 export interface MCPServer {
@@ -146,6 +172,8 @@ export interface KnowledgeEntry {
   tags?: string[];
   author?: string;
   createdAt: string;
+  archived?: boolean;
+  lastUsedAt?: string;
 }
 
 export interface AgentErrorLog {
@@ -158,3 +186,27 @@ export interface AgentErrorLog {
   errorMessage: string;
   createdAt?: string;
 }
+
+export interface SnitchReport {
+  id: string;
+  reporter_id: string;
+  reporter_name: string;
+  accused_id: string;
+  accused_name: string;
+  category: string;
+  description: string;
+  severity: 'Niski' | 'Średni' | 'Krytyczny';
+  status: 'AKTYWNY' | 'ZROZUMIANO' | 'ZMOTYWOWANY' | 'FARMA' | 'DEGRADACJA' | 'ZAMIECIONE';
+  action_taken?: string | null;
+  createdAt: string;
+}
+
+export interface AgentMemory {
+  id: string;
+  agentId: string;
+  teamId?: string | null;
+  content: string;
+  category?: 'general' | 'decision' | 'conversation' | 'fact' | 'preference';
+  createdAt?: string;
+}
+

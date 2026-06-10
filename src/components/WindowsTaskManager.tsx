@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import * as Lucide from 'lucide-react';
+import * as ReactWindow from 'react-window';
 import { api } from '../services/api';
+
+const FixedSizeList = (ReactWindow as any).FixedSizeList;
 
 interface ProcessState {
   entity_id: string;
@@ -684,53 +687,61 @@ export function WindowsTaskManager({ showToast }: { showToast: (msg: string, typ
                 </button>
               </div>
 
-              <div className="flex-1 overflow-auto p-4 min-h-0">
-                <div className="space-y-2 max-w-4xl mx-auto">
+                <div className="flex-1 overflow-auto p-4 min-h-0" id="logs-container">
                   {eventLogs.length === 0 ? (
                     <div className="p-8 text-center text-slate-500 font-mono text-xs border border-dashed border-slate-800/80 rounded">
                       Brak zdarzeń procesów w dzienniku Windows Event Viewer. Zmień stan procesu (Zatrzymaj, Uruchom, Pauzuj, Kill), aby wywołać telemetryczne logi!
                     </div>
                   ) : (
-                    eventLogs.map((log, index) => {
-                      let logClass = "border-sky-900/40 bg-sky-950/5 text-slate-300";
-                      let iconColor = "text-sky-400";
-                      if (log.action === 'PROCESS_START') {
-                        logClass = "border-emerald-900/40 bg-emerald-950/5 text-emerald-200";
-                        iconColor = "text-emerald-400";
-                      } else if (log.action === 'PROCESS_STOP') {
-                        logClass = "border-gray-800 bg-gray-900/10 text-slate-300";
-                        iconColor = "text-gray-400";
-                      } else if (log.action === 'PROCESS_PAUSE') {
-                        logClass = "border-amber-900/40 bg-amber-950/5 text-amber-200";
-                        iconColor = "text-amber-400";
-                      } else if (log.action === 'PROCESS_KILL') {
-                        logClass = "border-rose-900/40 bg-rose-950/5 text-rose-300";
-                        iconColor = "text-rose-400";
-                      }
+                    <FixedSizeList
+                      height={600}
+                      width="100%"
+                      itemSize={120}
+                      itemCount={eventLogs.length}
+                    >
+                      {({ index, style }) => {
+                        const log = eventLogs[index];
+                        let logClass = "border-sky-900/40 bg-sky-950/5 text-slate-300";
+                        let iconColor = "text-sky-400";
+                        if (log.action === 'PROCESS_START') {
+                          logClass = "border-emerald-900/40 bg-emerald-950/5 text-emerald-200";
+                          iconColor = "text-emerald-400";
+                        } else if (log.action === 'PROCESS_STOP') {
+                          logClass = "border-gray-800 bg-gray-900/10 text-slate-300";
+                          iconColor = "text-gray-400";
+                        } else if (log.action === 'PROCESS_PAUSE') {
+                          logClass = "border-amber-900/40 bg-amber-950/5 text-amber-200";
+                          iconColor = "text-amber-400";
+                        } else if (log.action === 'PROCESS_KILL') {
+                          logClass = "border-rose-900/40 bg-rose-950/5 text-rose-300";
+                          iconColor = "text-rose-400";
+                        }
 
-                      return (
-                        <div key={log.id} className={`p-3 border rounded-lg font-mono text-xs flex gap-3 shadow-xs ${logClass}`}>
-                          <div className={`mt-0.5 shrink-0 ${iconColor}`}>
-                            <Lucide.Info size={15} />
-                          </div>
-                          <div className="flex-1 space-y-1">
-                            <div className="flex justify-between">
-                              <span className="font-bold tracking-wide">ID Zdarzenia: MMC_EVENT_2026_{index + 1000}</span>
-                              <span className="text-[10px] text-slate-500">{new Date(log.timestamp).toLocaleString()}</span>
+                        return (
+                          <div style={style} className="pr-4">
+                            <div className={`p-3 border rounded-lg font-mono text-xs flex gap-3 shadow-xs ${logClass}`}>
+                              <div className={`mt-0.5 shrink-0 ${iconColor}`}>
+                                <Lucide.Info size={15} />
+                              </div>
+                              <div className="flex-1 space-y-1">
+                                <div className="flex justify-between">
+                                  <span className="font-bold tracking-wide">ID Zdarzenia: MMC_EVENT_2026_{index + 1000}</span>
+                                  <span className="text-[10px] text-slate-500">{new Date(log.timestamp).toLocaleString()}</span>
+                                </div>
+                                <div className="text-slate-300">{log.details}</div>
+                                <div className="flex flex-wrap text-[10px] text-slate-500/80 gap-3">
+                                  <span>Źródło: Micro-Services Windows Orchestrator</span>
+                                  <span>Prywatny tag: {log.action}</span>
+                                  <span>ID Modułu: {log.agentId}</span>
+                                </div>
+                              </div>
                             </div>
-                            <div className="text-slate-300">{log.details}</div>
-                            <div className="flex flex-wrap text-[10px] text-slate-500/80 gap-3">
-                              <span>Źródło: Micro-Services Windows Orchestrator</span>
-                              <span>Prywatny tag: {log.action}</span>
-                              <span>ID Modułu: {log.agentId}</span>
-                            </div>
                           </div>
-                        </div>
-                      );
-                    })
+                        );
+                      }}
+                    </FixedSizeList>
                   )}
                 </div>
-              </div>
             </div>
           )}
         </div>
