@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import * as Lucide from 'lucide-react';
 import * as ReactWindow from 'react-window';
 import { api } from '../services/api';
+import { TranslationHub } from './TranslationHub';
+import { AdminCoachAcademy } from './AdminCoachAcademy';
+import { Task } from '../types';
+import { TaskDistributionPieChart } from './TaskDistributionPieChart';
 
 const FixedSizeList = (ReactWindow as any).FixedSizeList;
 
@@ -38,11 +42,12 @@ interface ProcessLog {
 
 export function WindowsTaskManager({ showToast }: { showToast: (msg: string, type: 'success' | 'err' | 'info') => void }) {
   const [processes, setProcesses] = useState<ProcessState[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filterText, setFilterText] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'agent' | 'swarm' | 'node'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'RUNNING' | 'STOPPED' | 'PAUSED' | 'KILLED'>('all');
-  const [activeTab, setActiveTab] = useState<'services' | 'explorer' | 'event_viewer'>('services');
+  const [activeTab, setActiveTab] = useState<'services' | 'explorer' | 'event_viewer' | 'stats' | 'translation' | 'academy'>('services');
   const [isLoading, setIsLoading] = useState(true);
   
   // Custom properties modal
@@ -52,6 +57,8 @@ export function WindowsTaskManager({ showToast }: { showToast: (msg: string, typ
   const [editCpu, setEditCpu] = useState(100);
   const [editRam, setEditRam] = useState(4096);
   const [editCmd, setEditCmd] = useState('');
+  const [editCpuCore, setEditCpuCore] = useState<number>(0);
+  const [editNodeId, setEditNodeId] = useState<string>('local-node-1');
 
   // Local event viewer logs
   const [eventLogs, setEventLogs] = useState<ProcessLog[]>([]);
@@ -101,6 +108,9 @@ export function WindowsTaskManager({ showToast }: { showToast: (msg: string, typ
   useEffect(() => {
     loadProcesses(true);
     loadEventLogs();
+    
+    // Load tasks for potential backup
+    api.getTasks().then(setTasks).catch(() => {});
 
     const interval = setInterval(() => {
       loadProcesses(false);
@@ -142,6 +152,8 @@ export function WindowsTaskManager({ showToast }: { showToast: (msg: string, typ
     setEditCpu(proc.cpu_limit || 100);
     setEditRam(proc.ram_limit || 4096);
     setEditCmd(proc.launch_command || '');
+    setEditCpuCore((proc as any).assigned_cpu_core || 0);
+    setEditNodeId((proc as any).assigned_node_id || 'local-node-1');
     setIsPropsOpen(true);
   };
 
@@ -152,8 +164,10 @@ export function WindowsTaskManager({ showToast }: { showToast: (msg: string, typ
         priority: editPriority,
         cpu_limit: editCpu,
         ram_limit: editRam,
-        launch_command: editCmd
-      });
+        launch_command: editCmd,
+        assigned_cpu_core: editCpuCore,
+        assigned_node_id: editNodeId
+      } as any);
       if (res.success) {
         showToast(`Zaktualizowano właściwości procesu: ${propsProcess.name}`, "success");
         setIsPropsOpen(false);
@@ -184,6 +198,17 @@ export function WindowsTaskManager({ showToast }: { showToast: (msg: string, typ
     } catch (err: any) {
       showToast(`Błąd zapisu skryptu: ${err.message}`, "err");
     }
+  };
+
+  const handleDownloadTasks = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(tasks, null, 2));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", "tasks_backup.json");
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+    showToast("Pobrano kopię zapasową zadań!", "success");
   };
 
   // Filter items
@@ -307,6 +332,42 @@ export function WindowsTaskManager({ showToast }: { showToast: (msg: string, typ
               <span>Dziennik Zdarzeń (MMC)</span>
             </button>
 
+            <button
+              onClick={() => setActiveTab('stats')}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium font-mono border transition ${
+                activeTab === 'stats' 
+                  ? 'bg-sky-950/50 text-sky-400 border-sky-800/80 shadow-md' 
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900 border-transparent'
+              }`}
+            >
+              <Lucide.PieChart size={15} />
+              <span>Statystyki Zadań</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('translation')}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium font-mono border transition ${
+                activeTab === 'translation' 
+                  ? 'bg-sky-950/50 text-sky-400 border-sky-800/80 shadow-md' 
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900 border-transparent'
+              }`}
+            >
+              <Lucide.Languages size={15} />
+              <span>Translation Hub</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('academy')}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium font-mono border transition ${
+                activeTab === 'academy' 
+                  ? 'bg-sky-950/50 text-sky-400 border-sky-800/80 shadow-md' 
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900 border-transparent'
+              }`}
+            >
+              <Lucide.BookOpen size={15} />
+              <span>Academy</span>
+            </button>
+
             {/* Quick action divider */}
             <div className="border-t border-slate-800/60 my-4 pt-4">
               <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-2 mb-2">
@@ -422,6 +483,14 @@ export function WindowsTaskManager({ showToast }: { showToast: (msg: string, typ
               >
                 <Lucide.Download size={13} />
                 <span>Zrzut Skryptu (.bat)</span>
+              </button>
+              <button
+                onClick={handleDownloadTasks}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-emerald-600/15 border border-emerald-500/40 hover:bg-emerald-600/30 text-emerald-400 text-xs font-mono transition"
+                title="Pobierz kopię zapasową zadań w formacie JSON"
+              >
+                <Lucide.Save size={13} />
+                <span>Zrzut Zadań (JSON)</span>
               </button>
             </div>
           </div>
@@ -744,6 +813,31 @@ export function WindowsTaskManager({ showToast }: { showToast: (msg: string, typ
                 </div>
             </div>
           )}
+
+          {/* TAB 4: TASK STATS */}
+          {activeTab === 'stats' && (
+            <div className="flex-1 p-6 overflow-auto">
+                <h3 className="text-sm font-bold text-slate-300 mb-4 uppercase tracking-widest font-mono">Dystrybucja Zadań</h3>
+                <div className="bg-[#0b1122] border border-slate-800 rounded-lg p-6">
+                    <TaskDistributionPieChart tasks={tasks} teams={[]} />
+                    <p className="text-center text-slate-500 font-mono text-xs mt-4">Analiza priorytetów zadań roju</p>
+                </div>
+            </div>
+          )}
+
+          {/* TAB 5: TRANSLATION HUB */}
+          {activeTab === 'translation' && (
+            <div className="flex-1 overflow-auto">
+                <TranslationHub />
+            </div>
+          )}
+
+          {/* TAB 6: ACADEMY */}
+          {activeTab === 'academy' && (
+            <div className="flex-1 overflow-auto">
+                <AdminCoachAcademy />
+            </div>
+          )}
         </div>
       </div>
 
@@ -861,6 +955,39 @@ export function WindowsTaskManager({ showToast }: { showToast: (msg: string, typ
                 <p className="text-[10px] text-slate-500">
                   Ta komenda jest wywoływana przy włączaniu instancji rąbka usługi oraz eksportowana przy zrzucie pliku skryptu .bat.
                 </p>
+              </div>
+
+              {/* Core Affinity & Node Allocation Settings */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-800/80">
+                <div className="space-y-1.5">
+                  <label className="text-slate-400 font-semibold block uppercase tracking-wide text-[10px]">
+                    Koligacja Procesora (Processor Affinity)
+                  </label>
+                  <select
+                    value={editCpuCore}
+                    onChange={(e: any) => setEditCpuCore(Number(e.target.value))}
+                    className="w-full bg-[#11182c] border border-slate-800 rounded px-3 py-2 text-slate-200 focus:outline-none focus:border-sky-500 font-mono text-xs"
+                  >
+                    {Array.from({ length: 16 }).map((_, i) => (
+                      <option key={i} value={i}>CPU Rdzeń {i}</option>
+                    ))}
+                  </select>
+                  <span className="text-[9px] text-slate-500 block">Wybór dedykowanego rdzenia do przypisania procesu.</span>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-slate-400 font-semibold block uppercase tracking-wide text-[10px]">
+                    Lokacja Klastra (Node Host Target)
+                  </label>
+                  <input
+                    type="text"
+                    value={editNodeId}
+                    onChange={(e) => setEditNodeId(e.target.value)}
+                    className="w-full bg-[#11182c] border border-slate-800 rounded px-3 py-2 text-sky-400 focus:outline-none focus:border-sky-500 font-mono text-xs"
+                    placeholder="np. local-node-1"
+                  />
+                  <span className="text-[9px] text-slate-500 block">Identyfikator hosta maszyny klastrowej.</span>
+                </div>
               </div>
             </div>
 

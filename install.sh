@@ -76,6 +76,19 @@ fi
 echo ""
 
 # 4. Install Dependencies
+echo -e "${YELLOW}[4/6] Sprawdzanie i przygotowanie zaleznosci systemowych offline...${NC}"
+if [ -f /etc/debian_version ] && command -v apt-get &> /dev/null; then
+    echo -e "[SYSTEM] Wykryto srodowisko oparte o Debian/Ubuntu."
+    echo -e "Zalecane pakiety do natywnego działania canvas, sqlite i nagrywania wideo/metryk:"
+    echo -e "${CYAN}sudo apt-get update && sudo apt-get install -y build-essential python3 make g++ libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev ffmpeg sqlite3 curl${NC}"
+    echo ""
+elif command -v brew &> /dev/null; then
+    echo -e "[SYSTEM] Wykryto macOS z Homebrew."
+    echo -e "Zalecane pakiety do natywnego kompilowania canvas, sqlite oraz ffmpeg:"
+    echo -e "${CYAN}brew install pkg-config cairo pango libpng jpeg giflib librsvg ffmpeg sqlite${NC}"
+    echo ""
+fi
+
 echo -e "${YELLOW}[4/6] Instalacja pakietow NPM i kompilacja modulow binarnych...${NC}"
 npm install
 if [ $? -ne 0 ]; then

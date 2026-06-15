@@ -8,7 +8,7 @@ import {
   Monitor, Terminal, TerminalSquare, Layout, HelpCircle, CheckSquare, CheckCircle2, ListTodo,
   Shield, Activity, Eye, Paperclip, Mic, MicOff, Volume2, VolumeX, Languages, FileText, Upload,
   Download, AlertOctagon, Network, Cpu, BookOpen, AlertTriangle, Copy, Lock, Search, Target, Maximize2, ChevronUp, ChevronDown, Sliders, Layers, BarChart,
-  Video, Music, Image as ImageIcon, Code, ShieldAlert, ThumbsDown, Scale, Zap, Cloud, Server, Globe, Database, Box, BookOpen as BookOpenIcon, Network as NetworkIcon, ShieldCheck, MessageCircle, Gamepad2, Smartphone, Sparkles, Menu, Film, RotateCcw, Power, ArrowRight, HardDrive, Share2, Palette, Archive, RefreshCcw, RefreshCw
+  Video, Music, Image as ImageIcon, Code, ShieldAlert, ThumbsDown, Scale, Zap, Cloud, Server, Globe, Database, Box, BookOpen as BookOpenIcon, Network as NetworkIcon, ShieldCheck, MessageCircle, Gamepad2, Smartphone, Sparkles, Menu, Film, RotateCcw, Power, ArrowRight, HardDrive, Share2, Palette, Archive, RefreshCcw, RefreshCw, Camera
 } from 'lucide-react';
 import * as Lucide from 'lucide-react';
 import { cn, generateColor } from './lib/utils';
@@ -25,9 +25,12 @@ import { StatsDashboard } from './components/StatsDashboard';
 import { ReggaeSoundSystem } from './components/ReggaeSoundSystem';
 import { ClusterLoadGauge } from './components/ClusterLoadGauge';
 import { GoogleWorkspaceHub } from './components/GoogleWorkspaceHub';
+import { SystemManagementHub } from './components/SystemManagementHub';
 import { WindowsTaskManager } from './components/WindowsTaskManager';
 import { DeviceManager } from './components/DeviceManager';
-import { MediaAnalyzer } from './components/MediaAnalyzer';
+import { MultimediaStudio } from './components/MultimediaStudio';
+import { AgentRpgCardModal } from './components/AgentRpgCardModal';
+import { SwarmTeaserTrailerPlayer } from './components/SwarmTeaserTrailerPlayer';
 import { SchedulerManager } from './components/SchedulerManager';
 import { TaskDependenciesGraph } from './components/TaskDependenciesGraph';
 import { ClusterAiManager } from './components/ClusterAiManager';
@@ -41,10 +44,15 @@ import { CommandPalette } from './components/CommandPalette';
 import { CorporateSnitchSystem } from './components/CorporateSnitchSystem';
 import { VoiceOrchestratorChat } from './components/VoiceOrchestratorChat';
 import { DashboardWidgets } from './components/DashboardWidgets';
+import { ClusterHealthMap } from './components/ClusterHealthMap';
+import { DockerInstallerWizard } from './components/DockerInstallerWizard';
+import { detectBottlenecks } from './lib/diagnostics';
 import { HardwareMonitor } from './components/HardwareMonitor';
 import { QuickClusterPreview } from './components/QuickClusterPreview';
 import AppGenerator from './components/AppGenerator';
+import { KidsCartoonStudio } from './components/KidsCartoonStudio';
 import { FirebaseHub } from './components/FirebaseHub';
+import SelfHealingUpgradeManager from './components/SelfHealingUpgradeManager';
 import { FirebaseLogsViewer } from './components/FirebaseLogsViewer';
 import { GlobalRecoveryMonitor } from './components/GlobalRecoveryMonitor';
 import ReactMarkdown from 'react-markdown';
@@ -60,7 +68,10 @@ import {
   Tooltip, 
   Legend, 
   AreaChart, 
-  Area 
+  Area,
+  PieChart,
+  Pie,
+  Cell
 } from 'recharts';
 import ReactFlow, { 
   Background, 
@@ -358,6 +369,7 @@ const TeamArchitect = React.memo((): React.ReactElement => {
 
 const AgentManager = React.memo(({ onUpdate, showToast }: { onUpdate: () => void, showToast?: (msg: string) => void }): React.ReactElement => {
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [selectedRpgAgent, setSelectedRpgAgent] = useState<Agent | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [isAutoCreating, setIsAutoCreating] = useState(false);
@@ -368,6 +380,7 @@ const AgentManager = React.memo(({ onUpdate, showToast }: { onUpdate: () => void
   const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [skillSearchTerm, setSkillSearchTerm] = useState('');
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
   const [skillInputText, setSkillInputText] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -755,6 +768,21 @@ Twój cel: Zwróć wyłącznie czysty JSON o następującej strukturze (żadnych
     }
   };
 
+  const filteredAgents = agents.filter(agent => {
+    const matchesSearch = searchTerm === '' || 
+      agent.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      agent.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (agent.systemPrompt && agent.systemPrompt.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const matchesSkill = skillSearchTerm === '' || 
+      (agent.skills && agent.skills.toLowerCase().includes(skillSearchTerm.toLowerCase()));
+
+    const matchesCategory = selectedCategory === 'all' || agent.category === selectedCategory;
+    const matchesRole = selectedRole === 'all' || agent.role === selectedRole;
+    
+    return matchesSearch && matchesSkill && matchesCategory && matchesRole;
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center border-b border-white/5 pb-4">
@@ -911,6 +939,14 @@ Twój cel: Zwróć wyłącznie czysty JSON o następującej strukturze (żadnych
                <RotateCcw size={12} /> Reset
              </button>
            )}
+           <div className="flex bg-black/20 border border-white/10 rounded-xl overflow-hidden p-[2px]">
+             <button title="Widok Kart" onClick={() => setViewMode('cards')} className={`px-2 py-1.5 rounded-lg flex items-center gap-1 transition-all ${viewMode === 'cards' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}>
+               <Lucide.LayoutGrid size={14} /> <span className="text-[10px] hidden sm:inline uppercase font-bold">Karty</span>
+             </button>
+             <button title="Widok Rozszerzony (Tabela)" onClick={() => setViewMode('table')} className={`px-2 py-1.5 rounded-lg flex items-center gap-1 transition-all ${viewMode === 'table' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}>
+               <Lucide.List size={14} /> <span className="text-[10px] hidden sm:inline uppercase font-bold">Tabela</span>
+             </button>
+           </div>
         </div>
       </div>
 
@@ -1524,21 +1560,8 @@ Twój cel: Zwróć wyłącznie czysty JSON o następującej strukturze (żadnych
         )}
       </AnimatePresence>
 
-      <div className="grid grid-cols-1 gap-4">
-        {agents.filter(agent => {
-          const matchesSearch = searchTerm === '' || 
-            agent.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-            agent.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (agent.systemPrompt && agent.systemPrompt.toLowerCase().includes(searchTerm.toLowerCase()));
-          
-          const matchesSkill = skillSearchTerm === '' || 
-            (agent.skills && agent.skills.toLowerCase().includes(skillSearchTerm.toLowerCase()));
-
-          const matchesCategory = selectedCategory === 'all' || agent.category === selectedCategory;
-          const matchesRole = selectedRole === 'all' || agent.role === selectedRole;
-          
-          return matchesSearch && matchesSkill && matchesCategory && matchesRole;
-        }).length === 0 ? (
+      <div className={viewMode === 'table' ? "w-full overflow-x-auto rounded-[2rem] border border-white/5 bg-black/20" : "grid grid-cols-1 gap-4"}>
+        {filteredAgents.length === 0 ? (
           <div className="modern-card p-12 text-center border-dashed border-white/5 bg-white/[0.01]">
             <Search size={48} className="mx-auto text-slate-800 mb-4 opacity-20" />
             <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest">Nie znaleziono agentów</h3>
@@ -1550,22 +1573,84 @@ Twój cel: Zwróć wyłącznie czysty JSON o następującej strukturze (żadnych
               Wyczyść wszystkie filtry
             </button>
           </div>
+        ) : viewMode === 'table' ? (
+          <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
+            <thead>
+              <tr className="border-b border-white/10 text-slate-400 uppercase tracking-widest text-[10px]">
+                <th className="p-4" style={{width: 50}}></th>
+                <th className="p-4">Agent</th>
+                <th className="p-4">Kategoria</th>
+                <th className="p-4">Model</th>
+                <th className="p-4">Wiadomości</th>
+                <th className="p-4 text-right">Akcje</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredAgents.map(agent => (
+                <tr key={agent.id} className="border-b border-white/[0.02] hover:bg-white/[0.02] transition-colors">
+                  <td className="p-4">
+                    <input 
+                      type="checkbox"
+                      checked={selectedAgentIds.includes(agent.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) setSelectedAgentIds([...selectedAgentIds, agent.id]);
+                        else setSelectedAgentIds(selectedAgentIds.filter(id => id !== agent.id));
+                      }}
+                      className="rounded border-white/10 bg-black/20 text-acid-purple focus:ring-acid-purple"
+                    />
+                  </td>
+                  <td className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white" style={{ backgroundColor: agent.color }}>
+                        {(() => {
+                          const Icon = agent.icon && (Lucide as any)[agent.icon] ? (Lucide as any)[agent.icon] : AGENT_ICON_MAP[agent.category || 'Inny'] || Bot;
+                          return <Icon size={16} />;
+                        })()}
+                      </div>
+                      <div>
+                        <div className="font-bold text-sm uppercase text-white flex items-center gap-2">
+                          {agent.name}
+                          {agent.mode === 'debugging' && (
+                            <span className="text-[8px] px-1.5 py-0.5 bg-orange-500/20 text-orange-400 font-black rounded flex items-center gap-1 animate-pulse">
+                              DEBUGGING
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-acid-purple mt-0.5">{agent.role}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-4">
+                    {agent.category && (
+                      <span className="text-[10px] px-2 py-0.5 bg-white/5 border border-white/10 text-slate-400 rounded-full flex items-center gap-1 w-max">
+                        {(() => {
+                          const Icon = AGENT_ICON_MAP[agent.category] || Bot;
+                          return <Icon size={10} className="text-acid-purple/70" />;
+                        })()}
+                        {agent.category}
+                      </span>
+                    )}
+                  </td>
+                  <td className="p-4 font-mono text-[10px] text-slate-400">{agent.model}</td>
+                  <td className="p-4">
+                    <span className="flex items-center gap-1 text-[10px] text-slate-400"><MessageSquare size={12} /> {agent.messageCount || 0}</span>
+                  </td>
+                  <td className="p-4 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => setSelectedRpgAgent(agent)} className="p-2 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 text-[10px] flex items-center justify-center" title="Karta Postaci RPG"><Sparkles size={14} /></button>
+                      <button onClick={() => setExpandedAgentId(expandedAgentId === agent.id ? null : agent.id)} className="p-2 rounded-xl border border-white/5 bg-white/5 text-slate-400 hover:text-white" title={expandedAgentId === agent.id ? "Zwiń" : "Szczegóły"}><Settings size={14} /></button>
+                      <button onClick={() => handleClone(agent)} className="p-2 rounded-xl hover:bg-white/10 text-slate-400 hover:text-acid-cyan"><Copy size={16} /></button>
+                      <button onClick={() => handleDelete(agent.id)} className="p-2 rounded-xl hover:bg-white/10 text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
+                      <button onClick={() => { setEditingAgentId(agent.id); setNewAgent({...agent}); setIsAdding(true); }} className="p-2 rounded-xl hover:bg-white/10 text-slate-400 hover:text-acid-purple"><Lucide.Edit2 size={16} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : (
           <AnimatePresence mode="popLayout">
-            {agents.filter(agent => {
-              const matchesSearch = searchTerm === '' || 
-                agent.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                agent.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (agent.systemPrompt && agent.systemPrompt.toLowerCase().includes(searchTerm.toLowerCase()));
-              
-              const matchesSkill = skillSearchTerm === '' || 
-                (agent.skills && agent.skills.toLowerCase().includes(skillSearchTerm.toLowerCase()));
-
-              const matchesCategory = selectedCategory === 'all' || agent.category === selectedCategory;
-              const matchesRole = selectedRole === 'all' || agent.role === selectedRole;
-              
-              return matchesSearch && matchesSkill && matchesCategory && matchesRole;
-            }).map(agent => (
+            {filteredAgents.map(agent => (
               <motion.div 
                 layout
                 initial={{ opacity: 0, y: 15, scale: 0.98 }}
@@ -1628,6 +1713,13 @@ Twój cel: Zwróć wyłącznie czysty JSON o następującej strukturze (żadnych
                 </div>
               </div>
               <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => setSelectedRpgAgent(agent)}
+                  className="modern-btn border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 px-3.5 text-[10px] uppercase font-black flex items-center gap-1 shadow-md shadow-amber-500/5"
+                  title="Otwórz Kartę Postaci RPG agenta"
+                >
+                  <Sparkles size={11} className="text-amber-400 animate-pulse" /> RPG
+                </button>
                 <button 
                   onClick={() => setExpandedAgentId(expandedAgentId === agent.id ? null : agent.id)}
                   className="modern-btn border border-white/5 bg-white/5 text-slate-400 hover:text-white px-4 text-[10px] uppercase font-bold"
@@ -1826,6 +1918,14 @@ Twój cel: Zwróć wyłącznie czysty JSON o następującej strukturze (żadnych
         </AnimatePresence>
       )}
       </div>
+
+      {selectedRpgAgent && (
+        <AgentRpgCardModal 
+          agent={selectedRpgAgent}
+          isOpen={!!selectedRpgAgent}
+          onClose={() => setSelectedRpgAgent(null)}
+        />
+      )}
     </div>
   );
 });
@@ -2245,7 +2345,7 @@ const TeamManager = React.memo(({ onUpdate, onOpenDiscussion, showToast }: { onU
     return `${status}:${text}`;
   };
 
-  const handleKanbanDrop = async (agentId: string, targetStatus: 'todo' | 'in_progress' | 'done', teamId: string) => {
+  const handleKanbanDrop = async (agentId: string, targetStatus: 'todo' | 'in_progress' | 'done', teamId: string, targetAgentId?: string) => {
     const targetTeam = teams.find(t => t.id === teamId);
     if (!targetTeam) return;
 
@@ -2262,6 +2362,54 @@ const TeamManager = React.memo(({ onUpdate, onOpenDiscussion, showToast }: { onU
         t.id === teamId ? { ...t, agentTasks: updatedTasks } : t
       )
     );
+
+    // Save and update order in localStorage
+    const columnAgentsRaw = targetTeam.agents.filter(agent => {
+      const isDraggedSelf = agent.id === agentId;
+      const status = isDraggedSelf ? targetStatus : parseAgentTask(targetTeam.agentTasks?.[agent.id]).status;
+      return status === targetStatus;
+    });
+
+    const savedOrderStr = localStorage.getItem(`kanban_order_${teamId}_${targetStatus}`);
+    let savedOrder: string[] = savedOrderStr ? JSON.parse(savedOrderStr) : [];
+
+    // Filter out agentId if it was already in savedOrder
+    savedOrder = savedOrder.filter(id => id !== agentId);
+
+    // Filter savedOrder to only contain elements that belong to this column + the dragged agent
+    const activeIdsInCol = columnAgentsRaw.map(a => a.id);
+    savedOrder = savedOrder.filter(id => activeIdsInCol.includes(id));
+
+    if (targetAgentId) {
+      const targetIdx = savedOrder.indexOf(targetAgentId);
+      if (targetIdx !== -1) {
+        savedOrder.splice(targetIdx, 0, agentId);
+      } else {
+        savedOrder.push(agentId);
+      }
+    } else {
+      savedOrder.push(agentId);
+    }
+
+    // Capture any other active IDs that are not in savedOrder yet
+    activeIdsInCol.forEach(id => {
+      if (!savedOrder.includes(id)) {
+        savedOrder.push(id);
+      }
+    });
+
+    localStorage.setItem(`kanban_order_${teamId}_${targetStatus}`, JSON.stringify(savedOrder));
+
+    // Remove from previous column's order if it changed
+    const oldStatus = parsed.status;
+    if (oldStatus !== targetStatus) {
+      const oldOrderStr = localStorage.getItem(`kanban_order_${teamId}_${oldStatus}`);
+      if (oldOrderStr) {
+        let oldOrder: string[] = JSON.parse(oldOrderStr);
+        oldOrder = oldOrder.filter(id => id !== agentId);
+        localStorage.setItem(`kanban_order_${teamId}_${oldStatus}`, JSON.stringify(oldOrder));
+      }
+    }
 
     try {
       await api.updateTeam(teamId, { agentTasks: updatedTasks });
@@ -3164,9 +3312,24 @@ const TeamManager = React.memo(({ onUpdate, onOpenDiscussion, showToast }: { onU
             return (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                 {columnsList.map(col => {
-                  const columnAgents = currentTeam.agents.filter(agent => {
+                  const columnAgentsRaw = currentTeam.agents.filter(agent => {
                     const parsed = parseAgentTask(currentTeam.agentTasks?.[agent.id]);
                     return parsed.status === col.id;
+                  });
+
+                  // Retrieve ordered IDs from localStorage for this column
+                  const savedOrderStr = localStorage.getItem(`kanban_order_${currentTeam.id}_${col.id}`);
+                  const savedOrder = savedOrderStr ? (JSON.parse(savedOrderStr) as string[]) : [];
+
+                  const columnAgents = [...columnAgentsRaw].sort((a, b) => {
+                    const idxA = savedOrder.indexOf(a.id);
+                    const idxB = savedOrder.indexOf(b.id);
+                    if (idxA !== -1 && idxB !== -1) {
+                      return idxA - idxB;
+                    }
+                    if (idxA !== -1) return -1;
+                    if (idxB !== -1) return 1;
+                    return 0;
                   });
 
                   const isDraggingOverThis = draggedOverColumn === col.id;
@@ -3211,71 +3374,102 @@ const TeamManager = React.memo(({ onUpdate, onOpenDiscussion, showToast }: { onU
                       </div>
 
                       {/* Column Content Area */}
-                      <div className="p-3 flex-1 space-y-3 overflow-y-auto max-h-[550px] custom-scrollbar">
-                        {columnAgents.length === 0 ? (
-                          <div className="text-center py-12 text-slate-700 border border-dashed border-white/[0.02] rounded-xl flex flex-col items-center justify-center min-h-[140px] bg-black/[0.05]">
-                            <span className="text-[9px] uppercase font-black tracking-wider">Przeciągnij agenta tutaj</span>
-                          </div>
-                        ) : (
-                          columnAgents.map(agent => {
-                            const parsed = parseAgentTask(currentTeam.agentTasks?.[agent.id]);
-                            return (
-                              <div
-                                key={agent.id}
-                                draggable
-                                onDragStart={(e) => {
-                                  e.dataTransfer.setData("text/plain", agent.id);
-                                  setDraggedAgentId(agent.id);
-                                }}
-                                onDragEnd={() => {
-                                  setDraggedAgentId(null);
-                                  setDraggedOverColumn(null);
-                                }}
-                                className={cn(
-                                  "bg-neutral-900 border border-white/5 rounded-xl p-3 hover:border-white/20 hover:bg-neutral-800 transition-all cursor-grab active:cursor-grabbing group shadow-md flex flex-col gap-2.5",
-                                  draggedAgentId === agent.id ? "opacity-35 scale-95 border-dashed border-acid-purple" : ""
-                                )}
-                              >
-                                {/* Card Body */}
-                                <div className="flex items-start justify-between">
-                                  <div className="flex items-center gap-2.5">
-                                    <div 
-                                      className="w-2.5 h-2.5 rounded-full shadow-[0_0_8px_currentColor] shrink-0" 
-                                      style={{ color: agent.color, backgroundColor: agent.color }} 
-                                    />
-                                    <div className="text-left">
-                                      <div className="text-[11px] font-black uppercase tracking-wider text-slate-100 group-hover:text-acid-cyan transition-colors">{agent.name}</div>
-                                      <div className="text-[9px] text-slate-500 font-medium truncate max-w-[150px]">{agent.role}</div>
+                      <div className="p-3 flex-1 space-y-3 overflow-y-auto max-h-[550px] custom-scrollbar relative">
+                        <AnimatePresence mode="popLayout">
+                          {columnAgents.length === 0 ? (
+                            <motion.div
+                              key={`empty-${col.id}`}
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.95 }}
+                              transition={{ duration: 0.2 }}
+                              className="text-center py-12 text-slate-700 border border-dashed border-white/[0.02] rounded-xl flex flex-col items-center justify-center min-h-[140px] bg-black/[0.05]"
+                            >
+                              <span className="text-[9px] uppercase font-black tracking-wider">Przeciągnij agenta tutaj</span>
+                            </motion.div>
+                          ) : (
+                            columnAgents.map(agent => {
+                              const parsed = parseAgentTask(currentTeam.agentTasks?.[agent.id]);
+                              return (
+                                <motion.div
+                                  key={agent.id}
+                                  layout
+                                  layoutId={`kanban-card-${currentTeam.id}-${agent.id}`}
+                                  draggable
+                                  onDragStart={(e: any) => {
+                                    e.dataTransfer.setData("text/plain", agent.id);
+                                    setDraggedAgentId(agent.id);
+                                  }}
+                                  onDragEnd={() => {
+                                    setDraggedAgentId(null);
+                                    setDraggedOverColumn(null);
+                                  }}
+                                  onDragOver={(e) => {
+                                    e.preventDefault();
+                                  }}
+                                  onDrop={(e: any) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const draggedId = e.dataTransfer.getData("text/plain");
+                                    if (draggedId && draggedId !== agent.id) {
+                                      handleKanbanDrop(draggedId, col.id, currentTeam.id, agent.id);
+                                    }
+                                  }}
+                                  initial={{ opacity: 0, scale: 0.95 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  exit={{ opacity: 0, scale: 0.95 }}
+                                  transition={{
+                                    type: "spring",
+                                    stiffness: 260,
+                                    damping: 26,
+                                    layout: { type: "spring", stiffness: 240, damping: 28 }
+                                  }}
+                                  className={cn(
+                                    "bg-neutral-900 border border-white/5 rounded-xl p-3 hover:border-white/20 hover:bg-neutral-800 transition-all cursor-grab active:cursor-grabbing group shadow-md flex flex-col gap-2.5",
+                                    draggedAgentId === agent.id ? "opacity-35 scale-95 border-dashed border-acid-purple" : ""
+                                  )}
+                                >
+                                  {/* Card Body */}
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex items-center gap-2.5">
+                                      <div 
+                                        className="w-2.5 h-2.5 rounded-full shadow-[0_0_8px_currentColor] shrink-0" 
+                                        style={{ color: agent.color, backgroundColor: agent.color }} 
+                                      />
+                                      <div className="text-left">
+                                        <div className="text-[11px] font-black uppercase tracking-wider text-slate-100 group-hover:text-acid-cyan transition-colors">{agent.name}</div>
+                                        <div className="text-[9px] text-slate-500 font-medium truncate max-w-[150px]">{agent.role}</div>
+                                      </div>
+                                    </div>
+                                    
+                                    {/* Drag Handle Icon Indicator */}
+                                    <div className="opacity-30 group-hover:opacity-100 transition-opacity p-0.5 text-slate-500">
+                                      <Lucide.GripVertical size={12} />
                                     </div>
                                   </div>
-                                  
-                                  {/* Drag Handle Icon Indicator */}
-                                  <div className="opacity-30 group-hover:opacity-100 transition-opacity p-0.5 text-slate-500">
-                                    <Lucide.GripVertical size={12} />
+
+                                  {/* Custom Task Field */}
+                                  <div className="space-y-1 bg-white/[0.01] border border-white/[0.03] rounded-lg p-2 group-hover:border-white/10 transition-colors">
+                                    <label className="text-[8px] font-bold text-slate-600 uppercase tracking-widest block">Zadanie:</label>
+                                    <input
+                                      type="text"
+                                      value={parsed.text}
+                                      placeholder="Opisz zadanie robocze..."
+                                      onChange={(e) => handleKanbanTextChange(agent.id, e.target.value, currentTeam.id)}
+                                      className="bg-transparent border-none text-[10px] text-slate-300 focus:text-white p-0 focus:ring-0 w-full placeholder:text-slate-700 outline-none font-medium"
+                                    />
                                   </div>
-                                </div>
 
-                                {/* Custom Task Field */}
-                                <div className="space-y-1 bg-white/[0.01] border border-white/[0.03] rounded-lg p-2 group-hover:border-white/10 transition-colors">
-                                  <label className="text-[8px] font-bold text-slate-600 uppercase tracking-widest block">Zadanie:</label>
-                                  <input
-                                    type="text"
-                                    value={parsed.text}
-                                    placeholder="Opisz zadanie robocze..."
-                                    onChange={(e) => handleKanbanTextChange(agent.id, e.target.value, currentTeam.id)}
-                                    className="bg-transparent border-none text-[10px] text-slate-300 focus:text-white p-0 focus:ring-0 w-full placeholder:text-slate-700 outline-none font-medium"
-                                  />
-                                </div>
-
-                                {/* Model Badge */}
-                                <div className="flex justify-between items-center text-[8px] font-mono border-t border-white/5 pt-1.5 mt-0.5 text-slate-600">
-                                  <span>MODEL</span>
-                                  <span className="text-slate-450 font-bold uppercase">{agent.model.split('/').pop()}</span>
-                                </div>
-                              </div>
-                            );
-                          })
-                        )}
+                                  {/* Model Badge */}
+                                  <div className="flex justify-between items-center text-[8px] font-mono border-t border-white/5 pt-1.5 mt-0.5 text-slate-600">
+                                    <span>MODEL</span>
+                                    <span className="text-slate-450 font-bold uppercase">{agent.model.split('/').pop()}</span>
+                                  </div>
+                                </motion.div>
+                              );
+                            })
+                          )}
+                        </AnimatePresence>
                       </div>
                     </div>
                   );
@@ -3296,6 +3490,8 @@ const TeamManager = React.memo(({ onUpdate, onOpenDiscussion, showToast }: { onU
           agents={agents}
           defaultTeamId={selectedHeatmapTeamId}
           onClose={() => setViewMode('grid')}
+          onUpdateTeams={() => { api.getTeams().then(setTeams); onUpdate(); }}
+          showToast={showToast}
         />
       ) : (
         <div className="space-y-6">
@@ -3703,6 +3899,11 @@ const DiscussionRoom = React.memo(({ teamId, settings, showToast }: { teamId: st
   const [activeAgentIndex, setActiveAgentIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  
+  // Real media recorder states for deep audio transcription
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<BlobPart[]>([]);
+
   const [isAutoRead, setIsAutoRead] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState<'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Zephyr'>('Kore');
   const [showHowTo, setShowHowTo] = useState(false);
@@ -3739,34 +3940,12 @@ const DiscussionRoom = React.memo(({ teamId, settings, showToast }: { teamId: st
     loadTeam();
     loadMessages();
     
-    // Setup Speech Recognition
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.lang = 'pl-PL';
-      recognitionRef.current.continuous = true;
-      recognitionRef.current.interimResults = true;
-
-      recognitionRef.current.onresult = (event: any) => {
-        let finalTranscript = '';
-        let interim = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
-          } else {
-            interim += event.results[i][0].transcript;
-          }
-        }
-        
-        if (finalTranscript) {
-          setInput(prev => prev + (prev.trim() ? ' ' : '') + finalTranscript);
-        }
-        setInterimTranscript(interim);
-      };
-
-      recognitionRef.current.onerror = () => setIsRecording(false);
-      recognitionRef.current.onend = () => setIsRecording(false);
-    }
+    // Cleanup media recorder on unmount if needed
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+        mediaRecorderRef.current.stop();
+      }
+    };
   }, [teamId]);
 
   useEffect(() => {
@@ -4205,6 +4384,9 @@ ${allAgents.map(a => `- ${a.name} (${a.role}): ${a.category}`).join('\n')}
               result = await api.generatePdf(call.args.content, call.args.filename);
             } else if (call.name === 'generate_text_file') {
               result = await api.generateTextFile(call.args.content, call.args.filename, call.args.extension);
+            } else if (call.name === 'analyze_image') {
+              const dxResult = await api.diagnoseImage(call.args.image_path || call.args.filename, 'general', call.args.prompt);
+              finalContent += `\n\n[WYNIK WIZJI AI dla ${call.args.image_path}]:\n${dxResult.expertText}\n`;
             } else if (call.name === 'generate_image') {
               result = await api.generateImage(call.args.text, call.args.width, call.args.height, call.args.format, call.args.filename);
             } else if (call.name === 'generate_video') {
@@ -4455,12 +4637,47 @@ ${allAgents.map(a => `- ${a.name} (${a.role}): ${a.category}`).join('\n')}
     }
   };
 
-  const toggleRecording = () => {
+  const toggleRecording = async () => {
     if (isRecording) {
-      recognitionRef.current?.stop();
+      setIsRecording(false);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+        mediaRecorderRef.current.stop();
+      }
     } else {
-      recognitionRef.current?.start();
       setIsRecording(true);
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+        audioChunksRef.current = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            audioChunksRef.current.push(e.data);
+          }
+        };
+
+        mediaRecorder.onstop = async () => {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          if (showToast) showToast("Rozpoczęto zaawansowaną transkrypcję...");
+          try {
+            const text = await api.transcribeAudio(audioBlob);
+            if (text) {
+              setInput(prev => prev + (prev.trim() ? " " : "") + text);
+              if (showToast) showToast(`Zrozumiano: "${text}"`);
+            }
+          } catch (e) {
+            console.error("Transcription error:", e);
+            if (showToast) showToast("Błąd głębokiej transkrypcji z serwera");
+          }
+          stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorder.start();
+      } catch (e) {
+        setIsRecording(false);
+        if (showToast) showToast("Brak dostępu do mikrofonu (MediaRecorder)");
+      }
     }
   };
 
@@ -5090,16 +5307,25 @@ const TaskManager = React.memo(({ showToast, setActiveTab }: { showToast?: (msg:
     
     // Simulate diagnostic check
     const tasksData = await api.getTasks();
-    const activeTasks = tasksData.filter(t => t.status === 'in-progress');
+    const bottlenecks = detectBottlenecks(tasksData || []);
     
     setTimeout(() => {
       let result = `### Raport Diagnostyczny Roju\n\n`;
-      result += `- Liczba zadań w toku: ${activeTasks.length}\n`;
+      result += `- Liczba zadań w toku: ${tasksData.filter(t => t.status === 'in-progress').length}\n`;
       result += `- Stan klastrów obliczeniowych: ${Math.random() > 0.1 ? "🟢 NORMALNY" : "🔴 WYMAGA OPTYMALIZACJI"}\n`;
       result += `- Przepustowość sieci (synapsy): ${Math.floor(Math.random() * 100) + 50} TB/s\n\n`;
-      result += `**Wniosek:** ${activeTasks.length > 5 ? "Rój pracuje wydajnie, ale obciążenie jest wysokie." : "System stabilny."}`;
+
+      if (bottlenecks.length > 0) {
+        result += `### ⚠️ WYKRYTO ZATORY (BOTTLENECK DETECTOR):\n`;
+        bottlenecks.forEach(b => {
+            result += `- ${b.title}: ${b.message}\n`;
+        });
+      } else {
+        result += `✅ Brak wykrytych zatorów w łańcuchu dostaw.\n`;
+      }
+      
       setDiagnosticsResult(result);
-    }, 2000);
+    }, 1500);
   };
 
   const getTaskDueLabel = (dueDateStr?: string) => {
@@ -5543,6 +5769,12 @@ const TaskManager = React.memo(({ showToast, setActiveTab }: { showToast?: (msg:
   const todoTasksCount = tasks.filter(t => t.status === 'todo').length;
   const taskCompletionPct = totalTasksCount > 0 ? Math.round((doneTasksCount / totalTasksCount) * 100) : 0;
 
+  const pieData = [
+    { name: 'To Do', value: todoTasksCount, color: '#475569' },
+    { name: 'In Progress', value: inProgressTasksCount, color: '#a855f7' },
+    { name: 'Done', value: doneTasksCount, color: '#06b6d4' }
+  ].filter(d => d.value > 0);
+
   return (
     <div className="space-y-6 font-mono text-sm text-slate-300">
       {/* GLÓWNA KONSOLA GLOSOWA CYLON & ASYSTENT ROJU */}
@@ -5738,18 +5970,44 @@ const TaskManager = React.memo(({ showToast, setActiveTab }: { showToast?: (msg:
             </h3>
           </div>
           
-          <div className="flex gap-4 flex-wrap">
-            <div className="text-left sm:text-right">
-              <span className="text-[8px] text-slate-600 uppercase font-black block tracking-wider">DO INICJACJI</span>
-              <span className="text-xs font-bold text-slate-300">{todoTasksCount}</span>
-            </div>
-            <div className="text-left sm:text-right">
-              <span className="text-[8px] text-acid-purple uppercase font-black block tracking-wider">W STRUMIENIU</span>
-              <span className="text-xs font-bold text-acid-purple">{inProgressTasksCount}</span>
-            </div>
-            <div className="text-left sm:text-right">
-              <span className="text-[8px] text-acid-cyan uppercase font-black block tracking-wider">SKROPLONE</span>
-              <span className="text-xs font-bold text-acid-cyan">{doneTasksCount}</span>
+          <div className="flex gap-6 items-center flex-wrap sm:flex-nowrap">
+            {pieData.length > 0 && (
+              <div className="w-16 h-16 shrink-0 inline-block">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      innerRadius={18}
+                      outerRadius={28}
+                      paddingAngle={5}
+                      dataKey="value"
+                      stroke="none"
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '10px' }}
+                      itemStyle={{ color: '#fff', fontSize: '10px' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+            <div className="flex gap-4 flex-wrap">
+              <div className="text-left sm:text-right">
+                <span className="text-[8px] text-slate-600 uppercase font-black block tracking-wider">DO INICJACJI</span>
+                <span className="text-xs font-bold text-slate-300">{todoTasksCount}</span>
+              </div>
+              <div className="text-left sm:text-right">
+                <span className="text-[8px] text-acid-purple uppercase font-black block tracking-wider">W STRUMIENIU</span>
+                <span className="text-xs font-bold text-acid-purple">{inProgressTasksCount}</span>
+              </div>
+              <div className="text-left sm:text-right">
+                <span className="text-[8px] text-acid-cyan uppercase font-black block tracking-wider">SKROPLONE</span>
+                <span className="text-xs font-bold text-acid-cyan">{doneTasksCount}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -6286,6 +6544,7 @@ const TaskManager = React.memo(({ showToast, setActiveTab }: { showToast?: (msg:
                   onUpdate={loadTasks}
                   selected={selectedTaskIds.includes(task.id)}
                   onToggleSelect={() => handleToggleSelectTask(task.id)}
+                  setActiveTab={setActiveTab}
                 />
               </motion.div>
             ))}
@@ -6329,7 +6588,7 @@ const TaskManager = React.memo(({ showToast, setActiveTab }: { showToast?: (msg:
       </AnimatePresence>
 
       {isGraphOpen && (
-        <TaskDependenciesGraph tasks={tasks} onClose={() => setIsGraphOpen(false)} />
+        <TaskDependenciesGraph tasks={tasks} onClose={() => setIsGraphOpen(false)} onUpdate={loadTasks} />
       )}
     </div>
   );
@@ -6610,116 +6869,794 @@ const Assistant = React.memo(() => {
 });
 
 const SecurityLogs = React.memo(() => {
-  const [logs, setLogs] = useState<Log[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(true);
+  
+  // Custom states for pentesting tools
+  const [nodes, setNodes] = useState<any[]>([]);
+  const [selectedTarget, setSelectedTarget] = useState<string>('local-node-1');
+  const [customIp, setCustomIp] = useState<string>('');
+  const [activeSecTab, setActiveSecTab] = useState<'diagnostics' | 'nmap' | 'wireshark' | 'vulnerabilities' | 'audit_logs'>('diagnostics');
+  const [isRunningScan, setIsRunningScan] = useState(false);
+  const [scanResult, setScanResult] = useState<any>(null);
+
+  // Selected Wireshark packet details
+  const [selectedPacket, setSelectedPacket] = useState<any>(null);
+
+  // Load audit logs and cluster targets
+  const fetchInitialData = async () => {
+    try {
+      const [lgs, cls] = await Promise.all([
+        api.getLogs(),
+        api.getClusters()
+      ]);
+      setLogs(lgs || []);
+      setNodes(cls || []);
+      if (cls && cls.length > 0) {
+        setSelectedTarget(cls[0].id);
+      }
+    } catch (e) {
+      console.error("Nie udało się załadować początkowych danych zabezpieczeń:", e);
+    } finally {
+      setIsLoadingLogs(false);
+    }
+  };
 
   useEffect(() => {
-    loadLogs();
-    const interval = setInterval(loadLogs, 5000);
+    fetchInitialData();
+    const interval = setInterval(async () => {
+      try {
+        const lgs = await api.getLogs();
+        setLogs(lgs || []);
+      } catch (_) {}
+    }, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  const loadLogs = async () => {
+  const getActiveIpOrTarget = () => {
+    if (selectedTarget === 'custom') {
+      return customIp || '192.168.100.41';
+    }
+    const nd = nodes.find(n => n.id === selectedTarget || n.name === selectedTarget);
+    return nd ? nd.ip : selectedTarget;
+  };
+
+  const getActiveName = () => {
+    if (selectedTarget === 'custom') {
+      return customIp || 'Custom Target';
+    }
+    const nd = nodes.find(n => n.id === selectedTarget || n.name === selectedTarget);
+    return nd ? nd.name : selectedTarget;
+  };
+
+  // Run security scan (Nmap, Wireshark, Ping, Traceroute, Vuln)
+  const handleRunScan = async (scanType: 'ping' | 'traceroute' | 'nmap' | 'wireshark' | 'vuln') => {
+    setIsRunningScan(true);
+    setScanResult(null);
+    setSelectedPacket(null);
+    
+    const targetVal = selectedTarget === 'custom' ? customIp : selectedTarget;
+    if (selectedTarget === 'custom' && !customIp) {
+      alert("Proszę wprowadzić poprawny adres IP lub domenę!");
+      setIsRunningScan(false);
+      return;
+    }
+
     try {
-      const data = await api.getLogs();
-      setLogs(data);
-    } catch (e) {
-      console.error("Nie udało się załadować logów");
+      const res = await api.runSecurityScan(targetVal, scanType);
+      if (res && res.success) {
+        setScanResult(res);
+        // Reload logs to see new entry
+        const updatedLogs = await api.getLogs();
+        setLogs(updatedLogs || []);
+      } else {
+        alert("Skaner zgłosił błąd podczas próbkowania chronionej strefy.");
+      }
+    } catch (err: any) {
+      alert("Błąd podczas uruchamiania narzędzia: " + err.message);
     } finally {
-      setIsLoading(false);
+      setIsRunningScan(false);
+    }
+  };
+
+  // Hardening and auto patching logic
+  const handlePatchVulnerability = async (vulnId: string) => {
+    const targetVal = selectedTarget === 'custom' ? customIp : selectedTarget;
+    try {
+      const res = await api.patchVulnerability(vulnId, targetVal);
+      if (res && res.success) {
+        // Immersive update of scanResult vulnerabilities locally
+        if (scanResult && scanResult.vulnerabilities) {
+          const updated = scanResult.vulnerabilities.map((v: any) => {
+            if (v.id === vulnId) return { ...v, status: 'PATCHED' };
+            return v;
+          });
+          
+          const newStats = {
+            ...scanResult.stats,
+            critical: updated.filter((v: any) => v.severity === 'CRITICAL' && v.status === 'UNPATCHED').length,
+            high: updated.filter((v: any) => v.severity === 'HIGH' && v.status === 'UNPATCHED').length,
+            medium: updated.filter((v: any) => v.severity === 'MEDIUM' && v.status === 'UNPATCHED').length,
+            patched: updated.filter((v: any) => v.status === 'PATCHED').length
+          };
+
+          setScanResult({
+            ...scanResult,
+            stats: newStats,
+            vulnerabilities: updated
+          });
+        }
+        
+        // Reload audit list
+        const updatedLogs = await api.getLogs();
+        setLogs(updatedLogs || []);
+      } else {
+        alert("Błąd integracji Ansible/Hardening Engine.");
+      }
+    } catch (err: any) {
+      alert("Hardening action failed: " + err.message);
     }
   };
 
   return (
-    <div className="space-y-4 font-mono text-sm">
-      <div className="flex justify-between items-center border-b border-acid-purple/30 pb-2">
-        <h2 className="font-display text-lg uppercase neon-text-purple">Logi Bezpieczeństwa i Aktywności</h2>
-        <div className="flex items-center gap-2 text-[10px] opacity-80 text-acid-green">
-          <Activity size={12} className="text-acid-green animate-pulse" />
-          MONITOROWANIE NA ŻYWO
+    <div className="space-y-6 font-mono text-sm text-slate-300">
+      
+      {/* Header and status belt */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-acid-purple/20 pb-4">
+        <div>
+          <h2 className="font-display text-xl uppercase neon-text-purple tracking-wider flex items-center gap-2 font-black">
+            <Lucide.ShieldAlert className="text-acid-purple animate-pulse" size={24} />
+            Cylon Security Terminal & Port Scanner V3.5
+          </h2>
+          <p className="text-[11px] text-slate-400 mt-1 uppercase tracking-wide">
+            Zintegrowany panel audytu bezpieczeństwa, skanowania aktywnych portów (Nmap) oraz sniffingu pakietów sieciowych (Wireshark)
+          </p>
+        </div>
+        <div className="flex items-center gap-2.5 bg-purple-950/40 border border-purple-500/30 px-3.5 py-1.5 rounded-full text-[10px] text-acid-purple uppercase font-black tracking-widest">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+          Tarcza Roju Active IPS-IDS
         </div>
       </div>
 
-      <div className="glass-panel border border-acid-purple/30 overflow-hidden rounded-xl">
-        <div className="bg-acid-purple/20 text-acid-cyan text-[10px] grid grid-cols-[120px_1fr_150px] p-2 uppercase font-bold tracking-wider font-display border-b border-acid-purple/30">
-          <div>Znacznik czasu</div>
-          <div>Akcja / Szczegóły</div>
-          <div>Agent</div>
+      {/* Target configuration panel */}
+      <div className="bg-slate-950/40 border border-white/5 rounded-2xl p-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+        <div className="md:col-span-4 space-y-1">
+          <label className="text-[9px] uppercase tracking-widest text-[#a855f7] font-black block">Wybierz Cel do Skanowania:</label>
+          <select
+            value={selectedTarget}
+            onChange={(e) => {
+              setSelectedTarget(e.target.value);
+              setScanResult(null);
+              setSelectedPacket(null);
+            }}
+            className="w-full bg-[#0d1326] border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-acid-purple font-mono"
+          >
+            {nodes.map(node => (
+              <option key={node.id} value={node.id}>
+                {node.name} ({node.ip}) — {node.type.toUpperCase()}
+              </option>
+            ))}
+            <option value="custom">-- Zdefiniuj Niestandardowy Adres IP --</option>
+          </select>
         </div>
-        <div className="max-h-[500px] overflow-y-auto divide-y divide-acid-purple/10 custom-scrollbar">
-          {isLoading ? (
-            <div className="p-4 text-center italic opacity-50 text-acid-cyan">Ładowanie logów...</div>
-          ) : logs.length === 0 ? (
-            <div className="p-4 text-center italic opacity-50 text-gray-400">Nie zarejestrowano jeszcze żadnej aktywności.</div>
-          ) : (
-            logs.map(log => (
-              <div key={log.id} className="grid grid-cols-[120px_1fr_150px] p-2 text-[10px] hover:bg-acid-purple/10 transition-colors text-gray-300 font-mono">
-                <div className="opacity-60 text-acid-cyan">{new Date(log.timestamp).toLocaleTimeString()}</div>
-                <div className="flex justify-between items-center pr-4">
-                  <div>
-                    <span className="font-bold uppercase mr-2 text-acid-green">{log.action}</span>
-                    <span className="opacity-80 italic text-gray-400">{log.details}</span>
-                  </div>
-                  {log.action === 'ACCESS_REQUEST' && log.agentId && (
-                    <button 
-                      onClick={async () => {
-                        const resource = log.details?.split(': ')[1];
-                        if (resource) {
-                          const agentRes = await fetch(`/api/agents/${log.agentId}`);
-                          const agent: Agent = await agentRes.json();
-                          const newPermissions = agent.permissions ? `${agent.permissions}, ${resource}` : resource;
-                          await api.updateAgent(log.agentId, { permissions: newPermissions });
-                          await api.createLog({
-                            id: Math.random().toString(36).substr(2, 9),
-                            action: 'ACCESS_GRANTED',
-                            details: `Nadano uprawnienie do: ${resource}`
-                          });
-                          alert(`Nadano dostęp do ${resource} dla ${agent.name}`);
-                          loadLogs();
-                        }
-                      }}
-                      className="px-2 py-0.5 bg-acid-green text-black font-bold rounded uppercase hover:bg-white transition-colors"
-                    >
-                      Dopnij
-                    </button>
+
+        {selectedTarget === 'custom' && (
+          <div className="md:col-span-4 space-y-1">
+            <label className="text-[9px] uppercase tracking-widest text-acid-cyan block">Cel (IP lub Domena):</label>
+            <input
+              type="text"
+              value={customIp}
+              onChange={(e) => {
+                setCustomIp(e.target.value);
+                setScanResult(null);
+              }}
+              placeholder="np. 192.168.12.82 lub host.local"
+              className="w-full bg-[#0d1326] border border-white/10 rounded-xl px-3 py-2 text-xs text-acid-cyan outline-none focus:border-acid-cyan font-mono"
+            />
+          </div>
+        )}
+
+        <div className="md:col-span-4 flex flex-col justify-center text-[10px] space-y-0.5 border-l border-white/5 pl-4">
+          <div className="text-slate-400">Target Hostnames: <span className="text-white font-mono">{getActiveName()}</span></div>
+          <div className="text-slate-400 font-mono">Resolved IPv4 Address: <span className="text-acid-green">{getActiveIpOrTarget()}</span></div>
+          <div className="text-slate-400 font-mono">Control interface: <span className="text-[#a855f7]">eth0 (10.0.0.12)</span></div>
+        </div>
+      </div>
+
+      {/* Main interface with side tabs */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        {/* Navigation Sidebar */}
+        <div className="lg:col-span-3 flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0">
+          {[
+            { id: 'diagnostics' as const, label: '📡 ICMP Diagnostyka', desc: 'Ping i Traceroute' },
+            { id: 'nmap' as const, label: '🛡️ Skaner Nmap', desc: 'Skan portów' },
+            { id: 'wireshark' as const, label: '🦈 Sniffer Wireshark', desc: 'Przechwytywanie pakietów' },
+            { id: 'vulnerabilities' as const, label: '⚠️ Podatności & Łatanie', desc: 'Krytyczny audit' },
+            { id: 'audit_logs' as const, label: '📜 Logi Zdarzeń', desc: 'Pełna historia Roju' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setActiveSecTab(tab.id);
+                setScanResult(null);
+                setSelectedPacket(null);
+              }}
+              className={`text-left p-3.5 rounded-2xl border transition-all shrink-0 w-[170px] lg:w-full font-mono outline-none ${
+                activeSecTab === tab.id
+                  ? 'bg-purple-950/40 border-acid-purple/50 text-white shadow-lg shadow-purple-500/10'
+                  : 'bg-black/30 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <div className="text-xs font-bold leading-tight">{tab.label}</div>
+              <div className="text-[9px] text-slate-500 mt-1 font-mono">{tab.desc}</div>
+            </button>
+          ))}
+        </div>
+
+        {/* Content Console Panel */}
+        <div className="lg:col-span-9 bg-slate-900/40 border border-white/5 rounded-3xl p-6 min-h-[460px] flex flex-col justify-between relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-[#a855f7]/5 rounded-full blur-2xl pointer-events-none" />
+
+          {/* Current view switcher */}
+          <div className="space-y-4 flex-1 flex flex-col justify-between">
+            
+            {/* 1. ICMP DIAGNOSTICS TAB */}
+            {activeSecTab === 'diagnostics' && (
+              <div className="space-y-4 flex-1 flex flex-col justify-between">
+                <div className="space-y-1">
+                  <h3 className="text-xs uppercase font-extrabold text-white tracking-widest flex items-center gap-1.5 font-mono">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    ICMP PROBING ENGINE (PING & TRACEROUTE)
+                  </h3>
+                  <p className="text-[10px] text-slate-400">
+                    Bada opóźnienia i zatory sieciowe w pakietach ICMP z uwzględnieniem liczby przeskoków na drodze routerowej.
+                  </p>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => handleRunScan('ping')}
+                    disabled={isRunningScan}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold uppercase transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    {isRunningScan ? <Lucide.Loader2 size={13} className="animate-spin" /> : <Lucide.Activity size={13} />}
+                    Wyślij Ping Probe
+                  </button>
+                  <button
+                    onClick={() => handleRunScan('traceroute')}
+                    disabled={isRunningScan}
+                    className="px-4 py-2 border border-[#a855f7]/30 hover:bg-purple-950/20 disabled:opacity-50 text-[#a855f7] rounded-xl text-xs font-bold uppercase transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    {isRunningScan ? <Lucide.Loader2 size={13} className="animate-spin" /> : <Lucide.Network size={13} />}
+                    Uruchom Traceroute
+                  </button>
+                </div>
+
+                {/* Scan Outcomes rendering */}
+                <div className="mt-4 flex-1">
+                  {isRunningScan && (
+                    <div className="flex flex-col items-center justify-center p-12 space-y-3">
+                      <Lucide.Loader2 className="animate-spin text-acid-purple" size={32} />
+                      <div className="text-xs text-slate-400 font-mono tracking-widest animate-pulse">SONDOWANIE PAKIETAMI W TOKU... [WAIT FOR INTERFACE]</div>
+                    </div>
+                  )}
+
+                  {!isRunningScan && !scanResult && (
+                    <div className="border border-dashed border-white/10 rounded-2xl p-10 text-center text-slate-500 flex flex-col items-center justify-center space-y-4">
+                      <Lucide.Globe size={32} className="text-slate-600" />
+                      <p className="text-xs max-w-sm">
+                        Wskaż cel powyżej i wybierz komendę wysyłania probe, aby rozpocząć dynamiczną mapę translacji pakietów ICMP.
+                      </p>
+                    </div>
+                  )}
+
+                  {!isRunningScan && scanResult && scanResult.type === 'ping' && (
+                    <div className="space-y-4 animate-in fade-in duration-200">
+                      <div className="p-3.5 bg-black/40 border border-white/5 rounded-2xl flex flex-wrap gap-6 text-xs justify-between">
+                        <div>Wysłane pakiety: <span className="text-white font-bold">{scanResult.summary.sent}</span></div>
+                        <div>Odebrane pakiety: <span className="text-acid-green font-bold">{scanResult.summary.received}</span></div>
+                        <div>Straty pakietów: <span className={`${scanResult.summary.loss > 0 ? "text-red-500" : "text-emerald-500"} font-bold`}>{scanResult.summary.loss}%</span></div>
+                        <div>Średni RTT: <span className="text-acid-cyan font-bold">{scanResult.summary.avgTime} ms</span></div>
+                      </div>
+
+                      <div className="bg-black/80 border border-white/5 rounded-2xl p-4 font-mono text-[11px] leading-relaxed text-slate-300 space-y-1 shadow-inner">
+                        <div className="text-[#a855f7] font-black pb-1.5 border-b border-white/5 mb-2">&gt;&gt;&gt; LOG PING TERMINAL DIAGNOSTICS:</div>
+                        {scanResult.details.map((pkt: any, index: number) => (
+                          <div key={index} className="flex justify-between font-mono">
+                            <span>
+                              64 bytes from <span className="text-white font-semibold">{scanResult.ip}</span>: icmp_seq={pkt.seq} ttl={pkt.ttl} 
+                              {pkt.time ? ` time=${pkt.time} ms` : ` (Request Timeout)`}
+                            </span>
+                            <span className={pkt.status === 'SUCCESS' ? 'text-emerald-500 font-bold' : 'text-red-500 font-black'}>
+                              [{pkt.status}]
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {!isRunningScan && scanResult && scanResult.type === 'traceroute' && (
+                    <div className="space-y-4 animate-in fade-in duration-200">
+                      <div className="bg-black border border-white/5 rounded-2xl p-4 space-y-3 shadow-inner">
+                        <div className="text-acid-cyan font-bold text-xs uppercase tracking-wider pb-1 border-b border-white/5 flex items-center justify-between">
+                          <span>Ścieżka Routingu Traceroute</span>
+                          <span className="text-[10px] font-mono font-medium text-slate-500">MAX 30 HOPS</span>
+                        </div>
+
+                        <div className="space-y-2">
+                          {scanResult.hops.map((hop: any) => (
+                            <div key={hop.hop} className="flex items-center gap-3 text-xs">
+                              <span className="w-6 h-6 shrink-0 rounded-full bg-slate-900 border border-white/10 flex items-center justify-center font-bold text-[10px] text-slate-400">
+                                {hop.hop}
+                              </span>
+                              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1 px-3 py-1.5 rounded-xl bg-white/5 border border-white/5 font-mono text-[11px]">
+                                <span className="text-white font-semibold truncate select-all">{hop.host}</span>
+                                <span className="text-slate-400 font-mono select-all">{hop.ip}</span>
+                                <span className="text-acid-green font-mono text-right md:text-left lg:text-right">
+                                  {hop.rtt1 !== '*' ? `${hop.rtt1} ms  |  ${hop.rtt2} ms  |  ${hop.rtt3} ms` : '* * * Timeout'}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
-                <div className="font-bold truncate text-acid-purple">{log.agentName || 'SYSTEM'}</div>
               </div>
-            ))
-          )}
+            )}
+
+            {/* 2. NMAP PORT SCANNER TAB */}
+            {activeSecTab === 'nmap' && (
+              <div className="space-y-4 flex-1 flex flex-col justify-between">
+                <div className="space-y-1">
+                  <h3 className="text-xs uppercase font-extrabold text-white tracking-widest flex items-center gap-1.5 font-mono">
+                    <span className="w-1.5 h-1.5 rounded-full bg-acid-purple animate-pulse" />
+                    NMAP INTELLIGENT PORT PROBER (TCP SYN SCANNER)
+                  </h3>
+                  <p className="text-[10px] text-slate-400">
+                    Aktywnie skanuje porty docelowe hosta w celu określenia włączonych uslug sieciowych, ich wersji oprogramowania i ewentualnych podatności.
+                  </p>
+                </div>
+
+                <div className="flex pt-2">
+                  <button
+                    onClick={() => handleRunScan('nmap')}
+                    disabled={isRunningScan}
+                    className="px-5 py-2.5 bg-sky-500 hover:bg-sky-450 active:bg-sky-600 font-black disabled:opacity-50 text-black rounded-xl text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-sky-500/10"
+                  >
+                    {isRunningScan ? <Lucide.Loader2 size={13} className="animate-spin" /> : <Lucide.Cpu size={13} />}
+                    {isRunningScan ? 'Analiza w toku...' : 'Uruchom Skanowanie Nmap (Port Probe)'}
+                  </button>
+                </div>
+
+                {/* Scan outcomes rendering */}
+                <div className="mt-4 flex-1">
+                  {isRunningScan && (
+                    <div className="flex flex-col items-center justify-center p-12 space-y-3">
+                      <Lucide.Loader2 className="animate-spin text-sky-400" size={32} />
+                      <div className="text-xs text-slate-400 font-mono tracking-widest animate-pulse">TRWA PORT PROBING & IDENTYFIKACJA USŁUG...</div>
+                    </div>
+                  )}
+
+                  {!isRunningScan && !scanResult && (
+                    <div className="border border-dashed border-white/10 rounded-2xl p-10 text-center text-slate-500 flex flex-col items-center justify-center space-y-4">
+                      <Lucide.Terminal size={32} className="text-slate-600" />
+                      <p className="text-xs max-w-sm">
+                        Uruchom skan portów NMAP, aby zmapować wszystkie systemy operacyjne oraz flagi otwartych kanałów komunikacji.
+                      </p>
+                    </div>
+                  )}
+
+                  {!isRunningScan && scanResult && scanResult.type === 'nmap' && (
+                    <div className="space-y-4 animate-in fade-in duration-200">
+                      
+                      {/* Port status list */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {scanResult.ports.map((p: any) => (
+                          <div 
+                            key={p.port}
+                            className={`p-3 rounded-2xl border flex items-center justify-between bg-black/40 ${
+                              p.status === 'OPEN' 
+                                ? 'border-emerald-500/20 hover:border-emerald-500/40' 
+                                : p.status === 'CLOSED'
+                                  ? 'border-slate-800'
+                                  : 'border-amber-500/20'
+                            }`}
+                          >
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-2">
+                                <span className="text-white font-bold font-mono text-[11px]">{p.port}/TCP</span>
+                                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase font-mono ${
+                                  p.status === 'OPEN' ? 'bg-emerald-950/40 text-emerald-400' : p.status === 'CLOSED' ? 'bg-slate-900 text-slate-400' : 'bg-amber-950/40 text-amber-400'
+                                }`}>
+                                  {p.status}
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-slate-400 font-mono">Usługa: <span className="text-[#a855f7] font-semibold">{p.service}</span></div>
+                              <div className="text-[9px] text-slate-500 font-mono">Soft: {p.version}</div>
+                            </div>
+
+                            {p.vuln && (
+                              <div className="p-1 px-1.5 rounded bg-red-950/40 border border-red-500/20 text-red-500 text-[8px] font-black tracking-wider uppercase flex items-center gap-1">
+                                <Lucide.Flame size={10} /> POSSIBLY VULNERABLE
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Raw console report expanion */}
+                      <details className="group border border-white/5 rounded-2xl overflow-hidden bg-black/80">
+                        <summary className="p-3.5 text-xs text-slate-300 font-bold hover:bg-white/5 cursor-pointer list-none flex justify-between items-center font-mono select-none">
+                          <span>&gt;&gt; Pokaż pełny raport czystego terminala (Nmap ASCII output)</span>
+                          <span className="text-[10px] text-[#a855f7] font-semibold group-open:hidden">ROZWIŃ RACHUNEK</span>
+                          <span className="text-[10px] text-slate-500 font-semibold hidden group-open:inline">ZWIŃ RAPORT</span>
+                        </summary>
+                        <pre className="p-4 overflow-x-auto text-[10px] text-emerald-400 leading-relaxed font-mono whitespace-pre bg-black max-h-[300px] border-t border-white/5 custom-scrollbar">
+                          {scanResult.rawReport}
+                        </pre>
+                      </details>
+                    </div>
+                  )}
+
+                </div>
+              </div>
+            )}
+
+            {/* 3. WIRESHARK LIVE PACKET CAPTURE TAB */}
+            {activeSecTab === 'wireshark' && (
+              <div className="space-y-4 flex-1 flex flex-col justify-between">
+                <div className="space-y-1">
+                  <h3 className="text-xs uppercase font-extrabold text-white tracking-widest flex items-center gap-1.5 font-mono">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                    WIRESHARK INTERACTIVE PACKET SNIFFER (PCAP DECODER)
+                  </h3>
+                  <p className="text-[10px] text-slate-400">
+                    Przechwytuje i dekoduje surowe ramki ethernetowe oraz pakiety IP płynące na interfejsie w czasie rzeczywistym.
+                  </p>
+                </div>
+
+                <div className="flex gap-4 pt-2">
+                  <button
+                    onClick={() => handleRunScan('wireshark')}
+                    disabled={isRunningScan}
+                    className="px-5 py-2.5 bg-cyan-500 hover:bg-cyan-400 select-none cursor-pointer disabled:opacity-50 text-black font-black rounded-xl text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-lg shadow-cyan-500/10"
+                  >
+                    {isRunningScan ? <Lucide.Loader2 size={13} className="animate-spin" /> : <Lucide.Eye size={13} />}
+                    {isRunningScan ? 'Nasłuchiwanie interfejsu...' : 'Rozpocznij Capture (Sniff eth0)'}
+                  </button>
+                  <div className="text-[9px] text-slate-500 max-w-[400px] leading-tight flex items-center">
+                    Gromadzi pakiety TCP/UDP z flagami i ładunkiem payload w celu deszyfrowania aktywności agentów.
+                  </div>
+                </div>
+
+                {/* Sniffer outcomes rendering */}
+                <div className="mt-4 flex-1">
+                  {isRunningScan && (
+                    <div className="flex flex-col items-center justify-center p-12 space-y-3">
+                      <Lucide.Loader2 className="animate-spin text-cyan-400" size={32} />
+                      <div className="text-xs text-slate-400 font-mono tracking-widest animate-pulse">NASŁUCHIWANIE TRANSAKCJI PAKIETÓW NA PORCIE 3000... [PROMISCUOUS]</div>
+                    </div>
+                  )}
+
+                  {!isRunningScan && !scanResult && (
+                    <div className="border border-dashed border-white/10 rounded-2xl p-10 text-center text-slate-500 flex flex-col items-center justify-center space-y-4">
+                      <Lucide.Network size={32} className="text-slate-600" />
+                      <p className="text-xs max-w-sm">
+                        Kliknij Sniff eth0, aby rozpocząć rejestrowanie strumienia ramek cyfrowych i monitorowanie wymiany komunikatów.
+                      </p>
+                    </div>
+                  )}
+
+                  {!isRunningScan && scanResult && scanResult.type === 'wireshark' && (
+                    <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 animate-in fade-in duration-200 items-start">
+                      
+                      {/* Left list of packets */}
+                      <div className="xl:col-span-7 bg-black/40 border border-white/5 rounded-2xl p-3 space-y-1 max-h-[350px] overflow-y-auto custom-scrollbar shadow-inner">
+                        <div className="text-[9px] text-[#a855f7] font-black pb-1 uppercase tracking-widest font-mono border-b border-white/5 mb-2 leading-none flex justify-between">
+                          <span>Przechwycone Pakiety</span>
+                          <span>Wskaż pakiet, aby sprawdzić Hex Dump</span>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          {scanResult.packets.map((pkt: any) => (
+                            <div 
+                              key={pkt.id}
+                              onClick={() => setSelectedPacket(pkt)}
+                              className={`p-2 rounded-xl border flex flex-col cursor-pointer transition-all ${
+                                selectedPacket?.id === pkt.id 
+                                  ? 'bg-cyan-950/40 border-cyan-500/50 text-white' 
+                                  : 'bg-black/30 border-white/5 hover:border-white/10 text-slate-300'
+                              }`}
+                            >
+                              <div className="flex justify-between items-center text-[10px] font-mono leading-none">
+                                <span className="font-semibold text-slate-500">{pkt.time}s</span>
+                                <span className={`font-black px-1 rounded text-[8px] ${
+                                  pkt.proto === 'TCP' ? 'bg-blue-950 text-blue-400' : pkt.proto === 'HTTP' ? 'bg-emerald-950 text-emerald-400' : pkt.proto === 'TLSv1.3' ? 'bg-purple-950 text-purple-400' : 'bg-slate-900 text-slate-400'
+                                }`}>
+                                  {pkt.proto}
+                                </span>
+                              </div>
+                              <div className="flex gap-2 text-[9px] font-mono pt-1 justify-between truncate leading-tight">
+                                <span>Src: <b className="text-slate-400">{pkt.src}</b></span>
+                                <span>Dst: <b className="text-slate-400">{pkt.dst}</b></span>
+                                <span className="text-slate-500 font-mono">Len: {pkt.size}b</span>
+                              </div>
+                              <div className="text-[9px] text-slate-400 italic font-mono pt-1 truncate leading-tight opacity-90">
+                                {pkt.body}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Right hexadecimal payload pane */}
+                      <div className="xl:col-span-5 bg-black border border-white/5 rounded-2xl p-4.5 space-y-3 min-h-[300px] xl:min-h-0">
+                        <div className="text-[10px] text-cyan-400 font-extrabold uppercase tracking-widest pb-1 border-b border-white/5 font-mono">
+                          HEXADECIMAL DATA DECODER (RAW PCAP FIELD)
+                        </div>
+
+                        {selectedPacket ? (
+                          <div className="space-y-2 animate-in zoom-in-95 duration-150">
+                            <div className="text-[9px] text-slate-400 space-y-1 font-mono">
+                              <div><span className="text-slate-500">Pkt Sequence ID:</span> <span className="text-white font-bold">{selectedPacket.id}</span></div>
+                              <div><span className="text-slate-500">Port Map Affinity:</span> <span className="text-white">{selectedPacket.srcPort} → {selectedPacket.dstPort}</span></div>
+                              <div><span className="text-slate-500">Protocol Encid:</span> <span className="text-cyan-400 font-bold">{selectedPacket.proto} FRAME</span></div>
+                            </div>
+                            <pre className="p-2 bg-[#090b14] rounded-lg text-[9px] font-mono text-emerald-400 overflow-x-auto whitespace-pre leading-relaxed custom-scrollbar border border-white/5">
+                              {selectedPacket.hexDump}
+                            </pre>
+                            <div className="text-[9px] text-slate-500 italic font-mono leading-snug">
+                              Przeanalizowano pole sumy kontrolnej CRC-32 (0x7e30da15). Integralność pakietu zweryfikowana.
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="h-[210px] flex items-center justify-center border border-dashed border-white/5 rounded-xl text-center p-4 text-[10px] text-slate-500 italic font-mono">
+                            Kliknij dowolny ze sparowanych pakietów z lewej strony, aby zdekodować nagłówek binarny i analizować ładunek ASCII.
+                          </div>
+                        )}
+                      </div>
+
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 4. VULNERABILITIES & HARDENING TAB */}
+            {activeSecTab === 'vulnerabilities' && (
+              <div className="space-y-4 flex-1 flex flex-col justify-between">
+                <div className="space-y-1">
+                  <h3 className="text-xs uppercase font-extrabold text-white tracking-widest flex items-center gap-1.5 font-mono">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                    OWASP & TRIVY VULNERABILITY INSPECT SYSTEM (PEN-TEST FEED)
+                  </h3>
+                  <p className="text-[10px] text-slate-400">
+                    Bada pakiety pod kątem znanych luk (CVE) i systemowej konfiguracji. Pozwala automatycznie wdrażać poprawki Ansible do hardeningu węzłów.
+                  </p>
+                </div>
+
+                <div className="flex pt-2">
+                  <button
+                    onClick={() => handleRunScan('vuln')}
+                    disabled={isRunningScan}
+                    className="px-5 py-2.5 bg-red-600 hover:bg-red-500 active:bg-red-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-red-600/10"
+                  >
+                    {isRunningScan ? <Lucide.Loader2 size={13} className="animate-spin" /> : <Lucide.ShieldAlert size={13} />}
+                    {isRunningScan ? 'Weryfikacja bazy CVE...' : 'Skanuj Profil Podatności (OWASP Pen-test)'}
+                  </button>
+                </div>
+
+                {/* Vulnerability scan outcomes */}
+                <div className="mt-4 flex-1">
+                  {isRunningScan && (
+                    <div className="flex flex-col items-center justify-center p-12 space-y-3">
+                      <Lucide.Loader2 className="animate-spin text-red-500" size={32} />
+                      <div className="text-xs text-slate-400 font-mono tracking-widest animate-pulse">ANALIZOWANIE WERSJI WPAKETOWANYCH BIBLIOTEK & PODATNOŚCI...</div>
+                    </div>
+                  )}
+
+                  {!isRunningScan && !scanResult && (
+                    <div className="border border-dashed border-white/10 rounded-2xl p-10 text-center text-slate-500 flex flex-col items-center justify-center space-y-4">
+                      <Lucide.AlertTriangle size={32} className="text-slate-600" />
+                      <p className="text-xs max-w-sm">
+                        Uruchom audit podatności, aby zbadać stopień naruszenia środowiska, wycieki tokenów, przestarzałe sygnatury i podatności typu RCE.
+                      </p>
+                    </div>
+                  )}
+
+                  {!isRunningScan && scanResult && scanResult.type === 'vuln' && (
+                    <div className="space-y-4 animate-in fade-in duration-200">
+                      
+                      {/* Metric Dashboard stats */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {[
+                          { count: scanResult.stats.critical, title: 'KRYTYCZNE (CRITICAL)', color: 'text-red-500 border-red-500/20 bg-red-950/20' },
+                          { count: scanResult.stats.high, title: 'WYSOKIE (HIGH)', color: 'text-amber-500 border-amber-500/20 bg-amber-950/20' },
+                          { count: scanResult.stats.medium, title: 'ŚREDNIE (MEDIUM)', color: 'text-yellow-400 border-yellow-500/20 bg-yellow-950/10' },
+                          { count: scanResult.stats.patched, title: 'ZAŁATANE (FIXED)', color: 'text-emerald-400 border-emerald-500/20 bg-emerald-950/20' }
+                        ].map((s, index) => (
+                          <div key={index} className={`p-3 rounded-2xl border ${s.color} text-center`}>
+                            <div className="text-2xl font-black">{s.count}</div>
+                            <div className="text-[8px] font-bold uppercase mt-1 tracking-wider font-mono">{s.title}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* List of CVEs with manual patch CTA buttons */}
+                      <div className="space-y-3">
+                        {scanResult.vulnerabilities.map((v: any) => (
+                          <div 
+                            key={v.id} 
+                            className={`p-4 rounded-2xl bg-black/40 border flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${
+                              v.status === 'PATCHED' 
+                                ? 'border-emerald-500/20 opacity-70' 
+                                : v.severity === 'CRITICAL' 
+                                  ? 'border-red-500/20' 
+                                  : 'border-white/5'
+                            }`}
+                          >
+                            <div className="space-y-1.5 flex-1 max-w-3xl">
+                              <div className="flex items-center flex-wrap gap-2.5">
+                                <span className="text-white font-black font-mono text-[11px] select-all">{v.id}</span>
+                                <span className={`text-[8px] font-black px-1.5 py-0.2 rounded ${
+                                  v.status === 'PATCHED'
+                                    ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/30'
+                                    : v.severity === 'CRITICAL' 
+                                      ? 'bg-red-950 text-red-400 border border-red-500/30' 
+                                      : v.severity === 'HIGH' 
+                                        ? 'bg-amber-950 text-amber-400 border border-amber-500/20' 
+                                        : 'bg-yellow-950 text-yellow-400 border border-yellow-500/10'
+                                }`}>
+                                  {v.status === 'PATCHED' ? 'PATCHED & ALIGNED' : `${v.severity} • CVSS ${v.cvss}`}
+                                </span>
+                                <span className="text-xs font-bold text-slate-200">{v.title}</span>
+                              </div>
+                              <p className="text-[10px] text-slate-400 font-mono leading-relaxed">{v.description}</p>
+                              <div className="text-[9px] text-slate-500 font-mono">
+                                <span className="text-acid-cyan">Zalecenie:</span> {v.recommendation}
+                              </div>
+                            </div>
+
+                            <div className="shrink-0">
+                              {v.status === 'PATCHED' ? (
+                                <div className="p-2 bg-emerald-950/40 border border-emerald-500/30 rounded-xl text-emerald-400 font-bold text-[10px] font-mono flex items-center gap-1">
+                                  <Lucide.CheckCircle2 size={13} /> BEZPIECZNY
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handlePatchVulnerability(v.id)}
+                                  className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 font-mono font-black text-black text-[10px] rounded-xl flex items-center gap-1 uppercase select-none cursor-pointer border border-emerald-600 shadow-md transition-all sm:w-auto"
+                                >
+                                  <Lucide.Zap size={11} /> Załataj (Auto Hardening)
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                    </div>
+                  )}
+
+                </div>
+              </div>
+            )}
+
+            {/* 5. AUDIT LOGS (ORIGINAL LOG FEED RETRO-COMPATIBILITY) */}
+            {activeSecTab === 'audit_logs' && (
+              <div className="space-y-4 flex-1 flex flex-col justify-between">
+                <div className="space-y-1">
+                  <h3 className="text-xs uppercase font-extrabold text-white tracking-widest flex items-center gap-1.5 font-mono">
+                    <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+                    SYSTEM AUDIT TRAIL LOGS
+                  </h3>
+                  <p className="text-[10px] text-slate-400">
+                    Nigdy nie modyfikowalny rejestr działań agentów, dostępu do baz danych SQLite oraz wdrożeń.
+                  </p>
+                </div>
+
+                <div className="glass-panel border border-[#a855f7]/20 overflow-hidden rounded-2xl">
+                  <div className="bg-purple-950/40 text-acid-cyan text-[9px] grid grid-cols-[120px_1fr_150px] p-2 uppercase font-bold tracking-wider font-display border-b border-white/5">
+                    <div>Znacznik czasu</div>
+                    <div>Akcja / Szczegóły</div>
+                    <div>Agent</div>
+                  </div>
+                  <div className="max-h-[300px] overflow-y-auto divide-y divide-white/5 custom-scrollbar font-mono">
+                    {isLoadingLogs ? (
+                      <div className="p-4 text-center italic opacity-50 text-acid-cyan">Ładowanie logów...</div>
+                    ) : logs.length === 0 ? (
+                      <div className="p-4 text-center italic opacity-50 text-gray-400">Nie zarejestrowano jeszcze żadnej aktywności.</div>
+                    ) : (
+                      logs.map(log => (
+                        <div key={log.id} className="grid grid-cols-[120px_1fr_150px] p-2 text-[10px] hover:bg-white/5 transition-colors text-gray-300 font-mono">
+                          <div className="opacity-60 text-acid-cyan">{new Date(log.timestamp).toLocaleTimeString()}</div>
+                          <div className="flex justify-between items-center pr-4">
+                            <div>
+                              <span className="font-bold uppercase mr-2 text-acid-green">{log.action}</span>
+                              <span className="opacity-80 italic text-slate-400">{log.details}</span>
+                            </div>
+                            {log.action === 'ACCESS_REQUEST' && log.agentId && (
+                              <button 
+                                onClick={async () => {
+                                  const resource = log.details?.split(': ')[1];
+                                  if (resource) {
+                                    const agentRes = await fetch(`/api/agents/${log.agentId}`);
+                                    const agent: Agent = await agentRes.json();
+                                    const newPermissions = agent.permissions ? `${agent.permissions}, ${resource}` : resource;
+                                    await api.updateAgent(log.agentId, { permissions: newPermissions });
+                                    await api.createLog({
+                                      id: Math.random().toString(36).substr(2, 9),
+                                      action: 'ACCESS_GRANTED',
+                                      details: `Nadano uprawnienie do: ${resource}`
+                                    });
+                                    alert(`Nadano dostęp do ${resource} dla ${agent.name}`);
+                                    fetchInitialData();
+                                  }
+                                }}
+                                className="px-2 py-0.5 bg-acid-green text-black font-bold rounded uppercase hover:bg-white transition-colors"
+                              >
+                                Dopnij
+                              </button>
+                            )}
+                          </div>
+                          <div className="font-bold truncate text-acid-purple">{log.agentName || 'SYSTEM'}</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+          </div>
+
+          {/* Console footer */}
+          <div className="mt-6 pt-4 border-t border-white/5 flex flex-wrap gap-4 text-[9px] text-slate-500 uppercase tracking-wider font-mono justify-between">
+            <div>Audit session: <span className="text-white select-all">cylon-session-9df43a</span></div>
+            <div>Decryption engine: <span className="text-[#a855f7]">AES-256-GCM SECURE LOCK</span></div>
+            <div>Database Sync: <span className="text-emerald-400">ONLINE</span></div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Security Policies */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-950/40 p-4 rounded-2xl border border-white/5">
+        <div className="space-y-1.5 p-1 rounded">
+          <div className="flex items-center gap-2 font-black uppercase text-xs text-white">
+            <Lucide.Shield size={14} className="text-[#a855f7]" /> Status Zabezpieczeń Roju
+          </div>
+          <div className="space-y-1 text-[10px]">
+            <div className="flex justify-between font-mono">
+              <span className="text-slate-400">Izolacja Piaskownicy Piaskownicy (Sandboxes)</span>
+              <span className="text-emerald-400 font-bold">AKTYWNY</span>
+            </div>
+            <div className="flex justify-between font-mono">
+              <span className="text-slate-400">Szyfrowanie Poświadczeń SSL/TLS v1.3</span>
+              <span className="text-emerald-400 font-bold">WŁĄCZONE</span>
+            </div>
+            <div className="flex justify-between font-mono">
+              <span className="text-slate-400">Limitowanie Żądań API (Rate-limiting Threshold)</span>
+              <span className="text-emerald-400 font-bold">MONITOROWANE (100 Request/min)</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-1.5 p-1 rounded">
+          <div className="flex items-center gap-2 font-black uppercase text-xs text-white">
+            <Lucide.Terminal size={14} className="text-[#a855f7]" /> Globalna Polityka Audytu
+          </div>
+          <p className="text-[10px] text-slate-400 leading-relaxed font-mono">
+            Wszystkie interakcje agentów, binarne żądania nmap/wireshark, wstrzyknięcia poleceń powłoki i dostępy do baz SQLite są rejestrowane z kryptograficznymi znacznikami czasu SHA-256 w celu zapewnienia zgodności z audytem ISO-27001 i ochrony przed wyciekiem prywatnych danych.
+          </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="border border-acid-purple/30 p-3 glass-panel space-y-2 rounded-xl">
-          <div className="flex items-center gap-2 font-bold uppercase text-xs">
-            <Shield size={14} /> Status Bezpieczeństwa
-          </div>
-          <div className="space-y-1 text-[10px]">
-            <div className="flex justify-between">
-              <span>Izolacja Piaskownicy</span>
-              <span className="text-green-600 font-bold">AKTYWNY</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Szyfrowanie Poświadczeń</span>
-              <span className="text-green-600 font-bold">WŁĄCZONE</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Limitowanie Żądań API</span>
-              <span className="text-green-600 font-bold">MONITOROWANE</span>
-            </div>
-          </div>
-        </div>
-        <div className="border border-[#141414] p-3 bg-white/50 space-y-2">
-          <div className="flex items-center gap-2 font-bold uppercase text-xs">
-            <Terminal size={14} /> Polityka Audytu
-          </div>
-          <div className="text-[10px] opacity-70 italic">
-            Wszystkie interakcje agentów, wykonania poleceń i dostępy do integracji są rejestrowane z kryptograficznymi znacznikami czasu w celu zapewnienia zgodności z audytem.
-          </div>
-        </div>
-      </div>
     </div>
   );
 });
@@ -6729,16 +7666,76 @@ const SecurityLogs = React.memo(() => {
 const Clusters = React.memo(({ showToast }: { showToast?: (msg: string) => void }) => {
   const [nodes, setNodes] = useState<ClusterNode[]>([]);
   const [isAdding, setIsAdding] = useState(false);
+  
+  // Adaptive Load Balancer states
+  const [isBalancing, setIsBalancing] = useState(false);
+  const [balancerStrategy, setBalancerStrategy] = useState<'round-robin' | 'least-loaded' | 'performance-match'>('round-robin');
+  const [balancerCores, setBalancerCores] = useState<number>(8);
+  const [reassignTasks, setReassignTasks] = useState(true);
+  const [reassignProcesses, setReassignProcesses] = useState(true);
+  const [balancerResult, setBalancerResult] = useState<any>(null);
+  const [activeProcessesList, setActiveProcessesList] = useState<any[]>([]);
+  const [activeTasksList, setActiveTasksList] = useState<any[]>([]);
+
+  const fetchBalancingOverviewData = async () => {
+    try {
+      const [procs, tsks] = await Promise.all([
+        api.getProcessStates(),
+        api.getTasks()
+      ]);
+      setActiveProcessesList(procs || []);
+      setActiveTasksList(tsks || []);
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    fetchBalancingOverviewData();
+  }, [nodes]);
+
+  const handleExecuteSystemBalancing = async () => {
+    setIsBalancing(true);
+    setBalancerResult(null);
+    try {
+      const res = await api.runLoadBalancer({
+        strategy: balancerStrategy,
+        availableCores: balancerCores,
+        reassignTasks,
+        reassignProcesses
+      });
+
+      if (res && res.success) {
+        setBalancerResult(res);
+        if (showToast) {
+          showToast(`Balanser pomyślnie zoptymalizował obciążenie klastra (Strategia: ${balancerStrategy.toUpperCase()})`);
+        }
+        await Promise.all([
+          loadClusters(),
+          fetchBalancingOverviewData()
+        ]);
+      } else {
+        alert("Błąd podczas uruchamiania balansera obciążeń.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert("Błąd wykonania algorytmu ALB: " + err.message);
+    } finally {
+      setIsBalancing(false);
+    }
+  };
+
   const [newNode, setNewNode] = useState<Partial<ClusterNode>>({
     name: '', ip: '', dns: '', type: 'worker'
   });
   const [sleepMode, setSleepMode] = useState(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [metricsHistory, setMetricsHistory] = useState<any[]>([]);
-  const [chartTab, setChartTab] = useState<'cpu' | 'ram' | 'bar' | 'ram-roles'>('cpu');
+  const [chartTab, setChartTab] = useState<'cpu' | 'ram' | 'bar' | 'ram-roles' | 'load-map'>('cpu');
 
   const [autoscalingEnabled, setAutoscalingEnabled] = useState(() => {
     return localStorage.getItem('cluster_autoscaling_enabled') === 'true';
+  });
+  const [autoBalanceEnabled, setAutoBalanceEnabled] = useState(() => {
+    return localStorage.getItem('cluster_auto_balance_enabled') === 'true';
   });
   const [autoscalingThreshold, setAutoscalingThreshold] = useState(() => {
     const saved = localStorage.getItem('cluster_autoscaling_threshold');
@@ -7415,6 +8412,7 @@ Zalecane kolejne kroki techniczne:
     ];
   });
   const [eventTypeFilter, setEventTypeFilter] = useState<string>('all');
+  const highCpuThresholdTrackers = useRef<Record<string, number>>({});
 
   useEffect(() => {
     loadClusters();
@@ -7453,24 +8451,77 @@ Zalecane kolejne kroki techniczne:
     // Evaluate Node Online changes and High CPU threshold warning alerts
     if (data && data.length > 0) {
       data.forEach(node => {
-        // High CPU warning alerts
-        if (node.status === 'online' && node.cpuUsage && node.cpuUsage > 75) {
-          setClusterEvents(prev => {
-            const hasRecentAlert = prev.some(e => e.nodeName === node.name && e.type === 'High CPU Alert' && (Date.now() - new Date(e.fullDate || 0).getTime() < 30000));
-            if (!hasRecentAlert) {
-              const alertEvt = {
-                id: Math.random().toString(36).substr(2, 9),
-                type: 'High CPU Alert',
-                timestamp: new Date().toLocaleTimeString('pl-PL'),
-                fullDate: new Date().toISOString(),
-                nodeName: node.name,
-                details: `Przekroczono krytyczny próg obciążenia CPU dla ${node.name}: ${node.cpuUsage}%. Rozpoczęto balansowanie obciążenia.`,
-                severity: 'critical'
-              };
-              return [alertEvt, ...prev.slice(0, 49)];
+        const now = Date.now();
+        if (node.status === 'online') {
+          // Check Latency (>100ms)
+          if (node.latency && node.latency > 100) {
+            setClusterEvents(prev => {
+              const hasRecentAlert = prev.some(e => e.nodeName === node.name && e.type === 'High Latency Alert' && (Date.now() - new Date(e.fullDate || 0).getTime() < 10000));
+              if (!hasRecentAlert) {
+                if (showToast) showToast(`Krytyczne opóźnienie węzła ${node.name}: ${node.latency}ms`);
+                const alertEvt = {
+                  id: Math.random().toString(36).substr(2, 9),
+                  type: 'High Latency Alert',
+                  timestamp: new Date().toLocaleTimeString('pl-PL'),
+                  fullDate: new Date().toISOString(),
+                  nodeName: node.name,
+                  details: `Wykryto wysokie opóźnienie dla węzła ${node.name}: ${node.latency}ms. Przekroczono próg 100ms.`,
+                  severity: 'critical'
+                };
+                return [alertEvt, ...prev.slice(0, 49)];
+              }
+              return prev;
+            });
+          }
+
+          // Check prolonged High CPU (> 95% > 30s)
+          if (node.cpuUsage && node.cpuUsage > 95) {
+            if (!highCpuThresholdTrackers.current[node.id]) {
+              highCpuThresholdTrackers.current[node.id] = now;
+            } else if (now - highCpuThresholdTrackers.current[node.id] > 30000) {
+              setClusterEvents(prev => {
+                const hasRecentAlert = prev.some(e => e.nodeName === node.name && e.type === 'High CPU Usage Alert' && (Date.now() - new Date(e.fullDate || 0).getTime() < 30000));
+                if (!hasRecentAlert) {
+                  if (showToast) showToast(`Alert: Obciążenie CPU węzła ${node.name} utrzymuje się powyżej 95% przez ponad 30 sekund!`);
+                  const alertEvt = {
+                    id: Math.random().toString(36).substr(2, 9),
+                    type: 'High CPU Usage Alert',
+                    timestamp: new Date().toLocaleTimeString('pl-PL'),
+                    fullDate: new Date().toISOString(),
+                    nodeName: node.name,
+                    details: `Krytyczne przeciążenie: procesor węzła ${node.name} obciążony na poziomie >95% od czasu dłuższego niż 30s.`,
+                    severity: 'critical'
+                  };
+                  return [alertEvt, ...prev.slice(0, 49)];
+                }
+                return prev;
+              });
             }
-            return prev;
-          });
+          } else {
+            delete highCpuThresholdTrackers.current[node.id];
+          }
+
+          // Legacy High CPU warning alerts (> 75%)
+          if (node.cpuUsage && node.cpuUsage > 75) {
+            setClusterEvents(prev => {
+              const hasRecentAlert = prev.some(e => e.nodeName === node.name && e.type === 'High CPU Alert' && (Date.now() - new Date(e.fullDate || 0).getTime() < 30000));
+              if (!hasRecentAlert) {
+                const alertEvt = {
+                  id: Math.random().toString(36).substr(2, 9),
+                  type: 'High CPU Alert',
+                  timestamp: new Date().toLocaleTimeString('pl-PL'),
+                  fullDate: new Date().toISOString(),
+                  nodeName: node.name,
+                  details: `Przekroczono krytyczny próg obciążenia CPU dla ${node.name}: ${node.cpuUsage}%. Rozpoczęto balansowanie obciążenia.`,
+                  severity: 'critical'
+                };
+                return [alertEvt, ...prev.slice(0, 49)];
+              }
+              return prev;
+            });
+          }
+        } else {
+          delete highCpuThresholdTrackers.current[node.id];
         }
 
         // Newly online node check
@@ -7544,6 +8595,42 @@ Zalecane kolejne kroki techniczne:
     }
 
     setNodes(data);
+
+    // Auto-Balance trigger logic (CPU > 90%)
+    if (autoBalanceEnabled && data && data.length > 0 && !isBalancing) {
+      const onlineNodes = data.filter(node => node.status === 'online');
+      const overloadedNodes = onlineNodes.filter(n => (n.cpuUsage || 0) > 90);
+      if (overloadedNodes.length > 0 && onlineNodes.length > 1) {
+        setClusterEvents(prev => [{
+          id: Math.random().toString(36).substr(2, 9),
+          type: 'Auto-Balance Trigger',
+          timestamp: new Date().toLocaleTimeString('pl-PL'),
+          fullDate: new Date().toISOString(),
+          nodeName: 'ALB Engine',
+          details: `Wykryto przeciążenia (CPU > 90%) na ${overloadedNodes.length} węzłach. Automatycznie uruchamiam algorytm Least-Loaded.`,
+          severity: 'warning'
+        }, ...prev.slice(0, 49)]);
+        
+        setIsBalancing(true);
+        api.runLoadBalancer({
+          strategy: 'least-loaded',
+          availableCores: balancerCores,
+          reassignTasks: true,
+          reassignProcesses: true
+        }).then(res => {
+          if (res && res.success) {
+            setBalancerResult(res);
+            if (showToast) showToast('Auto-Balance klastra powiódł się.');
+            fetchBalancingOverviewData();
+          }
+        }).catch(err => {
+          console.error(err);
+        }).finally(() => {
+          setIsBalancing(false);
+          // Odśwież dane klastra poza tą pętlą, opcjonalnie
+        });
+      }
+    }
 
     // Autoscaling trigger logic
     if (autoscalingEnabled && data && data.length > 0 && !isScaling) {
@@ -7850,6 +8937,15 @@ Zalecane kolejne kroki techniczne:
     }
   };
 
+  const handleToggleMaintenance = async (id: string, currentlyEnabled: boolean) => {
+    try {
+      await api.toggleClusterNodeMaintenance(id, !currentlyEnabled);
+      loadClusters();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleSuggestNodes = async () => {
     const suggestions = [
       { name: 'Worker-AI-1', ip: '192.168.1.101', type: 'worker', dns: 'ai-node-1.local', protocol: 'gRPC' },
@@ -8113,6 +9209,272 @@ Zalecane kolejne kroki techniczne:
             </button>
           </div>
         </div>
+      </div>
+
+      {/* ADAPTIVE SYSTEM LOAD BALANCER (ALB ENGINE) PANEL */}
+      <div className="glass-panel border border-sky-500/20 p-6 rounded-3xl bg-slate-950/40 space-y-6 relative overflow-hidden" id="alb_engine_panel">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-sky-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-sky-500/35 to-transparent" />
+
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+          <div className="flex gap-3 items-start">
+            <div className="p-3 rounded-xl bg-sky-500/10 border border-sky-500/30 text-sky-400 shrink-0">
+              <Sliders size={20} className={isBalancing ? "animate-spin" : ""} />
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-display text-xs uppercase font-black tracking-widest text-white flex items-center gap-2">
+                ADAPTIVE SYSTEM LOAD BALANCER (ALB ENGINE)
+                <span className="text-[8px] bg-sky-950 text-sky-400 border border-sky-500/30 px-1.5 py-0.5 rounded font-black tracking-wider uppercase">V2.4 INTEL-AMD ALLOCATION</span>
+              </h3>
+              <p className="text-[11px] text-slate-400 max-w-3xl leading-relaxed">
+                Równomiernie rozrzuca zadania oraz procesy i wątki systemowe na różne rdzenie procesora oraz maszyny klastra. Zapobiega zatorom poprzez dynamiczną zmianę priorytetów wątków systemowych (Windows Priority Class) i dławienie CPU/RAM.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2">
+          {/* Controls */}
+          <div className="lg:col-span-5 space-y-4 bg-slate-900/50 p-4 rounded-2xl border border-white/5">
+            <div className="text-[10px] font-black tracking-wider text-sky-400 uppercase">PARAMETRY SCHEDULINGU</div>
+            
+            {/* Range slider for CPU Cores */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center text-xs font-mono">
+                <span className="text-slate-400">Liczba logicznych rdzeni CPU:</span>
+                <span className="text-white font-black">{balancerCores} Rdzeni</span>
+              </div>
+              <input
+                type="range"
+                min="2"
+                max="16"
+                step="2"
+                value={balancerCores}
+                onChange={(e) => setBalancerCores(Number(e.target.value))}
+                className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-400"
+              />
+              <span className="text-[9px] text-slate-500 block">Służy do równego rozpisania koligacji procesora (Processor Affinity Mapping)</span>
+            </div>
+
+            {/* Selection for strategy */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Algorytm Klasyfikacji</label>
+              <select
+                value={balancerStrategy}
+                onChange={(e: any) => setBalancerStrategy(e.target.value)}
+                className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-sky-500 transition-all font-mono"
+              >
+                <option value="round-robin">Round-Robin (Karuzelowy obieg pętli)</option>
+                <option value="least-loaded">Least-Loaded (Przekaż pod najmniej obciążone)</option>
+                <option value="performance-match">Performance Rating (Dopasowanie P-Cores / E-Cores)</option>
+              </select>
+              <p className="text-[9px] text-slate-500 leading-snug">
+                {balancerStrategy === 'round-robin' && "Rozprasza pakiety i wątki po kolei na każdy kolejny rdzeń oraz fizyczną maszynę bez badania obciążenia."}
+                {balancerStrategy === 'least-loaded' && "Kieruje kolejki zadań do maszyn o najniższym współczynniku utylizacji w celu unikania przeciążeń."}
+                {balancerStrategy === 'performance-match' && "Dla ważnych/ciężkich procesów rezerwuje zasoby o wyższym taktowaniu (P-Cores), a wątki poboczne blokuje na rdzeniach energooszczędnych (E-Cores)."}
+              </p>
+            </div>
+
+            {/* Toggle checkboxes */}
+            <div className="space-y-2 pt-2 border-t border-white/5">
+              <label className="flex items-center gap-2.5 cursor-pointer text-slate-300 hover:text-white select-none text-[11px] font-mono">
+                <input
+                  type="checkbox"
+                  checked={autoBalanceEnabled}
+                  onChange={(e) => {
+                    const nextVal = e.target.checked;
+                    setAutoBalanceEnabled(nextVal);
+                    localStorage.setItem('cluster_auto_balance_enabled', String(nextVal));
+                  }}
+                  className="rounded border-sky-500/50 text-sky-500 focus:ring-0 focus:ring-offset-0 bg-sky-500/20"
+                />
+                <span className={cn(autoBalanceEnabled ? "text-sky-400 font-bold" : "text-sky-600")}>
+                  AUTO-BALANCE: Rozwiewaj zator CPU {'>'} 90%
+                </span>
+              </label>
+
+              <label className="flex items-center gap-2.5 cursor-pointer text-slate-300 hover:text-white select-none text-[11px] font-mono">
+                <input
+                  type="checkbox"
+                  checked={reassignProcesses}
+                  onChange={(e) => setReassignProcesses(e.target.checked)}
+                  className="rounded border-white/10 text-sky-500 focus:ring-0 focus:ring-offset-0 bg-black/50"
+                />
+                <span>Zbalansuj procesy agentów & roju (Wątki rdzeniowe)</span>
+              </label>
+
+              <label className="flex items-center gap-2.5 cursor-pointer text-slate-300 hover:text-white select-none text-[11px] font-mono">
+                <input
+                  type="checkbox"
+                  checked={reassignTasks}
+                  onChange={(e) => setReassignTasks(e.target.checked)}
+                  className="rounded border-white/10 text-sky-500 focus:ring-0 focus:ring-offset-0 bg-black/50"
+                />
+                <span>Rozrzuć aktywne zadania (Hosty klastrów + Cores)</span>
+              </label>
+            </div>
+
+            {/* Run Button */}
+            <button
+              onClick={handleExecuteSystemBalancing}
+              disabled={isBalancing || (!reassignProcesses && !reassignTasks)}
+              className={cn(
+                "w-full py-3 rounded-xl font-bold uppercase text-[11px] tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 border shadow-lg mt-2",
+                isBalancing
+                  ? "bg-sky-500/20 text-sky-300 border-sky-500/30 animate-pulse"
+                  : "bg-sky-500 hover:bg-sky-400 border-sky-600 text-black shadow-sky-500/10 font-black"
+              )}
+            >
+              <Cpu size={14} className={isBalancing ? "animate-spin" : ""} />
+              {isBalancing ? 'BALANSOWANIE W TOKU...' : 'WYKONAJ PEŁNY LOAD BALANCE (ALB)'}
+            </button>
+          </div>
+
+          {/* Quick Metrics and live cores visualizer */}
+          <div className="lg:col-span-7 flex flex-col justify-between space-y-4">
+            <div className="flex justify-between items-center">
+              <div className="text-[10px] font-black tracking-wider text-sky-400 uppercase">MAPA RDZENI LOGICZNYCH PROCESORA (CPU AFFINITY MAP)</div>
+              <div className="text-[9px] font-mono text-slate-500">
+                Połączone usługi: {activeProcessesList.length} • Wszystkie aktywne zadania: {activeTasksList.filter(t=>t.status!=='done').length}
+              </div>
+            </div>
+
+            {/* Core Box Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {Array.from({ length: balancerCores }).map((_, coreIndex) => {
+                const assignedProcs = activeProcessesList.filter(p => p.assigned_cpu_core === coreIndex);
+                const assignedTasks = activeTasksList.filter(t => t.status !== 'done' && t.assigned_cpu_core === coreIndex);
+                
+                // Calculate simulated core load based on assigned processes and tasks count
+                const baseLoad = 5;
+                const procLoad = assignedProcs.reduce((sum, p) => sum + (p.status === 'RUNNING' ? (p.cpu_limit || 100) * 0.15 : 0), 0);
+                const taskLoad = assignedTasks.length * 12;
+                const finalCoreUsage = Math.min(100, Math.round(baseLoad + procLoad + taskLoad));
+
+                // Determine if performance core or efficiency core
+                const isPerformanceCore = balancerStrategy === 'performance-match' ? coreIndex < Math.max(1, Math.floor(balancerCores / 2)) : true;
+
+                return (
+                  <div 
+                    key={coreIndex}
+                    className={cn(
+                      "p-3 rounded-xl border flex flex-col justify-between space-y-2 transition-all relative overflow-hidden bg-black/40",
+                      finalCoreUsage > 80 
+                        ? "border-red-500/30 shadow-[inset_0_0_8px_rgba(239,68,68,0.05)]" 
+                        : finalCoreUsage > 40 
+                          ? "border-amber-500/20" 
+                          : "border-white/5"
+                    )}
+                  >
+                    <div>
+                      {/* Title row */}
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-bold text-slate-100 font-mono tracking-wide">CORE {coreIndex}</span>
+                        <span className={cn(
+                          "text-[7px] px-1 py-0.2 rounded font-mono font-black",
+                          isPerformanceCore ? "bg-orange-950/40 text-orange-400" : "bg-teal-950/40 text-teal-400"
+                        )}>
+                          {isPerformanceCore ? 'P-CORE' : 'E-CORE'}
+                        </span>
+                      </div>
+
+                      {/* Horizontal progress bar and percentage */}
+                      <div className="pt-1.5 space-y-1">
+                        <div className="flex justify-between items-center text-[9px] font-mono">
+                          <span className="text-slate-500">Utylizacja:</span>
+                          <span className={cn(
+                            "font-black",
+                            finalCoreUsage > 80 ? "text-red-500" : finalCoreUsage > 40 ? "text-amber-400" : "text-emerald-400"
+                          )}>
+                            {finalCoreUsage}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-slate-900 rounded-full h-1 overflow-hidden">
+                          <div 
+                            className={cn(
+                              "h-full rounded-full transition-all duration-700",
+                              finalCoreUsage > 80 ? "bg-red-500" : finalCoreUsage > 40 ? "bg-amber-400" : "bg-emerald-400"
+                            )}
+                            style={{ width: `${finalCoreUsage}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Assigned process threads List */}
+                    <div className="space-y-1 pt-1 border-t border-white/5">
+                      <div className="text-[7px] text-slate-500 font-bold uppercase tracking-wider font-mono">Przypisane Wątki:</div>
+                      {assignedProcs.length === 0 && assignedTasks.length === 0 ? (
+                        <div className="text-[8px] text-slate-600 font-mono italic">Bez obciążenia</div>
+                      ) : (
+                        <div className="flex flex-col gap-1 max-h-[44px] overflow-y-auto custom-scrollbar">
+                          {assignedProcs.map(proc => (
+                            <span 
+                              key={proc.entity_id} 
+                              className={cn(
+                                "text-[7px] px-1 py-0.2 rounded font-mono font-semibold max-w-full truncate block",
+                                proc.entity_type === 'swarm' 
+                                  ? "bg-purple-950/40 border border-purple-500/20 text-purple-300" 
+                                  : "bg-sky-950/40 border border-sky-500/20 text-sky-300"
+                              )}
+                              title={`${proc.name} (Priority: ${proc.priority})`}
+                            >
+                              ⚙️ {proc.name || proc.entity_id.substring(0,4)}
+                            </span>
+                          ))}
+                          {assignedTasks.map(tsk => (
+                            <span 
+                              key={tsk.id} 
+                              className="text-[7px] px-1 py-0.2 rounded font-mono font-semibold max-w-full truncate bg-amber-950/30 border border-amber-500/20 text-amber-300 block"
+                              title={tsk.title}
+                            >
+                              📝 Task-{tsk.id.substring(0,4)}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Console printout of balancing log result */}
+        {balancerResult && (
+          <div className="pt-2 animate-fadeIn">
+            <div className="flex justify-between items-center bg-slate-900 border border-sky-500/20 rounded-t-xl px-4 py-2 text-xs font-mono select-none">
+              <span className="text-sky-400 flex items-center gap-1.5 font-bold">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                RAPORT GENEROWANIA SCHEDULERA (ALB FEED)
+              </span>
+              <button 
+                onClick={() => setBalancerResult(null)}
+                className="text-slate-400 hover:text-white"
+              >
+                Zamknij raport
+              </button>
+            </div>
+            <div className="bg-black border-x border-b border-sky-500/20 rounded-b-xl p-4 font-mono text-xs max-h-[220px] overflow-y-auto space-y-1.5 text-slate-300 custom-scrollbar shadow-inner leading-relaxed">
+              <div className="text-emerald-400 font-bold mb-1">
+                &gt;&gt;&gt; Centralny procesor wątków obliczeniowych (ALB Scheduler v2.4) zaalokował procesy klastra:
+              </div>
+              <div className="text-slate-500 text-[10px] pb-1 border-b border-white/5 mb-2">
+                Strategia bilansu: {balancerResult.strategy.toUpperCase()} | Rdzeni logicznych: {balancerResult.coresConfigured} | Łącznie zmapowano: {balancerResult.totalCoresBalanced} wątków oraz {balancerResult.totalTasksDistributed} zadań.
+              </div>
+              {balancerResult.details.map((line: string, i: number) => (
+                <div key={i} className="flex gap-2">
+                  <span className="text-sky-500 shrink-0 select-none">[ALB]</span>
+                  <span className="text-slate-300 break-all text-[11px]">{line}</span>
+                </div>
+              ))}
+              <div className="text-emerald-400 font-bold mt-2 pt-2 border-t border-white/5">
+                &gt;&gt;&gt; ALOKACJA RDZENI P-CORES/E-CORES NA MASZYNACH SIECIOWYCH STATUS [SUCCESSFUL]
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* SECURED CLUSTER PEER COMMUNICATION AND ORCHESTRATOR PANELS */}
@@ -9066,12 +10428,23 @@ Zalecane kolejne kroki techniczne:
               >
                 KORELACJA SŁUPKOWA
               </button>
+              <button
+                onClick={() => setChartTab('load-map')}
+                className={cn(
+                  "px-3 py-1.5 rounded-md text-[10px] font-black uppercase transition-all tracking-wider font-sans cursor-pointer",
+                  chartTab === 'load-map' 
+                    ? "bg-[#00ffcc]/20 border border-[#00ffcc]/30 text-white shadow-sm" 
+                    : "text-slate-400 hover:text-slate-300 border border-transparent"
+                )}
+              >
+                CLUSTER LOAD MAP
+              </button>
             </div>
           </div>
 
-          <div className="h-[260px] w-full text-[10px]">
+          <div className={cn("w-full text-[10px]", chartTab === 'load-map' ? "h-auto" : "h-[260px]")}>
             {chartTab === 'cpu' && (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={1} minWidth={1}>
                 <LineChart data={metricsHistory} margin={{ top: 10, right: 15, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
                   <XAxis dataKey="time" stroke="#475569" tickLine={false} />
@@ -9101,6 +10474,8 @@ Zalecane kolejne kroki techniczne:
                         strokeWidth={2}
                         dot={{ r: 2 }}
                         activeDot={{ r: 5 }}
+                        isAnimationActive={true}
+                        animationDuration={300}
                       />
                     );
                   })}
@@ -9109,7 +10484,7 @@ Zalecane kolejne kroki techniczne:
             )}
 
             {chartTab === 'ram' && (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={1} minWidth={1}>
                 <AreaChart data={metricsHistory} margin={{ top: 10, right: 15, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
                   <XAxis dataKey="time" stroke="#475569" tickLine={false} />
@@ -9147,7 +10522,7 @@ Zalecane kolejne kroki techniczne:
             )}
 
             {chartTab === 'ram-roles' && (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={1} minWidth={1}>
                 <AreaChart data={metricsHistory} margin={{ top: 10, right: 15, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
                   <XAxis dataKey="time" stroke="#475569" tickLine={false} />
@@ -9187,7 +10562,7 @@ Zalecane kolejne kroki techniczne:
             )}
 
             {chartTab === 'bar' && (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={1} minWidth={1}>
                 <RechartsBarChart
                   data={nodes.map(n => ({
                     name: n.name,
@@ -9217,6 +10592,156 @@ Zalecane kolejne kroki techniczne:
                   <Bar dataKey="Latency (ms)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={16} />
                 </RechartsBarChart>
               </ResponsiveContainer>
+            )}
+
+            {chartTab === 'load-map' && (
+              <div className="space-y-4 w-full">
+                {/* Unified Cluster Telemetry Overview */}
+                <div className="bg-neutral-900/40 p-4 rounded-2xl border border-white/5">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-[10px] uppercase font-bold text-slate-300 tracking-wider">
+                      Zbiorcza Chmura Obciążenia Roju (CPU vs RAM %)
+                    </span>
+                    <span className="text-[8px] font-mono text-slate-500">Przekrój wszystkich {nodes.filter(n => n.status === 'online').length} aktywnych węzłów</span>
+                  </div>
+                  
+                  <div className="h-[200px] w-full">
+                    <ResponsiveContainer width="100%" height="100%" minHeight={1} minWidth={1}>
+                      <AreaChart data={metricsHistory} margin={{ top: 10, right: 15, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
+                        <XAxis dataKey="time" stroke="#475569" tickLine={false} />
+                        <YAxis stroke="#475569" domain={[0, 100]} tickLine={false} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'rgba(10,10,10,0.95)',
+                            borderColor: 'rgba(0,191,255,0.3)',
+                            borderRadius: '12px',
+                            fontFamily: '"JetBrains Mono", monospace',
+                            fontSize: '10px',
+                            color: '#fff',
+                            boxShadow: '0 10px 25px -5px rgba(0,0,0,0.5)'
+                          }}
+                        />
+                        <Legend verticalAlign="top" height={36} iconType="circle" />
+                        {nodes.filter(n => n.status === 'online').map((node, i) => {
+                          const colors = ['#8b5cf6', '#06b6d4', '#ec4899', '#f59e0b', '#10b981', '#3b82f6'];
+                          const col = colors[i % colors.length];
+                          return (
+                            <Area
+                              key={node.id}
+                              type="monotone"
+                              dataKey={`${node.name}_CPU`}
+                              name={`${node.name} Load Map`}
+                              stroke={col}
+                              fill={col}
+                              fillOpacity={0.02}
+                              strokeWidth={1.5}
+                            />
+                          );
+                        })}
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Grid of separate nodes */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {nodes.filter(n => n.status === 'online').map((node, idx) => {
+                    const currentCpu = node.cpuUsage || 0;
+                    const currentRam = node.ramUsage || 0;
+                    const latency = node.latency || 0;
+                    
+                    // Status color styling
+                    let loadStatus = "Optymalny";
+                    let statusBg = "bg-[#10b981]/15 border-[#10b981]/25 text-[#10b981]";
+                    
+                    if (currentCpu > 80 || currentRam > 80) {
+                      loadStatus = "Przeciążony";
+                      statusBg = "bg-red-500/15 border-red-500/25 text-red-400 animate-pulse";
+                    } else if (currentCpu > 50 || currentRam > 65) {
+                      loadStatus = "Wysokie obciążenie";
+                      statusBg = "bg-[#f59e0b]/15 border-[#f59e0b]/25 text-[#f59e0b]";
+                    }
+
+                    return (
+                      <div key={node.id} className={cn(
+                        "p-4 rounded-2xl bg-neutral-950/80 border transition-all text-left space-y-3",
+                        currentCpu > 80 || currentRam > 80 ? "border-red-500/25 shadow-[0_0_15px_rgba(239,68,68,0.05)]" : "border-white/5"
+                      )}>
+                        {/* Node Mini Header */}
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <div className={cn("w-2 h-2 rounded-full", currentCpu > 80 ? "bg-red-500 animate-ping" : "bg-[#00ffcc]")} />
+                            <div>
+                              <div className="text-[11px] font-bold text-white tracking-wide font-mono">{node.name}</div>
+                              <div className="text-[8px] text-slate-500 font-mono italic">{node.ip} • {node.type.toUpperCase()}</div>
+                            </div>
+                          </div>
+                          <span className={cn("text-[8px] font-bold uppercase px-2 py-0.5 rounded border font-mono", statusBg)}>
+                            {loadStatus}
+                          </span>
+                        </div>
+
+                        {/* Real-time stats row */}
+                        <div className="grid grid-cols-3 gap-2 bg-white/[0.01] p-2 rounded-xl border border-white/[0.03]">
+                          <div className="text-center">
+                            <div className="text-[8px] uppercase text-slate-500 font-bold">CPU</div>
+                            <div className="text-[11px] font-black text-white font-mono">{currentCpu}%</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-[8px] uppercase text-slate-500 font-bold">RAM</div>
+                            <div className="text-[11px] font-black text-white font-mono">{currentRam}%</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-[8px] uppercase text-slate-500 font-bold">LATENCY</div>
+                            <div className="text-[11px] font-black text-[#00ffcc] font-mono">{latency}ms</div>
+                          </div>
+                        </div>
+
+                        {/* History Waveform Area */}
+                        <div className="h-[90px] w-full">
+                          <ResponsiveContainer width="100%" height="100%" minHeight={1} minWidth={1}>
+                            <AreaChart data={metricsHistory} margin={{ top: 5, right: 5, left: -35, bottom: 0 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.01)" />
+                              <XAxis dataKey="time" stroke="transparent" />
+                              <YAxis domain={[0, 100]} stroke="#475569" style={{ fontSize: '8px' }} tickLine={false} />
+                              <Tooltip
+                                contentStyle={{
+                                  backgroundColor: 'rgba(10,10,10,0.95)',
+                                  borderColor: 'rgba(255,255,255,0.05)',
+                                  borderRadius: '8px',
+                                  fontFamily: '"JetBrains Mono", monospace',
+                                  fontSize: '8px',
+                                  color: '#fff',
+                                  padding: '4px'
+                                }}
+                              />
+                              <Area
+                                type="monotone"
+                                dataKey={`${node.name}_CPU`}
+                                name="CPU"
+                                stroke="#8b5cf6"
+                                fill="#8b5cf6"
+                                fillOpacity={0.05}
+                                strokeWidth={1.5}
+                              />
+                              <Area
+                                type="monotone"
+                                dataKey={`${node.name}_RAM`}
+                                name="RAM"
+                                stroke="#06b6d4"
+                                fill="#06b6d4"
+                                fillOpacity={0.05}
+                                strokeWidth={1.5}
+                              />
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -9660,8 +11185,22 @@ Zalecane kolejne kroki techniczne:
                       </>
                     )}
                   </div>
-                  <div className="text-[9px] text-slate-500 uppercase font-bold">
-                    {new Date(node.lastSeen).toLocaleTimeString()} • {node.type}
+                  <div className="flex flex-col items-end gap-1">
+                    <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white select-none text-[9px] font-mono">
+                      <span className={cn(node.maintenanceMode ? "text-amber-400 font-bold" : "text-slate-500")}>
+                        MAINTENANCE
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={!!node.maintenanceMode}
+                        onChange={() => handleToggleMaintenance(node.id, !!node.maintenanceMode)}
+                        className="rounded border-amber-500/50 text-amber-500 focus:ring-0 focus:ring-offset-0 bg-amber-500/10 w-3 h-3"
+                        title="Zapobiega przydzielaniu zadań przez Auto-Balance"
+                      />
+                    </label>
+                    <div className="text-[9px] text-slate-500 uppercase font-bold text-right">
+                      {new Date(node.lastSeen).toLocaleTimeString()} • {node.type}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -9909,7 +11448,7 @@ const KnowledgeBase = React.memo(() => {
 });
 
 const VideoStudio = React.memo(() => {
-  const [activeStudioTab, setActiveStudioTab] = useState<'text-to-video' | 'picture-to-video' | 'text-to-image' | 'voice-to-video' | 'voice-to-image' | 'diagnostic' | 'text-to-audio'>('text-to-video');
+  const [activeStudioTab, setActiveStudioTab] = useState<'text-to-video' | 'picture-to-video' | 'text-to-image' | 'voice-to-video' | 'voice-to-image' | 'diagnostic' | 'text-to-audio' | 'swarm-trailers'>('text-to-video');
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [videos, setVideos] = useState<VideoMetadata[]>([]);
@@ -9919,9 +11458,27 @@ const VideoStudio = React.memo(() => {
   // Advanced Creative Options
   const [effect, setEffect] = useState<'none' | 'cyber' | 'vintage' | 'retro' | 'neon' | 'cinematic' | 'b_w'>('cinematic');
   const [duration, setDuration] = useState<number>(5);
+  const [aspectRatio, setAspectRatio] = useState<'1:1' | '16:9' | '3:4' | '4:3' | '9:16'>('16:9');
   const [speed, setSpeed] = useState<number>(1.0);
   const [voiceName, setVoiceName] = useState<'Major' | 'Kore' | 'Zephyr'>('Major');
   const [bgMusic, setBgMusic] = useState('');
+
+  // Advanced Multimedia settings states (Zaawansowana muzyka i grafika)
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [graphicsModel, setGraphicsModel] = useState<'imagen-4.0-generate-001' | 'gemini-3.1-flash-image' | 'gemini-3-pro-image'>('imagen-4.0-generate-001');
+  const [imageSize, setImageSize] = useState<'512px' | '1K' | '2K' | '4K'>('1K');
+  const [negativePrompt, setNegativePrompt] = useState('');
+  const [guidanceScale, setGuidanceScale] = useState(7.5);
+  const [promptEnhancer, setPromptEnhancer] = useState(true);
+
+  // Advanced Music settings
+  const [musicMode, setMusicMode] = useState<'music' | 'voice-tts'>('music');
+  const [musicModel, setMusicModel] = useState<'lyria-3-clip-preview' | 'lyria-3-pro-preview'>('lyria-3-clip-preview');
+  const [musicGenre, setMusicGenre] = useState('Synthwave');
+  const [musicTempo, setMusicTempo] = useState<number>(120);
+  const [musicInstruments, setMusicInstruments] = useState<string[]>(['Syntezator', 'Perkusja']);
+  const [audioQuality, setAudioQuality] = useState('24kHz Standard');
+  const [vocalPresence, setVocalPresence] = useState('Instrumentalna');
   
   // File attachments state. Support both text input, drag-and-drop or select
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -10053,14 +11610,29 @@ const VideoStudio = React.memo(() => {
     try {
       const result = await api.generateMultimedia({
         prompt: prompt || "Edit this asset", // Default prompt for editing if empty
-        mode: activeStudioTab !== 'diagnostic' ? activeStudioTab : 'text-to-video',
+        mode: (activeStudioTab !== 'diagnostic' && activeStudioTab !== 'swarm-trailers') ? activeStudioTab : 'text-to-video',
         image_url: uploadedImage || undefined,
         audio_url: uploadedAudio || undefined,
         voiceName,
         duration,
         speed,
         effect,
-        bgMusic
+        bgMusic,
+        aspectRatio,
+        advancedSettings: {
+          graphicsModel,
+          imageSize,
+          negativePrompt,
+          guidanceScale,
+          promptEnhancer,
+          musicMode,
+          musicModel,
+          musicGenre,
+          musicTempo,
+          musicInstruments,
+          audioQuality,
+          vocalPresence
+        }
       });
 
       if (result.success) {
@@ -10229,7 +11801,14 @@ const VideoStudio = React.memo(() => {
               
               <div className="aspect-video bg-black flex items-center justify-center">
                 {/* Check if video contains simulated static content instead of real media */}
-                {selectedVideo.url.endsWith(".mp3") || selectedVideo.id.startsWith("audio-") ? (
+                {selectedVideo.id.startsWith("img-") || selectedVideo.url.endsWith(".png") || selectedVideo.url.endsWith(".jpg") || selectedVideo.url.endsWith(".jpeg") ? (
+                  <img 
+                    src={selectedVideo.url} 
+                    className="w-full h-full object-contain shadow-2xl" 
+                    alt="Wygenerowana Grafika" 
+                    referrerPolicy="no-referrer"
+                  />
+                ) : selectedVideo.url.endsWith(".mp3") || selectedVideo.id.startsWith("audio-") ? (
                   <div className="relative w-full h-full flex flex-col items-center justify-center p-8 bg-gradient-to-br from-[#120524] via-[#090b1c] to-[#04081c] overflow-hidden min-h-[300px]">
                     <div className="absolute inset-0 bg-grid-pattern opacity-10" />
                     <div className="relative z-10 text-center space-y-6 max-w-xl w-full">
@@ -10380,15 +11959,16 @@ const VideoStudio = React.memo(() => {
             </div>
 
             {/* Media Studio Mode Tabs */}
-            <div className="grid grid-cols-3 gap-2 mb-6">
+            <div className="grid grid-cols-4 gap-2 mb-6 text-center">
               {[
-                { id: 'text-to-video', name: 'Ruch z Tekstu', desc: 'Text to Video', icon: Video },
-                { id: 'picture-to-video', name: 'Ożyw Obraz', desc: 'Picture to Video', icon: ImageIcon },
-                { id: 'text-to-image', name: 'Czysta Grafika', desc: 'Text to Image', icon: ImageIcon },
+                { id: 'text-to-video', name: 'Ruch z Tekstu', desc: 'Video Text', icon: Video },
+                { id: 'picture-to-video', name: 'Ożyw Obraz', desc: 'Video Image', icon: ImageIcon },
+                { id: 'text-to-image', name: 'Czysta Grafika', desc: 'Image Text', icon: ImageIcon },
                 { id: 'text-to-audio', name: 'Kreacja Audio', desc: 'Audio Creator', icon: Music },
-                { id: 'voice-to-video', name: 'Głos na Ruch', desc: 'Voice to Video', icon: Mic },
-                { id: 'voice-to-image', name: 'Głos na Grafię', desc: 'Voice to Image', icon: Mic },
-                { id: 'diagnostic', name: 'Vision AI', desc: 'Analiza Obrazu', icon: Eye }
+                { id: 'voice-to-video', name: 'Głos na Ruch', desc: 'Voice Video', icon: Mic },
+                { id: 'voice-to-image', name: 'Głos na Grafię', desc: 'Voice Image', icon: Mic },
+                { id: 'swarm-trailers', name: 'Zwiastuny Roju', desc: '15s Teaser', icon: Play },
+                { id: 'diagnostic', name: 'Vision AI', desc: 'Analiza', icon: Eye }
               ].map(tab => {
                 const Icon = tab.icon;
                 const isSelected = activeStudioTab === tab.id;
@@ -10607,19 +12187,36 @@ const VideoStudio = React.memo(() => {
                     </select>
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-bold uppercase text-slate-500 ml-0.5">Czas Trwania (s)</label>
-                    <select 
-                      value={duration} 
-                      onChange={e => setDuration(Number(e.target.value))} 
-                      className="modern-input w-full bg-neutral-900 border-white/10 text-xs py-1.5 px-2.5 h-10"
-                    >
-                      <option value={5}>Krótka scena (5s)</option>
-                      <option value={10}>Średnia scena (10s)</option>
-                      <option value={15}>Długa scena (15s)</option>
-                      <option value={30}>Pełna scena (30s)</option>
-                    </select>
-                  </div>
+                  {(activeStudioTab === 'text-to-image' || activeStudioTab === 'voice-to-image') ? (
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold uppercase text-slate-500 ml-0.5">Format / Proporcje (Aspect Ratio)</label>
+                      <select 
+                        value={aspectRatio} 
+                        onChange={e => setAspectRatio(e.target.value as any)} 
+                        className="modern-input w-full bg-neutral-900 border-white/10 text-xs py-1.5 px-2.5 h-10 text-white"
+                      >
+                        <option value="1:1">Kwadrat (1:1)</option>
+                        <option value="16:9">Panoramiczny (16:9)</option>
+                        <option value="4:3">Standardowy Foto (4:3)</option>
+                        <option value="3:4">Portret (3:4)</option>
+                        <option value="9:16">Pionowy (9:16)</option>
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold uppercase text-slate-500 ml-0.5">Czas Trwania (s)</label>
+                      <select 
+                        value={duration} 
+                        onChange={e => setDuration(Number(e.target.value))} 
+                        className="modern-input w-full bg-neutral-900 border-white/10 text-xs py-1.5 px-2.5 h-10 text-white"
+                      >
+                        <option value={5}>Krótka scena (5s)</option>
+                        <option value={10}>Średnia scena (10s)</option>
+                        <option value={15}>Długa scena (15s)</option>
+                        <option value={30}>Pełna scena (30s)</option>
+                      </select>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -10657,6 +12254,160 @@ const VideoStudio = React.memo(() => {
                   </div>
                 </div>
               )}
+
+              {/* ADVANCED MULTIMEDIA (GRAPHICS & MUSIC GENERATOR SETTINGS) */}
+              <div className="border border-white/5 rounded-2xl bg-white/[0.01] overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+                  className="w-full flex justify-between items-center p-4 hover:bg-white/[0.02] transition-colors cursor-pointer select-none"
+                >
+                  <div className="flex items-center gap-2">
+                    <Sliders size={14} className="text-[#00ffcc]" />
+                    <span className="text-[10px] font-black uppercase text-white tracking-widest">
+                      Ustawienia Zaawansowane (Muzyka i Grafika)
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-acid-purple font-mono uppercase font-bold">
+                    {showAdvancedSettings ? 'Zwiń ▲' : 'Rozwiń ▼'}
+                  </span>
+                </button>
+
+                {showAdvancedSettings && (
+                  <div className="p-4 border-t border-white/5 space-y-4 bg-black/20 text-left">
+                    {/* Graphics configuration section */}
+                    <div className="space-y-2 border-b border-white/5 pb-3">
+                      <div className="text-[9px] font-bold text-[#00ffcc] uppercase tracking-wider flex items-center gap-1.5">
+                        <Camera size={10} /> ZAAWANSOWANE GENEROWANIE GRAFIKI
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <span className="text-[8px] font-bold text-slate-500 uppercase">Silnik Graficzny Image</span>
+                          <select
+                            value={graphicsModel}
+                            onChange={e => setGraphicsModel(e.target.value as any)}
+                            className="modern-input w-full bg-neutral-900 border-white/5 text-[10px] h-9 px-2 text-white"
+                          >
+                            <option value="imagen-4.0-generate-001">Imagen 4.0 Standard</option>
+                            <option value="gemini-3.1-flash-image">Gemini 3.1 Flash (High Quality)</option>
+                            <option value="gemini-3-pro-image">Gemini 3 Pro Cinematic</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-[8px] font-bold text-slate-500 uppercase">Rozdzielczość / Rozmiar</span>
+                          <select
+                            value={imageSize}
+                            onChange={e => setImageSize(e.target.value as any)}
+                            className="modern-input w-full bg-neutral-900 border-white/5 text-[10px] h-9 px-2 text-white"
+                          >
+                            <option value="512px">Szybki Podgląd (512px)</option>
+                            <option value="1K">Standard HD (1K)</option>
+                            <option value="2K">Wysoka Ostrość (2K)</option>
+                            <option value="4K">Ultra HD (4K)</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[8px] font-bold text-slate-500 uppercase">Negatywny Prompt (Czego unikać)</span>
+                        <input
+                          type="text"
+                          placeholder="np. rozmycie, niska jakość, tekst, watermark..."
+                          value={negativePrompt}
+                          onChange={e => setNegativePrompt(e.target.value)}
+                          className="modern-input w-full bg-neutral-900 border-white/5 text-[10px] h-9 px-2.5 text-white"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Music configuration section */}
+                    <div className="space-y-2">
+                      <div className="text-[9px] font-bold text-[#a855f7] uppercase tracking-wider flex items-center gap-1.5">
+                        <Music size={10} /> ZAAWANSOWANE GENEROWANIE MUZYKI AI
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <span className="text-[8px] font-bold text-slate-500 uppercase">Tryb Audio Synth</span>
+                          <select
+                            value={musicMode}
+                            onChange={e => setMusicMode(e.target.value as any)}
+                            className="modern-input w-full bg-neutral-900 border-white/5 text-[10px] h-9 px-2 text-white"
+                          >
+                            <option value="music">Kompozytor Muzyczny (Instrumental)</option>
+                            <option value="voice-tts">Synteza mowy lektorskiej (TTS)</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-[8px] font-bold text-slate-500 uppercase">Model Dźwiękowy</span>
+                          <select
+                            value={musicModel}
+                            onChange={e => setMusicModel(e.target.value as any)}
+                            className="modern-input w-full bg-neutral-900 border-white/5 text-[10px] h-9 px-2 text-white"
+                          >
+                            <option value="lyria-3-clip-preview">Lyria 3 Music Clip (30s)</option>
+                            <option value="lyria-3-pro-preview">Lyria 3 Pro (Full Track)</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-[8px] font-bold text-slate-500 uppercase">Gatunek muzyczny</span>
+                          <select
+                            value={musicGenre}
+                            onChange={e => setMusicGenre(e.target.value)}
+                            className="modern-input w-full bg-neutral-900 border-white/5 text-[10px] h-9 px-2 text-white"
+                          >
+                            <option value="Synthwave">Retro Synthwave 80s</option>
+                            <option value="Cyberpunk">Industrial Cyberpunk</option>
+                            <option value="Orchestral">Cinematic Orchestral</option>
+                            <option value="Dark Ambient">Haunting Dark Ambient</option>
+                            <option value="Cinematic Lofi">Cozy Cinematic Lofi</option>
+                            <option value="Chiptune">8-bit Video Game Retro</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-[8px] font-bold text-slate-500 uppercase">Tempo (BPM)</span>
+                          <input
+                            type="number"
+                            min={60}
+                            max={180}
+                            value={musicTempo}
+                            onChange={e => setMusicTempo(Number(e.target.value))}
+                            className="modern-input w-full bg-neutral-900 border-white/5 text-[10px] h-9 px-2 text-white"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="text-[8px] font-bold text-slate-500 uppercase">Wybrane Instrumentarium</span>
+                        <div className="flex flex-wrap gap-1.5 p-2 bg-neutral-800/50 border border-white/5 rounded-xl select-none">
+                          {['Syntezator', 'Perkusja', 'Skrzypce', 'Pianino', 'Chór', 'Gitara elektryczna', 'Sub Bass'].map(inst => {
+                            const active = musicInstruments.includes(inst);
+                            return (
+                              <button
+                                type="button"
+                                key={inst}
+                                onClick={() => {
+                                  if (active) {
+                                    setMusicInstruments(musicInstruments.filter(i => i !== inst));
+                                  } else {
+                                    setMusicInstruments([...musicInstruments, inst]);
+                                  }
+                                }}
+                                className={cn(
+                                  "text-[8px] font-bold px-2 py-0.5 rounded border transition-all cursor-pointer selection:bg-transparent",
+                                  active 
+                                    ? "bg-[#a855f7]/20 border-[#a855f7]/40 text-[#c084fc]" 
+                                    : "bg-white/[0.02] border-white/5 text-slate-400 hover:text-white"
+                                )}
+                              >
+                                {inst}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {activeStudioTab === 'diagnostic' ? (
                 <button
@@ -10714,7 +12465,9 @@ const VideoStudio = React.memo(() => {
         {/* Right Column: Timelines, Gallery & Diagnostics view */}
         <div className="xl:col-span-7 flex flex-col gap-6">
           {/* Main Visualizer screen / Technical Diagnostic report panel */}
-          {activeStudioTab === 'diagnostic' ? (
+          {activeStudioTab === 'swarm-trailers' ? (
+            <SwarmTeaserTrailerPlayer duration={15} />
+          ) : activeStudioTab === 'diagnostic' ? (
             <div className="modern-card p-6 border-white/5 bg-gradient-to-br from-neutral-900 via-neutral-900 to-neutral-950 flex flex-col justify-between h-[360px] relative overflow-hidden">
               {isDiagnosing ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-5">
@@ -10866,7 +12619,8 @@ const VideoStudio = React.memo(() => {
           )}
 
           {/* Production Archive Gallery */}
-          <div className="flex-1 space-y-4">
+          {activeStudioTab !== 'swarm-trailers' && (
+            <div className="flex-1 space-y-4">
             <h4 className="text-[10px] font-mono font-black uppercase text-slate-500 tracking-[0.2em] ml-1">Katalog Produkcji i Klipów AI</h4>
             {videos.length === 0 ? (
               <div className="border border-white/5 bg-white/[0.01] rounded-2xl p-12 text-center text-slate-500 h-64 flex flex-col items-center justify-center">
@@ -10878,6 +12632,7 @@ const VideoStudio = React.memo(() => {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 max-h-[300px] overflow-y-auto pr-1">
                 {videos.map(video => {
                   const isCompiled = video.id.startsWith('compiled-');
+                  const isImage = video.id.startsWith('img-') || video.url.includes('img-') || video.thumbnail.includes('img-');
                   return (
                     <div 
                       key={video.id}
@@ -10889,31 +12644,37 @@ const VideoStudio = React.memo(() => {
                           onClick={() => openVideo(video)}
                           className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 scale-50 group-hover:scale-100 transition-all shadow-2xl"
                         >
-                          <Play size={18} fill="currentColor" />
+                          {isImage ? <Eye size={18} /> : <Play size={18} fill="currentColor" />}
                         </div>
                       </div>
                       
                       {/* Control panel buttons for each item */}
                       <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all z-10">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            addToStoryboard(video);
-                          }}
-                          className="p-1.5 bg-black/80 hover:bg-[#00ffcc] hover:text-black text-[#00ffcc] rounded-lg border border-white/5"
-                          title="Dodaj klip do montażu"
-                        >
-                          <Plus size={10} />
-                        </button>
+                        {!isImage && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              addToStoryboard(video);
+                            }}
+                            className="p-1.5 bg-black/80 hover:bg-[#00ffcc] hover:text-black text-[#00ffcc] rounded-lg border border-white/5"
+                            title="Dodaj klip do montażu"
+                          >
+                            <Plus size={10} />
+                          </button>
+                        )}
                       </div>
 
                       {/* Display tag of compilation and prompt */}
                       <div className="relative z-10 p-2.5 space-y-1 pointer-events-none">
                         <div className="flex items-center justify-between">
                           <span className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase font-mono ${
-                            isCompiled ? 'bg-[#00ffcc]/20 text-[#00ffcc]' : 'bg-[#7B61FF]/20 text-[#7B61FF]'
+                            isCompiled 
+                              ? 'bg-[#00ffcc]/20 text-[#00ffcc]' 
+                              : isImage 
+                                ? 'bg-[#00e1ff]/20 text-[#00e1ff]' 
+                                : 'bg-[#7B61FF]/20 text-[#7B61FF]'
                           }`}>
-                            {isCompiled ? 'DŁUGI FILM' : 'CLIP'}
+                            {isCompiled ? 'DŁUGI FILM' : isImage ? 'OBRAZ' : 'CLIP'}
                           </span>
                           <span className="text-[7px] text-slate-400 font-mono">{new Date(video.createdAt).toLocaleDateString()}</span>
                         </div>
@@ -10926,7 +12687,8 @@ const VideoStudio = React.memo(() => {
                 })}
               </div>
             )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -11631,7 +13393,7 @@ const TrainingFarm = React.memo(() => {
 
             {/* Wykres Recharts dla Loss (lewa) i Accuracy (prawa) */}
             <div className="h-[210px] w-full bg-black/20 p-2 border border-white/5 rounded-xl relative">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={1} minWidth={1}>
                 <AreaChart data={accuracyGraph} margin={{ top: 5, right: 5, left: -25, bottom: 5 }}>
                   <defs>
                     <linearGradient id="colorLoss" x1="0" y1="0" x2="0" y2="1">
@@ -13577,6 +15339,98 @@ const MCPManager = React.memo(() => {
                       </span>
                     </div>
 
+                    {/* SYSTEM CAPABILITIES TABLE */}
+                    <div className="space-y-2 select-none">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1">
+                          <ShieldCheck size={12} className="text-acid-purple" />
+                          Lista zainstalowanych narzędzi MCP ({selectedServer.capabilities?.length || 0})
+                        </label>
+                        <span className="text-[8px] text-slate-500 font-mono">Przełączaj statusy lub testuj natychmiast</span>
+                      </div>
+
+                      <div className="border border-white/5 rounded-2xl overflow-hidden bg-white/[0.01]">
+                        <table className="w-full text-left border-collapse font-sans text-xs">
+                          <thead>
+                            <tr className="bg-white/[0.02] border-b border-white/5 text-[9px] uppercase font-bold text-slate-400 tracking-wider">
+                              <th className="p-3">Zainstalowane Narzędzie</th>
+                              <th className="p-3">Opis i Zastosowanie</th>
+                              <th className="p-3">Status</th>
+                              <th className="p-3 text-right">Interfejs Testowy</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {!selectedServer.capabilities || selectedServer.capabilities.length === 0 ? (
+                              <tr>
+                                <td colSpan={4} className="p-4 text-center text-slate-500 italic font-mono text-[10px]">
+                                  Brak zainstalowanych wtyczek/funkcji na tym serwerze. Skanuj kapabilitie serwera!
+                                </td>
+                              </tr>
+                            ) : (
+                              selectedServer.capabilities.map((cap: string) => {
+                                const isExcluded = (disabledMcpTools[selectedServer.id] || []).includes(cap);
+                                
+                                // Dynamic descriptions helper
+                                let desc = "Dowolne operacje wsadowe JSON";
+                                if (cap === 'execute_query') desc = "Bezpieczne zapytania SQL (Select, Read-only)";
+                                else if (cap === 'get_schema') desc = "Inspekcja struktur, tabel i kluczy obcych";
+                                else if (cap === 'read_file') desc = "Odczyt plików z katalogu uploads systemowo";
+                                else if (cap === 'write_file') desc = "Zapis i nadpisywanie plików tekstowych";
+                                else if (cap === 'file_metadata') desc = "Analiza uprawnień i rozmiaru pliku";
+                                else if (cap === 'search_grep') desc = "Przeszukiwanie i filtrowanie tekstu regex";
+                                else if (cap === 'restart_pod') desc = "Szybki restart kontenerów w chmurze Kubernetes";
+
+                                return (
+                                  <tr key={cap} className="border-b border-white/5 hover:bg-white/[0.01] transition-colors">
+                                    <td className="p-3 font-mono font-bold text-[#00ffcc] text-[10px] whitespace-nowrap">{cap}</td>
+                                    <td className="p-3 text-slate-400 text-[10px]">{desc}</td>
+                                    <td className="p-3">
+                                      <span className={cn(
+                                        "text-[8px] font-black uppercase px-2 py-0.5 rounded border font-mono cursor-pointer selection:bg-transparent",
+                                        isExcluded 
+                                          ? "bg-red-500/10 border-red-500/20 text-red-400" 
+                                          : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                                      )}
+                                      onClick={() => toggleMcpTool(selectedServer.id, cap)}>
+                                        {isExcluded ? 'OFF' : 'ON'}
+                                      </span>
+                                    </td>
+                                    <td className="p-3 text-right">
+                                      <button
+                                        onClick={() => {
+                                          setSelectedTool(cap);
+                                          // Autofill typical parameters
+                                          if (cap === 'execute_query') {
+                                            setToolArgSql("SELECT name, type, status FROM mcp_servers");
+                                          } else if (cap === 'get_schema') {
+                                            setToolArgTable("mcp_servers");
+                                          } else if (cap === 'read_file') {
+                                            setToolArgFilename("raport_operacyjny_cylon.txt");
+                                          } else if (cap === 'write_file') {
+                                            setToolArgFilename("raport_operacyjny_cylon.txt");
+                                            setToolArgFileContent("Status Systemu: Serwer Online\nWywołano o: " + new Date().toISOString());
+                                          } else if (cap === 'search_grep') {
+                                            setToolArgPattern("error");
+                                          } else if (cap === 'restart_pod') {
+                                            setToolArgPodName("cylon-core-pod");
+                                          } else {
+                                            setToolArgJson(JSON.stringify({ "command": "ping", "test": true }, null, 2));
+                                          }
+                                        }}
+                                        className="text-[9px] font-bold text-acid-purple hover:text-white px-2.5 py-1 bg-acid-purple/15 border border-acid-purple/30 rounded-lg hover:bg-acid-purple/30 transition-all uppercase tracking-wider shrink-0 cursor-pointer"
+                                      >
+                                        Szybki Test ⚡
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
                     {/* SELECT CAPABILITY */}
                     <div className="space-y-1">
                       <label className="text-[9px] uppercase font-bold text-slate-500">Wybierz Wtyczkę / Tool</label>
@@ -15476,76 +17330,63 @@ Scenariusz ten wdraża wieloagentowy potok analityczno-prognostyczny służący 
                             Główny system instalacji i replikacji rozproszonych rojów autonomicznych pod patronatem Michała Majora.
                           </p>
 
-                          {/* DOCKER SECTION */}
-                          <div className="bg-white/[0.02] p-5 rounded-2xl border border-white/5 space-y-3 text-left">
+                          {/* DOCKER SECTION (WINDWOS / LINUX / ANDROID TERMUX) */}
+                          <div className="bg-white/[0.02] p-5 rounded-2xl border border-white/5 space-y-5 text-left">
                               <div className="flex justify-between items-center bg-white/5 -m-5 px-5 py-3 rounded-t-2xl border-b border-white/5">
                                   <div className="flex items-center gap-3">
                                       <div className="w-2.5 h-2.5 rounded-full bg-acid-cyan shadow-[0_0_8px_#06b6d4]" />
-                                      <h4 className="font-bold text-white text-xs uppercase tracking-wider">Docker Container (Ready-To-Run Engine)</h4>
+                                      <h4 className="font-bold text-white text-xs uppercase tracking-wider">Docker Engine (Poradnik Multi-Platform)</h4>
                                   </div>
-                                  <span className="text-[9px] bg-acid-cyan/10 text-acid-cyan border border-acid-cyan/20 px-2.5 py-0.5 rounded-full font-bold uppercase">Zalecane</span>
+                                  <span className="text-[9px] bg-acid-cyan/10 text-acid-cyan border border-acid-cyan/20 px-2.5 py-0.5 rounded-full font-bold uppercase">Multi-Platform</span>
                               </div>
-                              <p className="text-[10px] text-slate-400 uppercase font-semibold leading-relaxed pt-3">
-                                Gotowy obraz bazy kontenerowej udostępniony w Docker Hub jest natychmiast zdolny do orkiestracji wieloagentowej. Wspiera hosty x86_64, a także procesory ARMv8 / Apple Silicon.
-                              </p>
-                              <div className="bg-black/60 p-4 rounded-xl border border-white/5 font-mono text-[10px] text-acid-cyan space-y-1 block max-w-full overflow-x-auto select-all leading-normal text-left">
-                                  <div># Pobierz i uruchom jednym poleceniem gotowy kontener:</div>
-                                  <div>docker pull cylonstefan/cylon-swarm:latest</div>
-                                  <div>docker run -d --name cylon-swarm-node -p 3000:3000 -e SUPREME_ADMIN=MICHAŁ_MAJOR -e NODE_ENV=production -v ./cylon_db:/app/data cylonstefan/cylon-swarm:latest</div>
+                              <div className="pt-3">
+                                <h5 className="font-black text-white text-[11px] mb-2 text-acid-purple">1. Docker Desktop dla Windows</h5>
+                                <p className="text-[10px] text-slate-400 uppercase font-semibold leading-relaxed mb-2">
+                                  Zainstaluj Docker Desktop dla Windows. Upewnij się, że silnik WSL 2 jest włączony. Następnie odpal terminal PowerShell i uruchom:
+                                </p>
+                                <div className="bg-black/60 p-3 rounded-xl border border-white/5 font-mono text-[9px] text-acid-cyan select-all">
+                                    docker run -d --name cylon-swarm-node -p 3000:3000 -v cylon-vol:/app/data cylonstefan/cylon-swarm:latest
+                                </div>
+                              </div>
+                              
+                              <div className="pt-2">
+                                <h5 className="font-black text-white text-[11px] mb-2 text-acid-green">2. Środowisko Linux (Ubuntu / Debian / Raspberry Pi)</h5>
+                                <p className="text-[10px] text-slate-400 uppercase font-semibold leading-relaxed mb-2">
+                                  Standardowa instalacja paczki Docker dla dystrybucji z menedżerem apt. Skrypt do szybkiego startu:
+                                </p>
+                                <div className="bg-black/60 p-3 rounded-xl border border-white/5 font-mono text-[9px] text-acid-green select-all">
+                                    sudo apt install docker.io -y && sudo docker run -d --restart unless-stopped -p 3000:3000 -v ~/cylon_data:/app/data cylonstefan/cylon-swarm:latest
+                                </div>
+                              </div>
+
+                              <div className="pt-2">
+                                <h5 className="font-black text-white text-[11px] mb-2 text-yellow-400">3. Android / Termux (Wersja z kompilacją Docker)</h5>
+                                <p className="text-[10px] text-slate-400 uppercase font-semibold leading-relaxed mb-2">
+                                  Na zrootowanych systemach można uruchomić dockera w TTY, jednak najprościej postawić instancje Node natywnie:
+                                </p>
+                                <div className="bg-black/60 p-3 rounded-xl border border-white/5 font-mono text-[9px] text-yellow-400 select-all">
+                                    pkg install nodejs git -y && git clone https://github.com/cylon/swarm && cd swarm && npm i && npm run dev
+                                </div>
                               </div>
                           </div>
 
-                          {/* WINDOWS SECTION */}
+                          {/* ANDROID BEZ TERMUX (PWA/KLIENT ZDALNY) SECTION */}
                           <div className="bg-white/[0.02] p-5 rounded-2xl border border-white/5 space-y-3 text-left">
                               <div className="flex justify-between items-center bg-white/5 -m-5 px-5 py-3 rounded-t-2xl border-b border-white/5">
                                   <div className="flex items-center gap-3">
-                                      <div className="w-2.5 h-2.5 rounded-full bg-acid-purple shadow-[0_0_8px_#a855f7]" />
-                                      <h4 className="font-bold text-white text-xs uppercase tracking-wider">Windows 11 PowerShell Installer</h4>
+                                      <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_8px_#3b82f6]" />
+                                      <h4 className="font-bold text-white text-xs uppercase tracking-wider">Android Bez Terminala (PWA / Ekran Główny)</h4>
                                   </div>
-                                  <span className="text-[9px] bg-acid-purple/10 text-acid-purple border border-acid-purple/20 px-2.5 py-0.5 rounded-full font-bold uppercase">Natywny</span>
+                                  <span className="text-[9px] bg-blue-500/10 text-blue-500 border border-blue-500/20 px-2.5 py-0.5 rounded-full font-bold uppercase">Zero-Code Mobile</span>
                               </div>
                               <p className="text-[10px] text-slate-400 uppercase font-semibold leading-relaxed pt-3">
-                                Kompleksowy skrypt instalujący Node.js, PM2 jako zarządcę deamona Windows oraz dodający regułę do Windows Defender Firewall w celu nieskrępowanej łączności w sieci LAN/WAN.
+                                Posiadając już pracujący klaster główny w sieci domowej LAN lub publicznie (na porcie 3000), nie musisz nic instalować za pomocą czarnych ekranów czy wirtualizacji (Docker) na swoim telefonie. Android natywnie przyjmie ten interfejs!
                               </p>
-                              <div className="bg-black/60 p-4 rounded-xl border border-white/5 font-mono text-[10px] text-slate-300 space-y-1 block max-w-full overflow-x-auto select-all leading-normal text-left">
-                                  <div># Uruchom PowerShell jako Administrator i wklej:</div>
-                                  <div className="text-acid-purple">Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12; iwr https://cylon-swarm.tech/install_win.ps1 | iex</div>
-                              </div>
-                          </div>
-
-                          {/* LINUX SERVICE SECTION */}
-                          <div className="bg-white/[0.02] p-5 rounded-2xl border border-white/5 space-y-3 text-left">
-                              <div className="flex justify-between items-center bg-white/5 -m-5 px-5 py-3 rounded-t-2xl border-b border-white/5">
-                                  <div className="flex items-center gap-3">
-                                      <div className="w-2.5 h-2.5 rounded-full bg-acid-green shadow-[0_0_8px_#00ffca]" />
-                                      <h4 className="font-bold text-white text-xs uppercase tracking-wider">Automatyczny Daemon Linux (systemd)</h4>
-                                  </div>
-                                  <span className="text-[9px] bg-acid-green/10 text-acid-green border border-acid-green/20 px-2.5 py-0.5 rounded-full font-bold uppercase">Tło</span>
-                              </div>
-                              <p className="text-[10px] text-slate-400 uppercase font-semibold leading-relaxed pt-3">
-                                Instalator dla platform Debian, Ubuntu, Centos oraz RedHat. Tworzy usługę systemd i dba o automatyczną reanimację procesu po awariach zasilania lub braku sieci.
-                              </p>
-                              <div className="bg-black/60 p-4 rounded-xl border border-white/5 font-mono text-[10px] text-acid-green space-y-1 block max-w-full overflow-x-auto select-all leading-normal text-left">
-                                  <div># Uruchom instalację w terminalu:</div>
-                                  <div>curl -sSL https://cylon-swarm.tech/install_linux.sh | sudo bash</div>
-                              </div>
-                          </div>
-
-                          {/* ANDROID TERMUX SECTION */}
-                          <div className="bg-white/[0.02] p-5 rounded-2xl border border-white/5 space-y-3 text-left">
-                              <div className="flex justify-between items-center bg-white/5 -m-5 px-5 py-3 rounded-t-2xl border-b border-white/5">
-                                  <div className="flex items-center gap-3">
-                                      <div className="w-2.5 h-2.5 rounded-full bg-yellow-400 shadow-[0_0_8px_#facc15]" />
-                                      <h4 className="font-bold text-white text-xs uppercase tracking-wider">Mobilny Mikro-Węzeł Android (Termux)</h4>
-                                  </div>
-                                  <span className="text-[9px] bg-yellow-400/10 text-yellow-400 border border-yellow-400/20 px-2.5 py-0.5 rounded-full font-bold uppercase">Mobile</span>
-                              </div>
-                              <p className="text-[10px] text-slate-400 uppercase font-semibold leading-relaxed pt-3">
-                                Rewolucyjne uruchomienie agentów roju w trybie terminalowym na telefonie z systemem Android. Daje pełny dostęp do podzespołów telefonu za pomocą platformy Termux API.
-                              </p>
-                              <div className="bg-black/60 p-4 rounded-xl border border-white/5 font-mono text-[10px] text-yellow-400 space-y-1 block max-w-full overflow-x-auto select-all leading-normal text-left">
-                                  <div># Skopiuj i wklej wewnątrz aplikacji Termux na telefonie:</div>
-                                  <div>pkg install wget -y && wget -O- https://cylon-swarm.tech/termux_setup.sh | bash</div>
+                              <div className="bg-black/60 p-4 rounded-xl border border-white/5 space-y-2 text-left">
+                                  <div className="text-[10px] text-emerald-400 font-bold uppercase">Krok 1: W przeglądarce Chrome wejdź na adres IP głównego serwera (np. http://192.168.1.50:3000).</div>
+                                  <div className="text-[10px] text-emerald-400 font-bold uppercase">Krok 2: Kliknij opcje przeglądarki Chrome (trzy kropki) w prawym górnym rogu.</div>
+                                  <div className="text-[10px] text-emerald-400 font-bold uppercase">Krok 3: Wybierz opcję "Zainstaluj Aplikację" lub "Dodaj do ekranu głównego (PWA)".</div>
+                                  <div className="text-[10px] text-emerald-400 font-bold uppercase">Krok 4: Aplikacja uruchomi się na pełnym ekranie na Androidzie, bez czarnego okna Termux czy aplikacji Docker. Bateria będzie oszczędzona, ponieważ hostowanie odbywa się na PC.</div>
                               </div>
                           </div>
                       </div>
@@ -15606,7 +17447,7 @@ export default function App() {
     NotificationService.requestPermission();
   };
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'voice_console' | 'agents' | 'teams' | 'stats' | 'tasks' | 'assistant' | 'discussion' | 'security' | 'clusters' | 'cluster_ai' | 'agent_performance' | 'training' | 'manual' | 'video_studio' | 'architect' | 'knowledge' | 'mcp' | 'workspace' | 'hosting' | 'game_engine' | 'win_mgr' | 'snitch' | 'system_mgr' | 'app_generator' | 'cloud_db' | 'device_mgr' | 'media_analyzer' | 'scheduler'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'voice_console' | 'agents' | 'teams' | 'stats' | 'tasks' | 'assistant' | 'discussion' | 'security' | 'clusters' | 'cluster_health' | 'cluster_ai' | 'agent_performance' | 'training' | 'manual' | 'video_studio' | 'kids_cartoon' | 'architect' | 'knowledge' | 'self_healing' | 'mcp' | 'workspace' | 'hosting' | 'game_engine' | 'win_mgr' | 'snitch' | 'system_mgr' | 'app_generator' | 'cloud_db' | 'device_mgr' | 'media_analyzer' | 'scheduler' | 'system_hub' | 'docker_installer'>('dashboard');
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [showTooltips, setShowTooltips] = useState(true);
 
@@ -15766,12 +17607,16 @@ export default function App() {
   const [dismissedNotifications, setDismissedNotifications] = useState<string[]>([]);
   const [triggeredAlerts, setTriggeredAlerts] = useState<string[]>([]);
 
-  const loadTasksForNotifications = async () => {
+  const loadTasksForNotifications = async (retryCount = 0) => {
     try {
       const data = await api.getTasks();
       setTasksForNotifications(data);
     } catch (e) {
-      console.error("Error loading tasks for notifications", e);
+      if (retryCount < 3) {
+        setTimeout(() => loadTasksForNotifications(retryCount + 1), 2000);
+      } else {
+        console.error("Error loading tasks for notifications", e);
+      }
     }
   };
 
@@ -15993,17 +17838,20 @@ export default function App() {
         { id: 'snitch', label: 'Wydział Lojalności', icon: <ShieldAlert size={16} />, desc: 'Zgłoszenia i resocjalizacja' },
         { id: 'architect', label: 'Core Blueprints', icon: <NetworkIcon size={16} />, desc: 'Architektura i powiązania' },
         { id: 'knowledge', label: 'Baza Wiedzy', icon: <BookOpenIcon size={16} />, desc: 'Repozytoria danych' },
+        { id: 'self_healing', label: 'Samonaprawa & Ewolucja', icon: <Lucide.ShieldCheck size={16} className="text-acid-purple animate-pulse" />, desc: 'Medyk klastra i samoulepszanie' },
       ]
     },
     {
       title: "Zasoby & Infrastruktura",
       items: [
         { id: 'device_mgr', label: 'Dystrybucja Funkcji (MDM)', icon: <Lucide.Smartphone size={16} className="text-acid-green animate-pulse" />, desc: 'Zarządzanie PC/Laptop/Smartfon' },
-        { id: 'media_analyzer', label: 'Wizja Komputerowa', icon: <Lucide.Camera size={16} className="text-acid-cyan" />, desc: 'Analiza Foto/Video AI' },
+        { id: 'media_analyzer', label: 'Studio Multimedialne', icon: <Lucide.Film size={16} className="text-acid-purple" />, desc: 'Wizja, Wideo & Veo AI' },
         { id: 'scheduler', label: 'Harmonogram Chronos', icon: <Lucide.CalendarClock size={16} className="text-amber-500" />, desc: 'Planowanie zadań agentów' },
         { id: 'clusters', label: 'Sieć Hyper-Compute', icon: <Network size={16} />, desc: 'Klastry i węzły' },
+        { id: 'cluster_health', label: 'Cluster Health Monitoring', icon: <Activity size={16} className="text-emerald-500" />, desc: 'Wizualizacja stanu węzłów na mapie' },
         { id: 'win_mgr', label: 'Windows Service Manager', icon: <Lucide.Sliders size={16} />, desc: 'Zarządzanie procesami roju' },
         { id: 'training', label: 'Poligon Algorytmiczny', icon: <Cpu size={16} />, desc: 'Uczenie modeli' },
+        { id: 'docker_installer', label: 'Kreator Obrazu (Docker)', icon: <Lucide.Box size={16} className="text-blue-500" />, desc: 'Kreator Obrazu aplikacji' },
         { id: 'hosting', label: 'Hosting & Chmura', icon: <Cloud size={16} />, desc: 'Serwer & Node' },
         { id: 'system_mgr', label: 'System Orchestrator', icon: <Cpu size={16} />, desc: 'Lokalne zarządzanie OS' },
         { id: 'mcp', label: 'Protokół MCP', icon: <TerminalSquare size={16} />, desc: 'Zasoby integracyjne' },
@@ -16012,6 +17860,7 @@ export default function App() {
     {
       title: "Kreatywne Super-AI",
       items: [
+        { id: 'kids_cartoon', label: 'Bajkotwórca Roju (7+)', icon: <Sparkles size={16} className="text-amber-400 animate-pulse" />, desc: 'Studio Animacji dla dzieci' },
         { id: 'video_studio', label: 'Synthesis Studio', icon: <Video size={16} />, desc: 'Generowanie Audio/Video' },
         { id: 'game_engine', label: 'Silnik Gier 3D (BETA)', icon: <Gamepad2 size={16} />, desc: 'Symulator' },
       ]
@@ -16359,9 +18208,10 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
     <div 
       className="h-screen w-screen bg-[#08090a] flex overflow-hidden font-body text-gray-200 relative sm:p-3 md:p-4 lg:p-5"
       style={{
-        backgroundImage: `url('/src/assets/images/neural_grid_bg_1781045068968.png')`,
+        backgroundImage: `url('/src/assets/images/cylon_comic_bg_1781472266208.jpg')`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
       }}
     >
       {/* Immersive ambient dark overlay */}
@@ -16383,7 +18233,7 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
             isSidebarOpen ? "translate-x-0" : "-translate-x-full"
           )}
           style={{
-            backgroundImage: `linear-gradient(to bottom, rgba(10,11,12,0.92), rgba(15,16,18,0.98)), url('/src/assets/images/neural_grid_bg_1781045068968.png')`,
+            backgroundImage: `linear-gradient(to bottom, rgba(10,11,12,0.92), rgba(15,16,18,0.98)), url('/src/assets/images/cylon_comic_bg_1781472266208.jpg')`,
             backgroundSize: 'cover',
             backgroundPosition: 'left center',
           }}
@@ -16396,7 +18246,7 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
                 <Cpu size={18} className="text-white" />
              </div>
              <div>
-                <h1 className="text-sm font-display font-bold tracking-tight text-white uppercase leading-none">Cylon Horizon</h1>
+                <h1 className="text-sm font-display font-bold tracking-tight text-white uppercase leading-none">CYLON GANG</h1>
                 <p className="text-[9px] opacity-40 uppercase tracking-[0.2em] font-medium mt-1">Sztuczny Rój AI</p>
              </div>
           </div>
@@ -16404,7 +18254,7 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
         
         <nav className="flex-1 py-4 overflow-y-auto custom-scrollbar">
           {/* Michał Major Admin Interface */}
-          <div className="p-4 mx-4 mb-6 rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-transparent relative overflow-hidden group shadow-md shadow-amber-500/5 select-none">
+          <div className="hidden">
             <div className="absolute top-0 right-0 w-16 h-16 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-all duration-700" />
             
             <div className="flex items-center gap-3 relative z-10">
@@ -17078,15 +18928,18 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
                 {activeTab === 'security' && "Terminal Bezpieczeństwa"}
                 {activeTab === 'assistant' && "Orkiestracja Centralna"}
                 {activeTab === 'clusters' && "Sieć Hyper-Compute"}
+                {activeTab === 'cluster_health' && "Cluster Health Monitoring"}
                 {activeTab === 'training' && "Poligon Algorytmiczny"}
                 {activeTab === 'manual' && "Protokół Operacyjny"}
                 {activeTab === 'win_mgr' && "Windows Service Manager • MMC Console"}
                 {activeTab === 'scheduler' && "Planista Cykliczny Chronos • Kalendarz Misji"}
                 {activeTab === 'device_mgr' && "Dystrybucja Funkcji (MDM) & Zarządzanie Urządzeniami"}
-                {activeTab === 'media_analyzer' && "Wizualny Analizator Cylon-V (Computer Vision)"}
+                {activeTab === 'media_analyzer' && "Studio Multimedialne Cylon-V (Wizja & Veo Wideo)"}
                 {activeTab === 'workspace' && "Google Workspace Hub"}
                 {activeTab === 'architect' && "Core Blueprints"}
                 {activeTab === 'knowledge' && "Baza Wiedzy Roju"}
+                {activeTab === 'self_healing' && "Autonomiczna Samonaprawa & Rozwój Roju"}
+                {activeTab === 'kids_cartoon' && "Bajkotwórca Roju (7+)"}
                 {activeTab === 'video_studio' && "Synthesis Studio"}
                 {activeTab === 'discussion' && teams.find(t => t.id === activeTeamId)?.name}
                 <span className="text-[10px] bg-acid-purple/20 text-acid-purple px-2 py-0.5 rounded border border-acid-purple/30 font-mono">LIVE_LINK:ESTABLISHED</span>
@@ -17320,6 +19173,7 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
                 transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
               >
         {activeTab === 'dashboard' && <DashboardWidgets setActiveTab={setActiveTab} agentStats={agentStats} showToast={showToast} openFirebaseLogs={() => setIsFirebaseLogsOpen(true)} openRecoveryMonitor={() => setIsRecoveryMonitorOpen(true)} />}
+        {activeTab === 'docker_installer' && <DockerInstallerWizard showToast={showToast} />}
         {activeTab === 'voice_console' && (
           <div className="grid grid-cols-12 gap-6 items-start">
             <div className="col-span-12 xl:col-span-8">
@@ -17412,13 +19266,16 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
                 {activeTab === 'scheduler' && <SchedulerManager showToast={showToast} />}
                 {activeTab === 'architect' && <TeamArchitect />}
                 {activeTab === 'knowledge' && <KnowledgeBase />}
+                {activeTab === 'self_healing' && <SelfHealingUpgradeManager showToast={showToast} />}
                 {activeTab === 'tasks' && <TaskManager showToast={showToast} setActiveTab={setActiveTab} />}
                 {activeTab === 'security' && <SecurityLogs />}
                 {activeTab === 'assistant' && <Assistant />}
                 {activeTab === 'clusters' && <Clusters showToast={showToast} />}
+                {activeTab === 'cluster_health' && <ClusterHealthMap />}
                 {activeTab === 'cluster_ai' && <ClusterAiManager />}
                 {activeTab === 'agent_performance' && <AgentPerformance />}
                 {activeTab === 'training' && <TrainingFarm />}
+                {activeTab === 'kids_cartoon' && <KidsCartoonStudio showToast={showToast} />}
                 {activeTab === 'video_studio' && <VideoStudio />}
                 {activeTab === 'game_engine' && <GameEngine />}
                 {activeTab === 'mcp' && <MCPManager />}
@@ -17426,8 +19283,9 @@ Jesteś sercem systemu. Twoim zadaniem jest branie surowych poleceń od użytkow
                 {activeTab === 'system_mgr' && <SystemOrchestrator />}
                 {activeTab === 'win_mgr' && <WindowsTaskManager showToast={showToast} />}
                 {activeTab === 'device_mgr' && <DeviceManager showToast={showToast} />}
-                {activeTab === 'media_analyzer' && <MediaAnalyzer showToast={showToast} />}
+                {activeTab === 'media_analyzer' && <MultimediaStudio showToast={showToast} />}
                 {activeTab === 'workspace' && <GoogleWorkspaceHub showToast={showToast} />}
+                {activeTab === 'system_hub' && <SystemManagementHub showToast={showToast} />}
                 {activeTab === 'manual' && <HelpManual showToast={showToast} />}
                 {activeTab === 'discussion' && activeTeamId && (
                   <div className="h-[calc(100vh-250px)]">

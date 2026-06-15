@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
+import { Tooltip } from './TooltipProvider';
 import { 
   Eye, 
   Clock, 
@@ -14,13 +15,19 @@ import {
   Check,
   Lock,
   AlertTriangle,
-  Network
+  Network,
+  ArrowUp,
+  Minus,
+  Mic,
+  RefreshCw
 } from 'lucide-react';
 import { Task, Agent } from '../types';
 import { cn } from '../lib/utils';
 import { TaskPreviewModal } from './TaskPreviewModal';
 import { TaskDependenciesGraph } from './TaskDependenciesGraph';
 import { api } from '../services/api';
+import { auth, db } from '../services/firebaseService';
+import { doc, getDoc } from 'firebase/firestore';
 
 interface TaskCardProps {
   task: Task;
@@ -35,6 +42,7 @@ interface TaskCardProps {
   onUpdate?: () => void;
   selected?: boolean;
   onToggleSelect?: () => void;
+  setActiveTab?: (tab: any) => void;
 }
 
 export const TaskCard: React.FC<TaskCardProps> = ({
@@ -49,7 +57,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   handleUpdateStatus,
   onUpdate,
   selected,
-  onToggleSelect
+  onToggleSelect,
+  setActiveTab
 }) => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isGraphOpen, setIsGraphOpen] = useState(false);
@@ -64,6 +73,76 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [isAssignOpen, setIsAssignOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'refreshed' | 'not-logged-in' | 'error' | 'not-found'>('idle');
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSyncWithFirebase = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isSyncing) return;
+    setIsSyncing(true);
+    setSyncStatus('syncing');
+
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        setSyncStatus('not-logged-in');
+        setIsSyncing(false);
+        setTimeout(() => setSyncStatus('idle'), 5000);
+        return;
+      }
+
+      const uid = currentUser.uid;
+      const taskRef = doc(db, 'users', uid, 'tasks', task.id);
+      const docSnap = await getDoc(taskRef);
+
+      if (docSnap.exists()) {
+        const cloudTask = docSnap.data() as Task;
+        let hasChanges = false;
+        const updates: Partial<Task> = {};
+
+        if (cloudTask.status !== task.status) {
+          updates.status = cloudTask.status;
+          hasChanges = true;
+        }
+        if (cloudTask.completionPercentage !== task.completionPercentage) {
+          updates.completionPercentage = cloudTask.completionPercentage;
+          hasChanges = true;
+        }
+        if (cloudTask.assignedAgentId !== task.assignedAgentId) {
+          updates.assignedAgentId = cloudTask.assignedAgentId;
+          hasChanges = true;
+        }
+        if (cloudTask.priority !== task.priority) {
+          updates.priority = cloudTask.priority;
+          hasChanges = true;
+        }
+
+        if (hasChanges) {
+          await api.updateTask(task.id, updates);
+          
+          await api.createLog({
+            id: Math.random().toString(36).substr(2, 9),
+            action: 'FIREBASE_SYNC_SUCCESS',
+            details: `Ręczna pomyślna synchronizacja statusu zadania "${task.title}" z Firebase chmurą.`
+          });
+
+          setSyncStatus('refreshed');
+          if (onUpdate) onUpdate();
+        } else {
+          setSyncStatus('success');
+        }
+      } else {
+        setSyncStatus('not-found');
+      }
+    } catch (err) {
+      console.error("Firestore Task Sync Error: ", err);
+      setSyncStatus('error');
+    } finally {
+      setIsSyncing(false);
+      setTimeout(() => setSyncStatus('idle'), 4500);
+    }
+  };
 
   const assignedAgent = allAgents.find(a => a.id === task.assignedAgentId);
   const blockedBy = task.dependentOn?.filter(depId => !allTasks.find(t => t.id === depId && t.status === 'done')) || [];
@@ -281,6 +360,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({
                 task.priority === 'medium' ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
                 "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
               )}>
+                {task.priority === 'high' && <ArrowUp size={8} />}
+                {task.priority === 'medium' && <Minus size={8} />}
+                {task.priority === 'low' && <ChevronDown size={8} />}
                 PRIORYTET: {task.priority === 'high' ? 'WYSOKI' : task.priority === 'medium' ? 'ŚREDNI' : 'NISKI'}
               </span>
               <span className="text-[8px] text-slate-600 font-mono">•</span>
@@ -288,6 +370,28 @@ export const TaskCard: React.FC<TaskCardProps> = ({
                 {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />} 
                 {isExpanded ? 'Zwiń' : 'Rozwiń parametry'}
               </span>
+              {syncStatus !== 'idle' && (
+                <>
+                  <span className="text-[8px] text-slate-600 font-mono">•</span>
+                  <span className={cn(
+                    "text-[8px] font-mono font-black uppercase tracking-wider px-1.5 py-0.5 rounded border inline-flex items-center gap-1 animate-fadeIn",
+                    syncStatus === 'syncing' ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/20 animate-pulse" :
+                    syncStatus === 'success' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                    syncStatus === 'refreshed' ? "bg-green-500/10 text-acid-green border-green-500/20" :
+                    syncStatus === 'not-logged-in' ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
+                    syncStatus === 'not-found' ? "bg-zinc-500/10 text-zinc-400 border-zinc-500/20" :
+                    "bg-red-500/10 text-red-500 border-red-500/20"
+                  )}>
+                    <RefreshCw size={8} className={cn(syncStatus === 'syncing' && "animate-spin")} />
+                    {syncStatus === 'syncing' && 'FS-SYNC...'}
+                    {syncStatus === 'success' && 'CLOUD MATCH'}
+                    {syncStatus === 'refreshed' && 'STATUS SYNCED!'}
+                    {syncStatus === 'not-logged-in' && 'FS LOGIN REQ.'}
+                    {syncStatus === 'not-found' && 'NO FS DOC'}
+                    {syncStatus === 'error' && 'SYNC ERR'}
+                  </span>
+                </>
+              )}
             </div>
             
             {/* Progress bar */}
@@ -325,6 +429,54 @@ export const TaskCard: React.FC<TaskCardProps> = ({
                   </div>
                </div>
             </div>
+
+            {/* Assigned Agent & Performance Link */}
+            {assignedAgent ? (
+              <div className="mt-2.5 flex items-center justify-between p-2.5 rounded-xl bg-white/[0.01] border border-white/5 hover:bg-white/[0.02] hover:border-acid-purple/30 transition-all select-none">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div 
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black uppercase text-center flex-shrink-0"
+                    style={{
+                      backgroundColor: `${assignedAgent.color}15`,
+                      borderColor: assignedAgent.color,
+                      borderWidth: '1px',
+                      color: assignedAgent.color,
+                    }}
+                  >
+                    {assignedAgent.name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-black text-slate-200 truncate font-mono flex items-center gap-1">
+                      <span>{assignedAgent.name}</span>
+                      <span className="text-[8px] px-1 py-[1px] rounded bg-white/5 border border-white/5 text-[8px] text-slate-400 font-normal">
+                        XP: {assignedAgent.xp || 100}
+                      </span>
+                    </div>
+                    <span className="text-[8px] text-[#00ffcc] font-mono block truncate uppercase tracking-wider">
+                      {assignedAgent.role || 'PROCESOR SYGNALNY'}
+                    </span>
+                  </div>
+                </div>
+                
+                {setActiveTab && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveTab('agent_performance');
+                    }}
+                    className="px-2.5 py-1 bg-acid-purple/10 border border-acid-purple/30 hover:border-acid-purple/60 hover:bg-acid-purple/20 rounded-lg text-[8px] font-black uppercase tracking-widest text-[#c084fc] flex items-center gap-1 transition-all cursor-pointer select-none shrink-0"
+                  >
+                    <BarChart size={9} /> Statystyki wydajności
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="mt-2.5 flex items-center justify-between p-2.5 rounded-xl border border-dashed border-white/5 text-slate-500 hover:border-white/10 transition-colors select-none">
+                <span className="text-[8px] font-mono uppercase tracking-widest italic">Brak przypisanego agenta</span>
+                <span className="text-[7px] font-mono text-slate-600">Przypisz w dolnej sekcji</span>
+              </div>
+            )}
 
             {/* Visual Blocked Dependencies Indicator */}
             {isBlocked && (
@@ -390,6 +542,17 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             </>
           )}
           <button 
+            onClick={handleSyncWithFirebase} 
+            disabled={isSyncing}
+            className={cn(
+              "text-slate-600 hover:text-acid-cyan hover:bg-acid-cyan/10 p-1.5 rounded-xl transition-all",
+              isSyncing ? "animate-pulse" : ""
+            )}
+            title="Synchronizuj status z Firebase w czasie rzeczywistym"
+          >
+            <RefreshCw size={14} className={cn(isSyncing ? "animate-spin text-acid-cyan" : "")} />
+          </button>
+          <button 
             onClick={(e) => {
               e.stopPropagation();
               setShowConfirm(true);
@@ -398,6 +561,23 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             title="Usuń zadanie"
           >
             <Trash2 size={14} />
+          </button>
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              await api.createLog({
+                id: Math.random().toString(36).substr(2, 9),
+                agentId: task.assignedAgentId,
+                agentName: assignedAgent?.name || 'Nieznany',
+                action: 'ESCALATION_REQUESTED',
+                details: `PILNE: Zadanie "${task.title}" wymaga natychmiastowej uwagi zespołu!`
+              });
+              alert('Wysłano powiadomienie o pilnej eskalacji!');
+            }}
+            className="text-slate-600 hover:text-amber-400 hover:bg-amber-500/10 p-1.5 rounded-xl transition-all"
+            title="Szybka Eskalacja"
+          >
+            <AlertTriangle size={14} />
           </button>
         </div>
       </div>
@@ -439,6 +619,23 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             onClick={(e) => e.stopPropagation()}
             className="overflow-hidden space-y-4 pt-3 border-t border-white/5 mt-3 relative z-10"
           >
+            {/* Voice Memo Player */}
+            {task.voiceMemoUrl && (
+              <div className="p-3.5 rounded-xl bg-acid-purple/10 border border-acid-purple/30 space-y-2 animate-fadeIn select-none">
+                <span className="text-[8px] font-mono font-black text-acid-purple uppercase tracking-widest block flex items-center gap-1">
+                  <Mic size={10} className="text-acid-purple animate-pulse" />
+                  ZAŁĄCZONY SNIPPET GŁOSOWY (VOICE MEMO)
+                </span>
+                <div className="flex items-center gap-3">
+                  <audio 
+                    src={task.voiceMemoUrl} 
+                    controls 
+                    className="w-full h-8 rounded-lg outline-none cursor-pointer border border-white/5 bg-black/40 text-xs" 
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Metadata Badges Section */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
               {task.complexity && (
@@ -631,6 +828,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           <TaskDependenciesGraph
             tasks={allTasks}
             onClose={() => setIsGraphOpen(false)}
+            onUpdate={onUpdate}
           />
         )}
       </AnimatePresence>
@@ -642,33 +840,34 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="relative">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsAssignOpen(!isAssignOpen);
-            }}
-            className={cn(
-              "flex items-center justify-center rounded-full border shadow-lg transition-all cursor-pointer",
-              assignedAgent 
-                ? "w-7 h-7" 
-                : "w-7 h-7 border-dashed border-white/20 bg-white/5 text-slate-400 hover:text-acid-purple hover:border-acid-purple/50 hover:bg-neutral-900"
-            )}
-            style={assignedAgent ? {
-              backgroundColor: `${assignedAgent.color}20`,
-              borderColor: assignedAgent.color,
-              color: assignedAgent.color,
-              boxShadow: `0 0 10px ${assignedAgent.color}40`
-            } : {}}
-            title={assignedAgent ? `Przypisany agent: ${assignedAgent.name} (${assignedAgent.role})` : "Szybkie przypisanie agenta"}
-          >
-            {assignedAgent ? (
-              <span className="text-[10px] font-black uppercase text-center tracking-tighter">
-                {assignedAgent.name.slice(0, 2).toUpperCase()}
-              </span>
-            ) : (
-              <UserPlus size={10} />
-            )}
-          </button>
+          <Tooltip content={assignedAgent ? `${assignedAgent.name}: Zrealizowane: ${assignedAgent.tasksCompleted || 0}, Skuteczność: ${((assignedAgent.successRate || 0) * 100).toFixed(0)}%` : "Szybkie przypisanie agenta"}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsAssignOpen(!isAssignOpen);
+              }}
+              className={cn(
+                "flex items-center justify-center rounded-full border shadow-lg transition-all cursor-pointer",
+                assignedAgent 
+                  ? "w-7 h-7" 
+                  : "w-7 h-7 border-dashed border-white/20 bg-white/5 text-slate-400 hover:text-acid-purple hover:border-acid-purple/50 hover:bg-neutral-900"
+              )}
+              style={assignedAgent ? {
+                backgroundColor: `${assignedAgent.color}20`,
+                borderColor: assignedAgent.color,
+                color: assignedAgent.color,
+                boxShadow: `0 0 10px ${assignedAgent.color}40`
+              } : {}}
+            >
+              {assignedAgent ? (
+                <span className="text-[10px] font-black uppercase text-center tracking-tighter">
+                  {assignedAgent.name.slice(0, 2).toUpperCase()}
+                </span>
+              ) : (
+                <UserPlus size={10} />
+              )}
+            </button>
+          </Tooltip>
 
           <AnimatePresence>
             {isAssignOpen && (

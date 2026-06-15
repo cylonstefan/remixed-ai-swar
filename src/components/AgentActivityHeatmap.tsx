@@ -19,7 +19,7 @@ export const AgentActivityHeatmap = () => {
         <div className="bg-white/5 p-6 rounded-3xl border border-white/10">
             <h3 className="text-white font-bold mb-4">Aktywność Agentów (Heatmap)</h3>
             <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minHeight={1} minWidth={1}>
                     <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                         <XAxis type="category" dataKey="day" name="Dzień" />
                         <YAxis type="number" dataKey="hour" name="Godzina" domain={[0, 23]} />

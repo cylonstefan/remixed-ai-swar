@@ -17,14 +17,29 @@ import {
   collection, 
   getDocs, 
   query, 
-  getDocFromServer 
+  getDocFromServer,
+  setLogLevel
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { Agent, Team, Task, Message } from '../types';
 
 // Initialize Firebase
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-export const db = getFirestore(app);
+try { setLogLevel('silent'); } catch (e) {}
+
+let dbInstance: any = null;
+export const db = (() => {
+  try {
+    const dbId = (firebaseConfig as any).firestoreDatabaseId;
+    dbInstance = dbId ? getFirestore(app, dbId) : getFirestore(app);
+    return dbInstance;
+  } catch (error) {
+    console.warn("Firestore init failed, attempting re-initialization...", error);
+    dbInstance = getFirestore(app);
+    return dbInstance;
+  }
+})();
+
 export const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 

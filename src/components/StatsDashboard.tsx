@@ -1183,7 +1183,7 @@ export const StatsDashboard = React.memo(() => {
 
                                 {widget.type === 'load-trend' && (
                                     <div className="h-64 pt-2">
-                                        <ResponsiveContainer width="100%" height="100%">
+                                        <ResponsiveContainer width="100%" height="100%" minHeight={1} minWidth={1}>
                                             {widget.config.chartType === 'bar' ? (
                                                 <BarChart data={liveHistory}>
                                                     <CartesianGrid strokeDasharray="3 3" stroke="#222" />
@@ -1219,8 +1219,8 @@ export const StatsDashboard = React.memo(() => {
                                                     <YAxis stroke="#555" style={{ fontSize: '9px' }} />
                                                     <Tooltip contentStyle={{ backgroundColor: '#000', borderColor: '#333' }} />
                                                     <Legend wrapperStyle={{ fontSize: '9px' }} />
-                                                    <Line type="monotone" dataKey="system" name="CPU Core Load" stroke="#06b6d4" strokeWidth={2} dot={false} />
-                                                    <Line type="monotone" dataKey="interactions" name="Entropy Index" stroke="#8884d8" strokeWidth={2} dot={false} />
+                                                    <Line type="monotone" dataKey="system" name="CPU Core Load" stroke="#06b6d4" strokeWidth={2} dot={false} isAnimationActive={true} animationDuration={300} />
+                                                    <Line type="monotone" dataKey="interactions" name="Entropy Index" stroke="#8884d8" strokeWidth={2} dot={false} isAnimationActive={true} animationDuration={300} />
                                                 </LineChart>
                                             )}
                                         </ResponsiveContainer>
@@ -1234,7 +1234,7 @@ export const StatsDashboard = React.memo(() => {
                                                 Brak aktywności agentów do wygenerowania analizy obciążenia.
                                             </div>
                                         ) : (
-                                            <ResponsiveContainer width="100%" height="100%">
+                                            <ResponsiveContainer width="100%" height="100%" minHeight={1} minWidth={1}>
                                                 {widget.config.chartType === 'bar' ? (
                                                     <BarChart data={stats.filter(s => s.messageCount > 0)}>
                                                         <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
@@ -1288,7 +1288,7 @@ export const StatsDashboard = React.memo(() => {
                                                 Pobieranie wektorów aktywności agentów z bazy...
                                             </div>
                                         ) : (
-                                            <ResponsiveContainer width="100%" height="100%">
+                                            <ResponsiveContainer width="100%" height="100%" minHeight={1} minWidth={1}>
                                                 {widget.config.chartType === 'bar' ? (
                                                     <BarChart data={timelineData}>
                                                         <CartesianGrid strokeDasharray="3 3" stroke="#222" />
@@ -1314,6 +1314,8 @@ export const StatsDashboard = React.memo(() => {
                                                                 stroke={agent.color || statsColors[i % statsColors.length]}
                                                                 strokeWidth={2}
                                                                 dot={{ r: 3 }}
+                                                                isAnimationActive={true}
+                                                                animationDuration={300}
                                                             />
                                                         ))}
                                                     </LineChart>
@@ -1521,7 +1523,7 @@ export const StatsDashboard = React.memo(() => {
                                                     Brak zespołów do wygenerowania analizy wydajności.
                                                 </div>
                                             ) : (
-                                                <ResponsiveContainer width="100%" height="100%">
+                                                <ResponsiveContainer width="100%" height="100%" minHeight={1} minWidth={1}>
                                                     <BarChart data={teamsRealizationTimeData}>
                                                         <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
                                                         <XAxis 
@@ -1589,10 +1591,10 @@ export const StatsDashboard = React.memo(() => {
                                 <span className="font-bold text-xs text-slate-300">{agent.name}</span>
                             </div>
                             <div className="h-24">
-                              <ResponsiveContainer width="100%" height="100%">
+                              <ResponsiveContainer width="100%" height="100%" minHeight={1} minWidth={1}>
                                 <LineChart data={agentUsageStats[agent.id]?.cpu.map((c, i) => ({ cpu: c, ram: agentUsageStats[agent.id].ram[i], name: i })) || []}>
-                                    <Line type="monotone" dataKey="cpu" stroke="#10b981" strokeWidth={2} dot={false} />
-                                    <Line type="monotone" dataKey="ram" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                                    <Line type="monotone" dataKey="cpu" stroke="#10b981" strokeWidth={2} dot={false} isAnimationActive={true} animationDuration={300} />
+                                    <Line type="monotone" dataKey="ram" stroke="#3b82f6" strokeWidth={2} dot={false} isAnimationActive={true} animationDuration={300} />
                                 </LineChart>
                               </ResponsiveContainer>
                             </div>
@@ -1609,7 +1611,7 @@ export const StatsDashboard = React.memo(() => {
             <div className="bg-neutral-900/60 p-6 rounded-3xl border border-white/5 backdrop-blur-md">
                 <h3 className="text-lg font-display uppercase font-bold text-white mb-6">Historyczne Zapotrzebowanie Zasobów (CPU/RAM)</h3>
                 <div className="h-96">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minHeight={1} minWidth={1}>
                         <AreaChart data={metricsHistory} margin={{ top: 10, right: 15, left: -20, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
                             <XAxis dataKey="time" stroke="#475569" tickLine={false} tick={{ fontSize: 10 }} />
@@ -1627,7 +1629,7 @@ export const StatsDashboard = React.memo(() => {
             <div className="bg-neutral-900/60 p-6 rounded-3xl border border-white/5 backdrop-blur-md">
               <h3 className="text-lg font-display uppercase font-bold text-white mb-6">Wskaźnik wszechstronności (Radar Roju)</h3>
               <div className="h-96">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minHeight={1} minWidth={1}>
                   <RadarChart cx="50%" cy="50%" outerRadius="80%" data={
                     agents.length > 0 ? 
                     agents.map(a => ({

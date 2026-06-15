@@ -196,6 +196,17 @@ export const api = {
   async deleteTask(id: string): Promise<void> {
     await fetch(`/api/tasks/${id}`, { method: "DELETE" });
   },
+  async transcribeAudio(audioBlob: Blob): Promise<string> {
+    const formData = new FormData();
+    formData.append("audio", audioBlob, "audio.webm");
+    const res = await fetch("/api/transcribe", {
+      method: "POST",
+      body: formData,
+    });
+    if (!res.ok) throw new Error("Transcription failed");
+    const data = await res.json();
+    return data.text;
+  },
   async uploadFile(file: File): Promise<{ fileUrl: string; fileName: string }> {
     const formData = new FormData();
     formData.append("files", file); // Changed from "file" to "files" to match server
@@ -226,6 +237,22 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(log),
     });
+  },
+  async runSecurityScan(target: string, type: 'ping' | 'traceroute' | 'nmap' | 'wireshark' | 'vuln'): Promise<any> {
+    const res = await fetch("/api/security/scan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ target, type }),
+    });
+    return res.json();
+  },
+  async patchVulnerability(vulnId: string, target: string): Promise<any> {
+    const res = await fetch("/api/security/patch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ vulnId, target }),
+    });
+    return res.json();
   },
 
   // File Generation
@@ -269,11 +296,27 @@ export const api = {
     });
     return res.json();
   },
-  async generateVideo(prompt: string, format?: string, filename?: string): Promise<{ fileUrl: string; fileName: string }> {
+  async generateVideo(prompt: string, format?: string, filename?: string): Promise<{ success: boolean; operationName?: string; error?: string }> {
     const res = await fetch("/api/generate/video", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt, format, filename }),
+    });
+    return res.json();
+  },
+  async checkVideoStatus(operationName: string): Promise<{ success: boolean; done?: boolean; error?: string }> {
+    const res = await fetch("/api/generate/video/status", {
+       method: "POST",
+       headers: { "Content-Type": "application/json" },
+       body: JSON.stringify({ operationName }),
+    });
+    return res.json();
+  },
+  async downloadVideo(operationName: string): Promise<{ success: boolean; fileUrl?: string; fileName?: string; error?: string }> {
+    const res = await fetch("/api/generate/video/download", {
+       method: "POST",
+       headers: { "Content-Type": "application/json" },
+       body: JSON.stringify({ operationName }),
     });
     return res.json();
   },
@@ -287,6 +330,8 @@ export const api = {
     speed?: number;
     effect?: string;
     bgMusic?: string;
+    aspectRatio?: string;
+    advancedSettings?: any;
   }): Promise<any> {
     const res = await fetch("/api/generate/multimedia", {
       method: "POST",
@@ -370,6 +415,14 @@ export const api = {
   },
   async wakeClusterNode(id: string): Promise<void> {
     await fetch(`/api/clusters/${id}/wake`, { method: "POST" });
+  },
+  async toggleClusterNodeMaintenance(id: string, enabled: boolean): Promise<void> {
+    const res = await fetch(`/api/clusters/${id}/maintenance`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled })
+    });
+    if (!res.ok) throw new Error("Failed to toggle maintenance mode");
   },
 
   // Training
@@ -655,8 +708,44 @@ export const api = {
     const res = await fetch("/api/agents/self-correction", { method: "POST" });
     return res.json();
   },
+  async getAgentActivity24h(): Promise<{ agents: { id: string; name: string; color: string }[]; heatmap: any[] }> {
+    const res = await fetch("/api/stats/agent-activity-24h");
+    return res.json();
+  },
   async getAgentMessagesOverTime(): Promise<{ agents: { id: string; name: string; color: string }[]; timeline: any[] }> {
     const res = await fetch("/api/stats/agent-messages-over-time");
+    return res.json();
+  },
+  async runLoadBalancer(params: { strategy: string; availableCores: number; reassignTasks: boolean; reassignProcesses: boolean }): Promise<any> {
+    const res = await fetch("/api/load-balancer/balance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    });
+    return res.json();
+  },
+  async getSwarmDetailedHealth(): Promise<any> {
+    const res = await fetch("/api/swarm/health");
+    if (!res.ok) throw new Error("Failed to get swarm health");
+    return res.json();
+  },
+  async runSwarmSelfHealing(): Promise<any> {
+    const res = await fetch("/api/swarm/self-healing", { method: "POST" });
+    if (!res.ok) throw new Error("Failed to run self-healing");
+    return res.json();
+  },
+  async getEvolutionIdeas(): Promise<any> {
+    const res = await fetch("/api/swarm/evolution-ideas", { method: "POST" });
+    if (!res.ok) throw new Error("Failed to fetch evolution ideas");
+    return res.json();
+  },
+  async runSwarmSelfUpgrade(upgradeData: any): Promise<any> {
+    const res = await fetch("/api/swarm/self-upgrade", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(upgradeData)
+    });
+    if (!res.ok) throw new Error("Failed to run self upgrade");
     return res.json();
   },
 };

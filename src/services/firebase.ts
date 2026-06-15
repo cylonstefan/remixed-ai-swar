@@ -1,10 +1,24 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { getFirestore, collection, query, orderBy, limit, onSnapshot, setLogLevel } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+try { setLogLevel('silent'); } catch (e) {}
+
+let dbInstance: any = null;
+export const db = (() => {
+  try {
+    const dbId = (firebaseConfig as any).firestoreDatabaseId;
+    dbInstance = dbId ? getFirestore(app, dbId) : getFirestore(app);
+    return dbInstance;
+  } catch (error) {
+    console.warn("Firestore log init failed, attempting re-initialization...", error);
+    dbInstance = getFirestore(app);
+    return dbInstance;
+  }
+})();
+
 export const auth = getAuth();
 
 export interface LogEntry {

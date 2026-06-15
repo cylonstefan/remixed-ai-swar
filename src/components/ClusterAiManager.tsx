@@ -11,6 +11,11 @@ export const ClusterAiManager = () => {
   const [nodes, setNodes] = useState<ClusterNode[]>([]);
   const [mcpServers, setMcpservers] = useState<MCPServer[]>([]);
   const [loading, setLoading] = useState(false);
+  const [autoBalanceEnabled, setAutoBalanceEnabled] = useState(() => {
+    return localStorage.getItem('cluster_auto_balance_enabled') === 'true';
+  });
+  const [isBalancing, setIsBalancing] = useState(false);
+  const isBalancingRef = React.useRef(false);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,21 +27,58 @@ export const ClusterAiManager = () => {
   };
 
   useEffect(() => {
+    let interval: NodeJS.Timeout;
+    const fetchData = () => {
+      setLoading(true);
+      Promise.all([
+        api.getClusters(),
+        api.getMCPServers ? api.getMCPServers() : Promise.resolve([])
+      ]).then(([nodesRes, mcpRes]) => {
+        const clusterNodes = nodesRes || [];
+        setNodes(clusterNodes);
+        setMcpservers(mcpRes || []);
+
+        if (autoBalanceEnabled && clusterNodes.length > 0 && !isBalancingRef.current && isAuthenticated) {
+          const onlineNodes = clusterNodes.filter((node: any) => node.status === 'online');
+          const overloadedNodes = onlineNodes.filter((n: any) => (n.cpuUsage || 0) > 90);
+          
+          if (overloadedNodes.length > 0 && onlineNodes.length > 1) {
+            isBalancingRef.current = true;
+            setIsBalancing(true);
+            console.log(`[Auto-Balance] Wykryto obciążenie > 90% na ${overloadedNodes.length} węzłach. Uruchamiam Load Balancer (least-loaded) w celu redystrybucji zadań...`);
+            
+            api.runLoadBalancer({
+              strategy: 'least-loaded',
+              availableCores: 8,
+              reassignTasks: true,
+              reassignProcesses: true
+            }).then(res => {
+              if (res && res.success) {
+                console.log("[Auto-Balance] Sukces: Pomyślnie zredystrybuowano zadania klastra.");
+              }
+            }).catch(err => {
+              console.error("[Auto-Balance] Błąd redystrybucji:", err);
+            }).finally(() => {
+              isBalancingRef.current = false;
+              setIsBalancing(false);
+            });
+          }
+        }
+      }).catch(err => {
+        console.error("Failed to fetch Cluster AI data:", err);
+      }).finally(() => {
+        if (!isBalancingRef.current) setLoading(false);
+      });
+    };
+
     if (isAuthenticated) {
-        setLoading(true);
-        Promise.all([
-            api.getClusters(),
-            api.getMCPServers ? api.getMCPServers() : Promise.resolve([])
-        ]).then(([nodesRes, mcpRes]) => {
-            setNodes(nodesRes || []);
-            setMcpservers(mcpRes || []);
-        }).catch(err => {
-            console.error("Failed to fetch Cluster AI data:", err);
-        }).finally(() => {
-            setLoading(false);
-        });
+      fetchData();
+      interval = setInterval(fetchData, 3000); // Polling co 3 sekundy
     }
-  }, [isAuthenticated]);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isAuthenticated, autoBalanceEnabled]);
 
   if (!isAuthenticated) {
     return (
@@ -131,9 +173,31 @@ export const ClusterAiManager = () => {
         
         {/* Topology */}
         <div className="md:col-span-2 bg-black/40 p-6 rounded-2xl border border-white/5">
-            <h3 className="flex items-center gap-2 text-lg font-bold text-white mb-4">
-                <Network className="text-emerald-500" /> Topologia Sieci Klastra
-            </h3>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
+              <h3 className="flex items-center gap-2 text-lg font-bold text-white">
+                  <Network className="text-emerald-500" /> Topologia Sieci Klastra
+              </h3>
+              
+              <label className="flex items-center gap-2.5 cursor-pointer bg-white/5 px-4 py-2 rounded-xl border border-white/10 hover:bg-white/10 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={autoBalanceEnabled}
+                  onChange={(e) => {
+                    const nextVal = e.target.checked;
+                    setAutoBalanceEnabled(nextVal);
+                    localStorage.setItem('cluster_auto_balance_enabled', String(nextVal));
+                  }}
+                  className="rounded border-sky-500/50 text-sky-500 focus:ring-0 focus:ring-offset-0 bg-sky-500/10"
+                />
+                <span className={cn("text-xs font-mono font-bold", autoBalanceEnabled ? "text-sky-400" : "text-slate-400")}>
+                  AUTO-BALANCE KLASTRA (CPU &gt; 90%)
+                </span>
+                {isBalancing && <span className="flex h-2 w-2 relative ml-1">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
+                </span>}
+              </label>
+            </div>
             <ClusterTopologyGraph nodes={nodes} />
         </div>
       </div>

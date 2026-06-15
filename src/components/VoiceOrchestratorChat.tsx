@@ -62,6 +62,11 @@ export const VoiceOrchestratorChat: React.FC<VoiceOrchestratorChatProps> = ({ se
   const [isSpeechSynthesisOn, setIsSpeechSynthesisOn] = useState(true);
   const [isTalkingEffect, setIsTalkingEffect] = useState(false);
   const [recognition, setRecognition] = useState<any>(null);
+  
+  // Real media recorder states for deep audio transcription
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<BlobPart[]>([]);
+  const lastVoiceBlobRef = useRef<Blob | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -181,15 +186,60 @@ export const VoiceOrchestratorChat: React.FC<VoiceOrchestratorChatProps> = ({ se
     window.speechSynthesis.speak(utterance);
   };
 
-  const toggleRecording = () => {
+  const toggleRecording = async () => {
     if (isRecording) {
-      recognition?.stop();
-    } else {
-      if (!recognition) {
-        alert("Twoja przeglądarka lub system nie posiada wsparcia dla rozpoznawania mowy Web Speech API.");
-        return;
+      setIsRecording(false);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+        mediaRecorderRef.current.stop();
       }
-      recognition.start();
+      if (recognition) {
+        recognition.stop();
+      }
+    } else {
+      setIsRecording(true);
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+        audioChunksRef.current = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            audioChunksRef.current.push(e.data);
+          }
+        };
+
+        mediaRecorder.onstop = async () => {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          if (showToast) showToast("Rozpoczęto zaawansowaną transkrypcję...");
+          try {
+            const text = await api.transcribeAudio(audioBlob);
+            if (text) {
+              lastVoiceBlobRef.current = audioBlob; // Save the raw blob for task memo attachment
+              setInput(prev => prev + (prev.trim() ? " " : "") + text);
+              if (showToast) showToast(`Zrozumiano: "${text}"`);
+              
+              if (isAutoSend) {
+                setTimeout(() => document.getElementById('voice-send-btn')?.click(), 800);
+              }
+            }
+          } catch (e) {
+            console.error("Transcription error:", e);
+            if (showToast) showToast("Błąd głębokiej transkrypcji z serwera");
+          }
+          stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorder.start();
+        
+        // Optionally fallback to WebSpeech for live preview
+        if (recognition) {
+           recognition.start();
+        }
+      } catch (e) {
+        setIsRecording(false);
+        if (showToast) showToast("Brak dostępu do mikrofonu (MediaRecorder)");
+      }
     }
   };
 
@@ -301,6 +351,131 @@ export const VoiceOrchestratorChat: React.FC<VoiceOrchestratorChatProps> = ({ se
     const currentAttached = [...attachedFiles];
     setAttachedFiles([]);
     
+    // Auto-detect task command inputs & upload raw Voice Memo if present
+    const cleanLower = userMessageContent.toLowerCase();
+    const isCreateTaskTrigger = [
+      'create task', 
+      'add task', 
+      'new task', 
+      'dodaj zadanie', 
+      'utwórz zadanie', 
+      'nowe zadanie', 
+      'zadanie', 
+      'nowe zlecenie'
+    ].some(kw => cleanLower.includes(kw));
+
+    const isAssignTrigger = [
+      'assign', 
+      'przypisz', 
+      'przypisać'
+    ].some(kw => cleanLower.includes(kw));
+
+    if (isCreateTaskTrigger || isAssignTrigger) {
+      if (showToast) showToast("Rozpoznano intencję zadania. Analizowanie...");
+      
+      let voiceMemoUrl: string | undefined = undefined;
+      // If there is a recorded audio chunk from Voice Orcherstrator, upload it
+      if (lastVoiceBlobRef.current) {
+        try {
+          if (showToast) showToast("Przesyłanie nagranej notatki głosowej...");
+          const audioFile = new File([lastVoiceBlobRef.current], `voice_memo_${Date.now()}.webm`, { type: 'audio/webm' });
+          const uploadRes = await api.uploadFile(audioFile);
+          voiceMemoUrl = uploadRes.fileUrl;
+        } catch (err) {
+          console.error("Failed to upload voice memo:", err);
+        }
+        // Consume ref
+        lastVoiceBlobRef.current = null;
+      }
+
+      // Extract task title
+      let titleCandidate = userMessageContent;
+      const prefixes = [
+        'create task', 'add task', 'new task', 
+        'dodaj zadanie', 'utwórz zadanie', 'nowe zadanie', 
+        'zadanie', 'nowe zlecenie', 'assign task', 'przypisz zadanie',
+        'assign', 'przypisz'
+      ];
+      
+      for (const prefix of prefixes) {
+        if (cleanLower.includes(prefix)) {
+          const idx = cleanLower.indexOf(prefix);
+          const rawSuffix = userMessageContent.slice(idx + prefix.length).trim();
+          const cleanedSuffix = rawSuffix.replace(/^[:\-\s,\.=]+/g, '').trim();
+          if (cleanedSuffix.length > 2) {
+            titleCandidate = cleanedSuffix;
+            break;
+          }
+        }
+      }
+      
+      let title = titleCandidate;
+      if (title.length > 70) {
+        title = title.substring(0, 67) + '...';
+      }
+
+      // Try assigning to an agent if mentioned
+      let assignedAgentId: string | undefined = undefined;
+      for (const ag of agents) {
+        if (cleanLower.includes(ag.name.toLowerCase())) {
+          assignedAgentId = ag.id;
+          break;
+        }
+      }
+
+      // Determine priority and complexity
+      let priority: 'low' | 'medium' | 'high' = 'medium';
+      if (cleanLower.includes('pilne') || cleanLower.includes('high') || cleanLower.includes('krytyczne') || cleanLower.includes('wysoki')) {
+        priority = 'high';
+      } else if (cleanLower.includes('niski') || cleanLower.includes('low')) {
+        priority = 'low';
+      }
+
+      let complexity: 'low' | 'medium' | 'high' = 'medium';
+      if (cleanLower.includes('trudne') || cleanLower.includes('hard') || cleanLower.includes('skomplikowane')) {
+        complexity = 'high';
+      } else if (cleanLower.includes('proste') || cleanLower.includes('prosty') || cleanLower.includes('easy')) {
+        complexity = 'low';
+      }
+
+      const newTask = {
+        id: 'task-' + Math.random().toString(36).substring(2, 9),
+        title: title || 'Nowe zadanie z konsoli głosowej',
+        status: 'todo' as const,
+        priority,
+        complexity,
+        taskType: 'Voice Activated',
+        assignedAgentId: assignedAgentId || undefined,
+        hints: `Zadanie utworzone automatycznie przez asystenta głosowego na podstawie transkrypcji: "${userMessageContent}"`,
+        createdAt: new Date().toISOString(),
+        dueDate: new Date(Date.now() + 86400000 * 3).toISOString(), // 3 days default
+        dependentOn: [],
+        subtasks: [],
+        voiceMemoUrl
+      };
+
+      try {
+        await api.createTask(newTask);
+        await api.createLog({
+          id: Math.random().toString(36).substring(2, 9),
+          agentId: assignedAgentId,
+          agentName: agents.find(a => a.id === assignedAgentId)?.name || 'CYLON CO-PILOT',
+          action: 'TASK_VOICE_CREATED',
+          details: `Automatycznie wygenerowane zadanie "${newTask.title}". ${voiceMemoUrl ? 'Dołączono notatkę głosową.' : 'Bez nagrania.'}`
+        }).catch(() => {});
+
+        // Load active tasks to update interface state
+        const updatedTasks = await api.getTasks();
+        setTasks(updatedTasks);
+        
+        if (showToast) {
+          showToast(`✓ Pomyślnie utworzono zadanie: "${newTask.title}"`);
+        }
+      } catch (err) {
+        console.error("Voice-triggered task creation error:", err);
+      }
+    }
+
     // 1. Intercept offline text commands for creative images
     if (userMessageContent.startsWith('/image ')) {
       const prompt = userMessageContent.slice(7).trim();

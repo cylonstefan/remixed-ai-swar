@@ -12,7 +12,8 @@ import {
   Mail, Folder, Calendar, MessageSquare, FileSpreadsheet, Play, CheckCircle, 
   CheckSquare, Plus, Trash2, Send, RefreshCw, LogOut, Clock, ExternalLink, 
   Lock, Cloud, BookOpen, Key, Cpu, Sliders, AlertTriangle, AlertCircle, 
-  ChevronRight, ArrowRight, UserCheck, ShieldCheck, Download, Upload, Edit2, Check
+  ChevronRight, ArrowRight, UserCheck, ShieldCheck, Download, Upload, Edit2, Check,
+  Users, Video, Notebook, BoxSelect
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import firebaseConfig from '../../firebase-applet-config.json';
@@ -35,11 +36,15 @@ const SCOPES = [
   'https://www.googleapis.com/auth/spreadsheets',
   'https://www.googleapis.com/auth/presentations',
   'https://www.googleapis.com/auth/tasks',
-  'https://www.googleapis.com/auth/documents'
+  'https://www.googleapis.com/auth/documents',
+  'https://www.googleapis.com/auth/contacts',
+  'https://www.googleapis.com/auth/meet',
+  'https://www.googleapis.com/auth/keep',
+  'https://www.googleapis.com/auth/picker'
 ];
 SCOPES.forEach(scope => provider.addScope(scope));
 
-type WorkspaceTab = 'gmail' | 'drive' | 'chat' | 'calendar' | 'sheets' | 'slides' | 'tasks' | 'docs';
+type WorkspaceTab = 'gmail' | 'drive' | 'chat' | 'calendar' | 'sheets' | 'slides' | 'tasks' | 'docs' | 'contacts' | 'meet' | 'keep' | 'picker';
 
 export const GoogleWorkspaceHub = React.memo(({ showToast }: { showToast: (msg: string) => void }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -873,8 +878,8 @@ export const GoogleWorkspaceHub = React.memo(({ showToast }: { showToast: (msg: 
       </div>
 
       {/* Main SubTab Directory Menu (grid of icons) */}
-      <div className="grid grid-cols-4 md:grid-cols-8 gap-2.5">
-        {(['gmail', 'drive', 'chat', 'calendar', 'sheets', 'slides', 'tasks', 'docs'] as WorkspaceTab[]).map((t) => {
+      <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
+        {(['gmail', 'drive', 'chat', 'calendar', 'sheets', 'slides', 'tasks', 'docs', 'contacts', 'meet', 'keep', 'picker'] as WorkspaceTab[]).map((t) => {
           const isActive = activeSubTab === t;
           let icon = <Mail size={16} />;
           let label = 'Gmail';
@@ -916,6 +921,26 @@ export const GoogleWorkspaceHub = React.memo(({ showToast }: { showToast: (msg: 
             label = 'Docs';
             colorTheme = 'text-blue-400 border-blue-500/20 bg-blue-950/5';
             activeStyles = 'border-blue-500 bg-blue-950/35 text-blue-300 shadow-[0_0_12px_rgba(96,165,250,0.1)]';
+          } else if (t === 'contacts') {
+            icon = <Users size={16} />;
+            label = 'Contacts';
+            colorTheme = 'text-violet-400 border-violet-500/20 bg-violet-950/5';
+            activeStyles = 'border-violet-500 bg-violet-950/35 text-violet-300 shadow-[0_0_12px_rgba(167,139,250,0.1)]';
+          } else if (t === 'meet') {
+            icon = <Video size={16} />;
+            label = 'Meet';
+            colorTheme = 'text-rose-400 border-rose-500/20 bg-rose-950/5';
+            activeStyles = 'border-rose-500 bg-rose-950/35 text-rose-300 shadow-[0_0_12px_rgba(244,63,94,0.1)]';
+          } else if (t === 'keep') {
+            icon = <Notebook size={16} />;
+            label = 'Keep';
+            colorTheme = 'text-yellow-400 border-yellow-500/20 bg-yellow-950/5';
+            activeStyles = 'border-yellow-500 bg-yellow-950/35 text-yellow-300 shadow-[0_0_12px_rgba(250,204,21,0.1)]';
+          } else if (t === 'picker') {
+            icon = <BoxSelect size={16} />;
+            label = 'Picker';
+            colorTheme = 'text-cyan-400 border-cyan-500/20 bg-cyan-950/5';
+            activeStyles = 'border-cyan-500 bg-cyan-950/35 text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.1)]';
           }
 
           return (
@@ -1288,6 +1313,15 @@ export const GoogleWorkspaceHub = React.memo(({ showToast }: { showToast: (msg: 
                     ))
                  )}
               </div>
+            </motion.div>
+          )}
+
+          {/* ======================================================== */}
+          {/* CONTACTS, MEET, KEEP, PICKER SECTIONS (Placeholder) */}
+          {/* ======================================================== */}
+          {(activeSubTab === 'contacts' || activeSubTab === 'meet' || activeSubTab === 'keep' || activeSubTab === 'picker') && (
+            <motion.div key={activeSubTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="p-8 text-center text-slate-500 font-mono text-sm">
+                Integracja {activeSubTab.toUpperCase()} w trakcie orkiestracji...
             </motion.div>
           )}
 

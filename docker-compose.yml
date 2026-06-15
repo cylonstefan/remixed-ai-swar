@@ -1,24 +1,36 @@
-version: '3.8'
-
 services:
-  swarm-os:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: ai-swarm-os:v3.2
-    container_name: ai_swarm_os
-    # Features: MDM Distribution, Vision AI, Chronos Scheduler
+  app:
+    build: .
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - PORT=3000
-      # Pass your Gemini API Key container-side or via an .env file
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    volumes:
-      # Map the SQLite DB file and uploads folder for absolute persistence
-      - ./agents.db:/app/agents.db
-      - ./uploads:/app/uploads
+      - DATABASE_URL=postgresql://app:password@db:5432/taskmanager
+      - OLLAMA_HOST=http://ollama:11434
+    depends_on:
+      - db
+      - ollama
+
+  db:
+    image: postgres:16-alpine
     restart: always
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: taskmanager
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: always
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+volumes:
+  postgres_data:
+  ollama_data:

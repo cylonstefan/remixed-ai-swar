@@ -1,0 +1,92 @@
+335:      await setDoc(doc(collection(firestore, "logs"), id), {
+1127:          const newPrompt = await runLlmWithFallback(systemPrompt, `Zoptymalizuj agenta ${agent.name} do trybu Debugging.`);
+1134:            await saveLog(
+1236:      const aiResp = await getAi().models.generateContent({
+1455:      await saveLog(id, agentId, agentName, action, details);
+1493:        const response = await fetch(searchUrl, { headers: humanHeaders });
+1497:        const html = await response.text();
+1567:            const aiResp = await getAi().models.generateContent({
+1586:        const response = await fetch(url, { headers: humanHeaders });
+1590:        const rawHTML = await response.text();
+1604:            const aiResp = await getAi().models.generateContent({
+2225:    const buffer = await Packer.toBuffer(doc);
+2240:    await workbook.xlsx.writeFile(filePath);
+2289:      let operation = await ai.models.generateVideos({
+2313:      const updated = await ai.operations.getVideosOperation({ operation: op });
+2329:      const updated = await ai.operations.getVideosOperation({ operation: op });
+2341:      const videoRes = await fetch(uri, { headers: { 'x-goog-api-key': apiKey! } });
+2345:      const buffer = Buffer.from(await videoRes.arrayBuffer());
+2511:              const response = await getAi().models.generateContent({
+2566:              const response = await getAi().models.generateContent({
+2585:              const response = await getAi().models.generateImages({
+2705:              const responseStream = await getAi().models.generateContentStream({
+2709:              for await (const chunk of responseStream) {
+2723:              const response = await getAi().models.generateContent({
+2870:          let operation = await getAi().models.generateVideos(payload);
+2872:            await new Promise(resolve => setTimeout(resolve, 5000));
+2873:            operation = await getAi().operations.getVideosOperation({ operation });
+2878:            const videoRes = await fetch(videoUri, {
+2881:            const arrayBuf = await videoRes.arrayBuffer();
+3131:            const response = await getAi().models.generateContent({
+3211:    await saveLog(Math.random().toString(36).substring(2, 11), "cylon-orchestrator-seed", "CYLON CENTRAL ORCHESTRATOR", "WYSYŁANIE_EMAIL", logDetails);
+3237:    await saveLog(Math.random().toString(36).substring(2, 11), "cylon-orchestrator-seed", "CYLON CENTRAL ORCHESTRATOR", "TRANSFER_FTP", logDetails);
+3265:    await saveLog(Math.random().toString(36).substring(2, 11), "cylon-orchestrator-seed", "CYLON CENTRAL ORCHESTRATOR", "PUBLIKACJA_JOOMLA", logDetails);
+4229:      const response = await axios.get(url);
+4238:        const aiResponse = await getAi().models.generateContent({
+4308:      const openAiRes = await fetch(openAiUrl, {
+4318:        const data = await openAiRes.json();
+4340:      const ollamaRes = await fetch(ollamaUrl, {
+4347:        const data = await ollamaRes.json();
+4366:      const rootRes = await fetch(formattedAddress, {
+4698:        const res = await fetch(url);
+4700:        const arrayBuffer = await res.arrayBuffer();
+4749:        const localRes = await fetch(cleanUrl, {
+4765:          const localData = await localRes.json();
+4774:    const response = await getAi().models.generateContent({
+4794:          const apiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+4808:          const data = await apiRes.json();
+4820:          const apiRes = await fetch(`https://api-inference.huggingface.co/models/${modelId}`, {
+4828:          const data = await apiRes.json();
+4947:                const part = await urlToBase64PartOnServer(file.url, file.name);
+4991:          const localRes = await fetch(cleanUrl, {
+5009:          const localData = await localRes.json();
+5042:            const result = await runCmdPromise();
+5109:      const response = await getAi().models.generateContent({
+5157:                  const part = await urlToBase64PartOnServer(f.url, f.name);
+5213:          const localRes = await fetch(cleanUrl, {
+5234:            const data = await localRes.json();
+5261:          const apiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+5275:          const data = await apiRes.json();
+5291:          const apiRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+5305:          const data = await apiRes.json();
+5326:          const apiRes = await fetch(`https://api-inference.huggingface.co/models/${metaModel}`, {
+5336:          const data = await apiRes.json();
+5386:      const response = await getAi().models.generateContent({
+5425:      const responseText = await runLlmWithFallback(systemPrompt, `Użytkownik mówi: ${prompt}`);
+5436:      const response = await getAi().models.generateContent({
+5460:      const response = await getAi().models.generateContent({
+5483:      const response = await getAi().models.generateContent({
+5497:      const response = await getAi().models.generateContent({
+5514:      const response = await getAi().models.generateContent({
+5533:      let operation = await getAi().models.generateVideos({
+5544:        await new Promise(resolve => setTimeout(resolve, 5000));
+5545:        operation = await getAi().operations.getVideosOperation({ operation: operation });
+5551:      const response = await fetch(videoUri, {
+5556:      const arrayBuffer = await response.arrayBuffer();
+5582:        const imgRes = await fetch(imageUrl);
+5583:        const arrayBuffer = await imgRes.arrayBuffer();
+5588:      let operation = await getAi().models.generateVideos({
+5598:        await new Promise(resolve => setTimeout(resolve, 5000));
+5599:        operation = await getAi().operations.getVideosOperation({ operation: operation });
+5605:      const resVideo = await fetch(videoUri, {
+5610:      const arrayBuffer = await resVideo.arrayBuffer();
+5639:      const responseText = await runLlmWithFallback(systemPrompt, `Cel zadania: "${goal}"`);
+5674:      const responseText = await runLlmWithFallback(systemPrompt, `Zadanie: "${task}"`);
+5690:      const responseText = await runLlmWithFallback(prompt, `Zoptymalizuj ten prompt: ${systemPrompt}`);
+5705:      const responseText = await runLlmWithFallback(systemPrompt, `Nazwa agenta: "${name}", Rola: "${role}"`);
+5816:      const response = await ai.models.generateContent({
+6002:      const response = await fetch(ollamaUrl).catch(() => null);
+6005:        const data = await response.json();
+6011:        const lmResponse = await fetch(lmStudioUrl, {
+6016:          const data = await lmResponse.json();
+6534:    const vite = await createViteServer({

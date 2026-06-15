@@ -94,6 +94,7 @@ export interface Task {
   googleTaskId?: string;
   assignedAgentId?: string;
   teamId?: string; // New field
+  voiceMemoUrl?: string;
 }
 
 export interface Log {
@@ -126,6 +127,7 @@ export interface ClusterNode {
   type: 'worker' | 'manager';
   lastSeen: string;
   lastActive?: string;
+  maintenanceMode?: boolean;
   cpuUsage?: number;
   ramUsage?: number;
   latency?: number;
